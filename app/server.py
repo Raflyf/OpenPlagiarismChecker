@@ -22,17 +22,33 @@ os.makedirs(app.config['REPORT_FOLDER'], exist_ok=True)
 results_db = {}
 
 def process_document(file_id, filepath, exclude_quotes=True, exclude_biblio=True, exclude_small=False):
+    def set_progress(pct, msg):
+        if file_id in results_db:
+            results_db[file_id]['progress'] = pct
+            results_db[file_id]['message'] = msg
+
     try:
+        set_progress(5, "Mengekstrak teks dari PDF...")
         print(f"[!] Mulai ekstraksi teks dari: {filepath}")
         doc_text = extract_text_from_pdf(filepath, exclude_quotes, exclude_biblio)
         sentences = get_sentences(doc_text)
         
+        def ddg_progress(completed, total):
+            pct = 5 + int((completed / total) * 35) # 5% to 40%
+            set_progress(pct, f"Mencari web ({completed}/{total})...")
+            
         print(f"[!] Mencari kandidat dari web...")
-        urls = get_candidate_urls(sentences, max_probes=120)
+        urls = get_candidate_urls(sentences, max_probes=120, progress_cb=ddg_progress)
         
+        def scrape_progress(completed, total):
+            pct = 40 + int((completed / total) * 40) # 40% to 80%
+            if total == 0: pct = 80
+            set_progress(pct, f"Mengunduh isi web ({completed}/{total})...")
+            
         print(f"[!] Mengunduh teks dari {len(urls)} kandidat...")
-        corpus = scrape_all_candidates(urls)
+        corpus = scrape_all_candidates(urls, progress_cb=scrape_progress)
         
+        set_progress(85, "Menghitung kemiripan (Algoritma N-Gram)...")
         print("[!] Menghitung similaritas dengan algoritma N-Gram Shingling...")
         sorted_sources, total_similarity, plagiarized_sentences = calculate_similarity(doc_text, corpus, exclude_small)
         
@@ -43,12 +59,15 @@ def process_document(file_id, filepath, exclude_quotes=True, exclude_biblio=True
             'plagiarized_sentences': plagiarized_sentences
         }
         
+        set_progress(95, "Membangun Laporan PDF...")
         print("[!] Membangun PDF Report...")
         report_pdf_path = os.path.join(app.config['REPORT_FOLDER'], f"{file_id}_report.pdf")
         generate_report_pdf(filepath, report_pdf_path, data)
         
         results_db[file_id] = {
             'status': 'completed',
+            'progress': 100,
+            'message': 'Selesai.',
             'data': data
         }
         print(f"[!] Selesai. Hasil: {total_similarity}%")
@@ -83,7 +102,11 @@ def upload_file():
         filepath = os.path.join(app.config['UPLOAD_FOLDER'], f"{file_id}.pdf")
         file.save(filepath)
         
-        results_db[file_id] = {'status': 'processing'}
+        results_db[file_id] = {
+            'status': 'processing', 
+            'progress': 0, 
+            'message': 'Memulai proses...'
+        }
         thread = threading.Thread(target=process_document, args=(file_id, filepath, exclude_quotes, exclude_biblio, exclude_small), daemon=True)
         thread.start()
         

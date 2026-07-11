@@ -239,8 +239,17 @@
 
 <div class="loading-overlay" id="loadingOverlay">
     <div class="loader"></div>
-    <h3 style="color: #333; margin: 0;">Memproses Dokumen...</h3>
-    <p style="color: #666; font-size: 14px;">Mesin sedang mencari kecocokan ke ratusan sumber web.</p>
+    <h3 style="color: #333; margin: 0;" id="loadingTitle">Memproses Dokumen...</h3>
+    <p style="color: #666; font-size: 14px;" id="loadingSubtitle">Mesin sedang mencari kecocokan ke ratusan sumber web.</p>
+    
+    <div style="width: 80%; max-width: 400px; background-color: #e5e7eb; border-radius: 10px; margin-top: 20px; overflow: hidden; display: none;" id="progressContainer">
+        <div id="progressBar" style="width: 0%; height: 20px; background-color: #f97316; transition: width 0.3s ease;"></div>
+    </div>
+    
+    <div style="display: flex; justify-content: space-between; width: 80%; max-width: 400px; margin-top: 8px; display: none;" id="progressTextContainer">
+        <span id="progressText" style="color: #666; font-size: 13px; font-weight: bold;">0%</span>
+        <span id="timerText" style="color: #ef4444; font-size: 13px; font-weight: bold;">0 detik</span>
+    </div>
 </div>
 
 <script>
@@ -298,6 +307,9 @@
         document.getElementById('fileCount').innerText = '0';
     }
 
+    let checkInterval;
+    let timerInterval;
+
     function uploadFile() {
         if (!selectedFile) return;
 
@@ -308,6 +320,15 @@
         formData.append('exclude_small', document.getElementById('chkKecil').checked);
 
         document.getElementById('loadingOverlay').style.display = 'flex';
+        document.getElementById('progressContainer').style.display = 'block';
+        document.getElementById('progressTextContainer').style.display = 'flex';
+        
+        let timerSeconds = 0;
+        document.getElementById('timerText').innerText = timerSeconds + " detik";
+        timerInterval = setInterval(() => {
+            timerSeconds++;
+            document.getElementById('timerText').innerText = timerSeconds + " detik";
+        }, 1000);
 
         fetch('/upload', {
             method: 'POST',
@@ -316,6 +337,7 @@
         .then(response => response.json())
         .then(data => {
             if (data.error) {
+                clearInterval(timerInterval);
                 alert(data.error);
                 location.reload();
             } else {
@@ -323,26 +345,40 @@
             }
         })
         .catch(error => {
+            clearInterval(timerInterval);
             alert('Error uploading file');
             location.reload();
         });
     }
 
     function checkStatus(file_id) {
-        const interval = setInterval(() => {
+        checkInterval = setInterval(() => {
             fetch(`/status/${file_id}`)
             .then(response => response.json())
             .then(data => {
-                if (data.status === 'completed') {
-                    clearInterval(interval);
+                if (data.status === 'processing') {
+                    if (data.progress !== undefined) {
+                        document.getElementById('progressBar').style.width = data.progress + '%';
+                        document.getElementById('progressText').innerText = data.progress + '%';
+                    }
+                    if (data.message) {
+                        document.getElementById('loadingSubtitle').innerText = data.message;
+                    }
+                } else if (data.status === 'completed') {
+                    clearInterval(checkInterval);
+                    clearInterval(timerInterval);
+                    document.getElementById('progressBar').style.width = '100%';
+                    document.getElementById('progressText').innerText = '100%';
+                    document.getElementById('loadingSubtitle').innerText = 'Selesai. Membuka laporan...';
                     window.location.href = `/report/${file_id}`;
                 } else if (data.status === 'error') {
-                    clearInterval(interval);
+                    clearInterval(checkInterval);
+                    clearInterval(timerInterval);
                     alert("Error processing file: " + data.message);
                     location.reload();
                 }
             });
-        }, 3000);
+        }, 1000); // Polling lebih cepat menjadi 1 detik untuk realtime UI
     }
 </script>
 

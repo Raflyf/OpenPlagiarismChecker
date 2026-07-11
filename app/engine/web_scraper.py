@@ -25,19 +25,21 @@ def fetch_probe(probe):
         pass
     return urls_found
 
-def get_candidate_urls(sentences, max_probes=120):
+def get_candidate_urls(sentences, max_probes=120, progress_cb=None):
     """Mencari kandidat URL jurnal/referensi menggunakan sampel kalimat"""
     probes = random.sample(sentences, min(len(sentences), max_probes))
     urls = set()
     
     print(f"Mencari kandidat URL dari {len(probes)} sampel kalimat (Multi-Threading Cepat)...")
     
-    # Gunakan 8 pekerja paralel untuk mencari di mesin pencari.
-    # Waktu akan terpangkas drastis dari ~5 menit menjadi kurang dari 1 menit
-    with ThreadPoolExecutor(max_workers=8) as executor:
-        results = executor.map(fetch_probe, probes)
-        for res_urls in results:
-            urls.update(res_urls)
+    import concurrent.futures
+    with concurrent.futures.ThreadPoolExecutor(max_workers=8) as executor:
+        futures = [executor.submit(fetch_probe, p) for p in probes]
+        total = len(futures)
+        for i, future in enumerate(concurrent.futures.as_completed(futures)):
+            urls.update(future.result())
+            if progress_cb:
+                progress_cb(i + 1, total)
             
     print(f"Berhasil mengumpulkan {len(urls)} kandidat URL.")
     return list(urls)
@@ -62,15 +64,20 @@ def scrape_url(url):
         pass
     return url, ""
 
-def scrape_all_candidates(urls):
+def scrape_all_candidates(urls, progress_cb=None):
     """Mengeksekusi multi-threading untuk mendownload isi artikel dari web"""
     corpus = {}
     print(f"Mengunduh isi dari {len(urls)} sumber web secara paralel...")
     
-    with ThreadPoolExecutor(max_workers=40) as executor:
-        results = executor.map(scrape_url, urls)
-        for url, text in results:
+    import concurrent.futures
+    with concurrent.futures.ThreadPoolExecutor(max_workers=40) as executor:
+        futures = [executor.submit(scrape_url, u) for u in urls]
+        total = len(futures)
+        for i, future in enumerate(concurrent.futures.as_completed(futures)):
+            url, text = future.result()
             if len(text) > 100: # Hanya simpan web yang memiliki konten valid
                 corpus[url] = text
+            if progress_cb:
+                progress_cb(i + 1, total)
                 
     return corpus
