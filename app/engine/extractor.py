@@ -27,7 +27,8 @@ def clean_text(text, exclude_quotes=True, exclude_biblio=True):
     
     if exclude_quotes:
         # Hilangkan kutipan langsung ("...")
-        text = re.sub(r'".*?"', '', text)
+        # Tambahkan dukungan untuk kutipan lengkung Microsoft Word (“ dan ”)
+        text = re.sub(r'["“”].*?["“”]', '', text)
     
     return text
 
