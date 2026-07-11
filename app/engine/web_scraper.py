@@ -1,9 +1,13 @@
 import time
 import random
 import requests
-from bs4 import BeautifulSoup
+import warnings
+from bs4 import BeautifulSoup, XMLParsedAsHTMLWarning
 from concurrent.futures import ThreadPoolExecutor
 from ddgs import DDGS
+
+# Sembunyikan peringatan jika situs web yang di-scrape kebetulan berupa XML/RSS
+warnings.filterwarnings("ignore", category=XMLParsedAsHTMLWarning)
 
 def fetch_probe(probe):
     """Mencari satu probe ke DuckDuckGo"""
