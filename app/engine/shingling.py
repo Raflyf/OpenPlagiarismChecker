@@ -13,11 +13,9 @@ def get_sentences(text):
     sentences = re.split(r'(?<=[.!?]) +', text)
     return [s.strip() for s in sentences if len(s.split()) >= 5]
 
-def calculate_similarity(doc_text, corpus, exclude_small=False):
+def calculate_similarity(doc_text, corpus, exclude_small=False, ngram_size=3):
     """Membandingkan seluruh dokumen dengan database web sementara (Scraped Corpus)"""
-    # Kembalikan ke 3-Gram karena ini adalah baseline yang paling stabil secara keseluruhan (seperti yang terbukti di skripsi teman Anda).
-    # Fluktuasi hasil per dokumen adalah hal yang wajar karena ini memindai web terbuka secara live.
-    N_GRAM = 3
+    N_GRAM = ngram_size
     doc_ngrams = set(get_ngrams(doc_text, n=N_GRAM))
     
     if not doc_ngrams:
