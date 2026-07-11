@@ -46,11 +46,18 @@ def calculate_similarity(doc_text, corpus, exclude_small=False):
             # Jika lolos filter, baru ditambahkan ke global pool
             matched_ngrams_global.update(overlap)
             
-            # Tampilkan semua sumber yang memiliki minimal 1 irisan 3-Gram
+            # Berikan prioritas (Priority Multiplier) untuk situs akademik/jurnal/repositori
+            priority = 1.0
+            academic_keywords = ['.ac.id', '.edu', 'jurnal', 'repository', 'scholar', 'researchgate', '123dok', 'scribd.com', 'core.ac.uk', 'digilib', 'eprints']
+            if any(kw in url.lower() for kw in academic_keywords):
+                priority = 5.0  # Boost 5x lipat agar web kampus selalu berada di Ranking Atas
+                
+            # Tampilkan semua sumber yang memiliki minimal 1 irisan N-Gram
             sources_report[url] = {
                 'percentage': match_percentage,
                 'matched_words': int(len(overlap) * N_GRAM),
-                'url': url
+                'url': url,
+                'sort_score': match_percentage * priority
             }
 
     # Hitung total kemiripan keseluruhan (tanpa duplikasi antar sumber)
@@ -60,10 +67,10 @@ def calculate_similarity(doc_text, corpus, exclude_small=False):
     if total_similarity > 100:
         total_similarity = 100.0
 
-    # Urutkan sumber dari plagiat terbesar ke terkecil
+    # Urutkan sumber berdasarkan kombinasi kecocokan dan tingkat prioritas akademis
     sorted_sources = sorted(
         list(sources_report.values()), 
-        key=lambda x: x['percentage'], 
+        key=lambda x: x['sort_score'], 
         reverse=True
     )
 
