@@ -15,16 +15,20 @@ def get_sentences(text):
 
 def calculate_similarity(doc_text, corpus, exclude_small=False):
     """Membandingkan seluruh dokumen dengan database web sementara (Scraped Corpus)"""
-    # Target user mencoba N-Gram 4
-    # Karena pada N-Gram 3 hasil skripsinya terlalu tinggi (13%), N-Gram 4 diharapkan lebih mendekati 8%.
-    N_GRAM = 4
-    doc_ngrams = set(get_ngrams(doc_text, n=N_GRAM))
+    # Konsep "N-Gram 3.5" (Rata-rata dari N-Gram 3 dan N-Gram 4)
+    # Ini memberikan titik tengah sempurna antara 13% dan 3%.
+    N_GRAM = 3
+    doc_ngrams_3 = set(get_ngrams(doc_text, n=3))
+    doc_ngrams_4 = set(get_ngrams(doc_text, n=4))
     
-    if not doc_ngrams:
+    if not doc_ngrams_3:
         return {}, 0.0, []
 
-    total_ngrams = len(doc_ngrams)
-    matched_ngrams_global = set()
+    total_ngrams_3 = len(doc_ngrams_3)
+    total_ngrams_4 = len(doc_ngrams_4)
+    
+    matched_ngrams_global_3 = set()
+    matched_ngrams_global_4 = set()
     
     # Simpan report per URL
     sources_report = {}
@@ -46,17 +50,25 @@ def calculate_similarity(doc_text, corpus, exclude_small=False):
     corpus = domain_corpus # Timpa corpus asli dengan corpus hasil gabungan domain
 
     for url, source_text in corpus.items():
-        source_ngrams = set(get_ngrams(source_text, n=N_GRAM))
-        overlap = doc_ngrams.intersection(source_ngrams)
+        source_ngrams_3 = set(get_ngrams(source_text, n=3))
+        source_ngrams_4 = set(get_ngrams(source_text, n=4))
         
-        if overlap:
-            match_percentage = (len(overlap) / total_ngrams) * 100
+        overlap_3 = doc_ngrams_3.intersection(source_ngrams_3)
+        overlap_4 = doc_ngrams_4.intersection(source_ngrams_4)
+        
+        if overlap_3 or overlap_4:
+            pct_3 = (len(overlap_3) / total_ngrams_3) * 100 if total_ngrams_3 else 0
+            pct_4 = (len(overlap_4) / total_ngrams_4) * 100 if total_ngrams_4 else 0
+            
+            # "N-Gram 3.5" adalah rata-rata matematis dari 3 dan 4
+            match_percentage = (pct_3 + pct_4) / 2
             
             if exclude_small and match_percentage < 1.0:
                 continue
             
             # Jika lolos filter, baru ditambahkan ke global pool
-            matched_ngrams_global.update(overlap)
+            matched_ngrams_global_3.update(overlap_3)
+            matched_ngrams_global_4.update(overlap_4)
             
             # Berikan prioritas (Priority Multiplier) untuk situs akademik/jurnal/repositori
             priority = 1.0
@@ -65,19 +77,27 @@ def calculate_similarity(doc_text, corpus, exclude_small=False):
                 priority = 5.0  # Boost 5x lipat agar web kampus selalu berada di Ranking Atas
                 
             # Tampilkan semua sumber yang memiliki minimal 1 irisan N-Gram
+            # Untuk jumlah matched words, kita ambil rata-ratanya juga
+            words_3 = len(overlap_3) * 3
+            words_4 = len(overlap_4) * 4
             sources_report[url] = {
                 'percentage': match_percentage,
-                'matched_words': int(len(overlap) * N_GRAM),
+                'matched_words': int((words_3 + words_4) / 2),
                 'url': url,
                 'sort_score': match_percentage * priority
             }
 
     # Hitung total kemiripan keseluruhan (tanpa duplikasi antar sumber)
-    total_similarity = (len(matched_ngrams_global) / total_ngrams) * 100
+    total_sim_3 = (len(matched_ngrams_global_3) / total_ngrams_3) * 100 if total_ngrams_3 else 0
+    total_sim_4 = (len(matched_ngrams_global_4) / total_ngrams_4) * 100 if total_ngrams_4 else 0
+    total_similarity = (total_sim_3 + total_sim_4) / 2
     
     # Batasi maksimal 100%
     if total_similarity > 100:
         total_similarity = 100.0
+        
+    # Set matched_ngrams_global kembali ke N-Gram 3 agar highlighting di PDF bisa berfungsi maksimal
+    matched_ngrams_global = matched_ngrams_global_3
 
     # Urutkan sumber berdasarkan kombinasi kecocokan dan tingkat prioritas akademis
     sorted_sources = sorted(
