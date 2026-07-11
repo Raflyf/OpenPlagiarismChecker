@@ -67,6 +67,16 @@ def calculate_similarity(doc_text, corpus, exclude_small=False):
 
     # Mencari kalimat yang plagiat untuk ditampilkan
     # Memerlukan ID sumber agar bisa diwarnai sesuai dengan ranking
+    
+    # PRECOMPUTE: Hitung N-Gram sumber SEKALI SAJA di awal (bukan di setiap loop kalimat)
+    # Batasi ke top-20 sumber terbesar untuk kecepatan maksimal
+    top_sources = sorted_sources[:20]
+    source_ngrams_cache = {}
+    for idx, source in enumerate(top_sources):
+        url = source['url']
+        if url in corpus:
+            source_ngrams_cache[idx] = set(get_ngrams(corpus[url], n=N_GRAM))
+    
     for sentence in doc_sentences:
         s_ngrams = set(get_ngrams(sentence, n=N_GRAM))
         if not s_ngrams:
@@ -80,14 +90,11 @@ def calculate_similarity(doc_text, corpus, exclude_small=False):
             # Cari sumber mana yang paling banyak beririsan dengan kalimat ini
             best_source_id = -1
             best_overlap = 0
-            for idx, source in enumerate(sorted_sources):
-                url = source['url']
-                if url in corpus:
-                    src_ngrams = set(get_ngrams(corpus[url], n=N_GRAM))
-                    overlap_len = len(s_ngrams.intersection(src_ngrams))
-                    if overlap_len > best_overlap:
-                        best_overlap = overlap_len
-                        best_source_id = idx + 1 # 1-indexed for Turnitin colors
+            for idx, cached_ngrams in source_ngrams_cache.items():
+                overlap_len = len(s_ngrams.intersection(cached_ngrams))
+                if overlap_len > best_overlap:
+                    best_overlap = overlap_len
+                    best_source_id = idx + 1 # 1-indexed for Turnitin colors
             
             if best_source_id != -1:
                 plagiarized_sentences_data.append({
