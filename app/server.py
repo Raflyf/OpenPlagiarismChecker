@@ -158,6 +158,9 @@ if __name__ == '__main__':
             ngrok.kill()
         except:
             pass
+        
+        # Eksekusi pemusnahan diri paksa dari tingkat OS untuk menghindari Ghost Process
+        os.system(f"taskkill /F /PID {os.getpid()} >nul 2>&1")
         os._exit(0)
     
     signal.signal(signal.SIGINT, on_ctrl_c)
