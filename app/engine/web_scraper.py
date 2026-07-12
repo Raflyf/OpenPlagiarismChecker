@@ -16,7 +16,7 @@ def fetch_semantic_scholar(probe):
         url = "https://api.semanticscholar.org/graph/v1/paper/search"
         short_probe = " ".join(probe.split()[:15])
         params = {
-            "query": f'"{short_probe}"',
+            "query": short_probe,
             "limit": 5,
             "fields": "title,abstract,url"
         }
@@ -45,7 +45,7 @@ def fetch_crossref(probe):
         url = "https://api.crossref.org/works"
         short_probe = " ".join(probe.split()[:15])
         params = {
-            "query": f'"{short_probe}"',
+            "query": short_probe,
             "select": "URL,title,abstract",
             "rows": 15,
             "mailto": "research_turnitin_local@university.edu"
@@ -79,7 +79,7 @@ def fetch_openalex(probe):
         url = "https://api.openalex.org/works"
         short_probe = " ".join(probe.split()[:15])
         params = {
-            "search": f'"{short_probe}"',
+            "search": short_probe,
             "per_page": 5,
             "mailto": "research_turnitin_local@university.edu"
         }
@@ -104,7 +104,7 @@ def fetch_google_scholar(probe):
     try:
         import urllib.parse
         short_probe = " ".join(probe.split()[:15])
-        query = urllib.parse.quote(f'"{short_probe}"')
+        query = urllib.parse.quote(short_probe)
         target_url = f"https://scholar.google.com/scholar?q={query}"
         
         scrapingbee_key = "8IP8RZJY253EBD63MNWTQYSVPAAOKCOJ0TTZ3D6A8JMEXD2W6OSV5M75COHT4P0KSRG6FMAAQ41GG7U9"
@@ -135,7 +135,7 @@ def fetch_garuda(probe):
     try:
         import urllib.parse
         short_probe = " ".join(probe.split()[:15])
-        query = urllib.parse.quote(f'"{short_probe}"')
+        query = urllib.parse.quote(short_probe)
         target_url = f"https://garuda.kemdikbud.go.id/documents?q={query}"
         
         scraperapi_key = "1d38c8aa7ea146522ff27ff5415fef02"
