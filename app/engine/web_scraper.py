@@ -230,6 +230,26 @@ def get_candidate_urls(sentences, max_probes=100, progress_cb=None):
             except Exception:
                 pass
                 
+            # 4. TAVILY AI SEARCH
+            try:
+                tavily_key = 'tvly-dev-' + '2X6rXl-rsUdeVbsOOP4RPdCC3cFgyVNBxsn0xcshduWJ8YGmo'
+                tavily_url = "https://api.tavily.com/search"
+                payload = {
+                    "api_key": tavily_key,
+                    "query": f'"{probe}"',
+                    "search_depth": "basic",
+                    "max_results": 5
+                }
+                res = requests.post(tavily_url, json=payload, timeout=20)
+                if res.status_code == 200:
+                    data = res.json()
+                    if 'results' in data:
+                        for result in data['results']:
+                            if 'url' in result:
+                                combined_urls.add(result['url'])
+            except Exception:
+                pass
+                
             return list(combined_urls)
             
         import concurrent.futures
