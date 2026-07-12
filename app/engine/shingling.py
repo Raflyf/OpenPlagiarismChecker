@@ -87,13 +87,13 @@ def calculate_similarity(doc_text, corpus, exclude_small=False):
 
     # 4. Kombinasi Skor (Ensemble)
     for i, url in enumerate(corpus_urls):
-        tfidf_score = cosine_sims[i] * 100
-        semantic_score = semantic_sims[i] * 100
+        tfidf_score = float(cosine_sims[i] * 100)
+        semantic_score = float(semantic_sims[i] * 100)
         
         # Skor akhir adalah skor tertinggi (TF-IDF vs AI)
         # Jika copy-paste identik -> TF-IDF akan tinggi (100%)
         # Jika diubah struktur kalimatnya (parafrase) -> Semantic akan tinggi
-        final_percentage = max(tfidf_score, semantic_score)
+        final_percentage = float(max(tfidf_score, semantic_score))
         
         # Penyesuaian agar tidak terlalu sensitif untuk similarity rendah
         if final_percentage < 3.0:
@@ -110,10 +110,10 @@ def calculate_similarity(doc_text, corpus, exclude_small=False):
                 priority = 2.0
                 
             sources_report[url] = {
-                'percentage': min(100.0, final_percentage),
+                'percentage': float(min(100.0, final_percentage)),
                 'matched_words': int((final_percentage/100) * len(doc_text.split())),
                 'url': url,
-                'sort_score': final_percentage * priority
+                'sort_score': float(final_percentage * priority)
             }
 
     # Urutkan berdasarkan sort_score tertinggi
