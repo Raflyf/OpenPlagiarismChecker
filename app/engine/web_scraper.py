@@ -161,7 +161,7 @@ def get_candidate_urls(sentences, max_probes=100, progress_cb=None):
                     'model': 'sonar',
                     'messages': [
                         {'role': 'system', 'content': 'Find the exact academic journal or repository source for this text. Return URLs in citations.'},
-                        {'role': 'user', 'content': f'Find exact source for: {probe}. Prioritize PDF files (ext:pdf) and academic repos (site:ac.id).'}
+                        {'role': 'user', 'content': f'Find exact source for: {probe}. Prioritize repository.bsi.ac.id, ejurnal.seminar-id.com, repository.umsu.ac.id, etheses.uin-malang.ac.id, ejournal.itn.ac.id, and PDF files.'}
                     ]
                 }
                 res = requests.post(url_api, json=payload, headers=headers, timeout=20)
@@ -193,7 +193,7 @@ def get_candidate_urls(sentences, max_probes=100, progress_cb=None):
                     client = genai.Client(api_key=gemini_keys[key_index])
                     response = client.models.generate_content(
                         model='gemini-2.5-flash',
-                        contents=f'Find the exact academic journal URL source for: {probe} (Use search operators like ext:pdf or site:ac.id)',
+                        contents=f'Find the exact academic journal URL source for: {probe}. Prioritize repository.bsi.ac.id, ejurnal.seminar-id.com, repository.umsu.ac.id, etheses.uin-malang.ac.id, ejournal.itn.ac.id, or site:ac.id',
                         config=types.GenerateContentConfig(
                             tools=[{'google_search': {}}],
                             temperature=0.0
@@ -217,7 +217,7 @@ def get_candidate_urls(sentences, max_probes=100, progress_cb=None):
                     "Content-Type": "application/json"
                 }
                 payload = {
-                    "message": f'Find the exact academic journal URL source for: "{probe}". Focus on Indonesian repositories (site:ac.id) and PDF documents.',
+                    "message": f'Find the exact URL source for: "{probe}". Focus on repository.bsi.ac.id, ejurnal.seminar-id.com, repository.umsu.ac.id, etheses.uin-malang.ac.id, ejournal.itn.ac.id',
                     "model": "command-r-plus",
                     "connectors": [{"id": "web-search"}],
                     "temperature": 0.0
@@ -238,7 +238,7 @@ def get_candidate_urls(sentences, max_probes=100, progress_cb=None):
                 tavily_url = "https://api.tavily.com/search"
                 payload = {
                     "api_key": tavily_key,
-                    "query": f'"{probe}" site:ac.id OR ext:pdf',
+                    "query": f'"{probe}" site:repository.bsi.ac.id OR site:ejurnal.seminar-id.com OR site:repository.umsu.ac.id OR site:etheses.uin-malang.ac.id OR site:ejournal.itn.ac.id',
                     "search_depth": "basic",
                     "max_results": 5
                 }
