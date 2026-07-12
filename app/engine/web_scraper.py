@@ -172,13 +172,20 @@ def get_candidate_urls(sentences, max_probes=100, progress_cb=None):
             except Exception:
                 pass
                 
-            # 2. GEMINI AI GROUNDING (Dibatasi 15 kalimat agar lolos Rate Limit 15 RPM)
-            if idx < 15:
-                try:
+            # 2. GEMINI AI GROUNDING (Sistem Load Balancer - 15 RPM per Key)
+            try:
+                gemini_keys = [
+                    'AQ.' + 'Ab8RN6KmyC_5p2nNd2RTjI_GP8RH8dRTkiZjlyIe0nWnMreFkA',
+                    # TAMBAHKAN_KEY_DISINI
+                ]
+                
+                # Hanya jalankan jika kita punya cukup kapasitas key untuk index ini
+                if idx < (len(gemini_keys) * 15):
+                    key_index = (idx // 15) % len(gemini_keys)
                     from google import genai
                     from google.genai import types
-                    gemini_key = 'AQ.' + 'Ab8RN6KmyC_5p2nNd2RTjI_GP8RH8dRTkiZjlyIe0nWnMreFkA'
-                    client = genai.Client(api_key=gemini_key)
+                    
+                    client = genai.Client(api_key=gemini_keys[key_index])
                     response = client.models.generate_content(
                         model='gemini-2.5-flash',
                         contents=f'Find the exact academic journal URL source for: {probe}',
