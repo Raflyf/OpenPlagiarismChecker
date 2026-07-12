@@ -400,6 +400,7 @@ def get_candidate_urls(sentences, max_probes=100, progress_cb=None):
 
 def scrape_url(url):
     """Mengekstrak teks mentah dari URL (Website atau PDF) menggunakan AbstractAPI Proxy untuk menembus WAF/Cloudflare"""
+    total_bytes = 0
     try:
         import urllib.parse
         encoded_url = urllib.parse.quote(url)
@@ -411,6 +412,7 @@ def scrape_url(url):
         res = requests.get(proxy_url, timeout=15)
         
         if res.status_code == 200:
+            total_bytes += len(res.content)
             import re
             
             # Deteksi jika file adalah PDF (Banyak repositori kampus langsung mengembalikan file PDF)
@@ -422,7 +424,7 @@ def scrape_url(url):
                 for page in doc:
                     text += page.get_text() + " "
                 text = re.sub(r'\s+', ' ', text).strip()
-                return url, text
+                return url, text, total_bytes
             else:
                 # Parsing HTML biasa (Landing Page Repositori)
                 soup = BeautifulSoup(res.text, 'html.parser')
@@ -452,6 +454,7 @@ def scrape_url(url):
                             
                             # Timeout sangat ketat (10 detik) untuk PDF. Jika server terlalu lemot, lewati!
                             pdf_res = requests.get(proxy_pdf, timeout=10)
+                            total_bytes += len(pdf_res.content)
                             
                             # Verifikasi apakah benar-benar PDF (Magic number %PDF)
                             if 'application/pdf' in pdf_res.headers.get('Content-Type', '').lower() or pdf_res.content.startswith(b'%PDF'):
@@ -471,10 +474,10 @@ def scrape_url(url):
                 text = soup.get_text(separator=' ')
                 text = text + " " + pdf_text
                 text = re.sub(r'\s+', ' ', text).strip()
-                return url, text
+                return url, text, total_bytes
     except:
         pass
-    return url, ""
+    return url, "", total_bytes
 
 def scrape_all_candidates(urls, preloaded_corpus, progress_cb=None):
     """Mengeksekusi multi-threading untuk mengunduh web, lalu digabung dengan preloaded_corpus (Jurnal API)"""
@@ -491,12 +494,14 @@ def scrape_all_candidates(urls, preloaded_corpus, progress_cb=None):
     import concurrent.futures
     import time
     start_time = time.time()
+    total_downloaded_bytes = 0
     with concurrent.futures.ThreadPoolExecutor(max_workers=40) as executor:
         futures = [executor.submit(scrape_url, u) for u in urls]
         total = len(futures)
         for i, future in enumerate(concurrent.futures.as_completed(futures)):
             try:
-                url, text = future.result()
+                url, text, downloaded_bytes = future.result()
+                total_downloaded_bytes += downloaded_bytes
                 if len(text) > 150: # Validasi panjang minimal teks
                     corpus[url] = text
             except:
@@ -504,7 +509,12 @@ def scrape_all_candidates(urls, preloaded_corpus, progress_cb=None):
             
             if progress_cb:
                 elapsed = time.time() - start_time
-                speed = (i + 1) / elapsed if elapsed > 0 else 0
-                progress_cb(i + 1, total, speed)
+                speed_mbps = (total_downloaded_bytes / (1024 * 1024)) / elapsed if elapsed > 0 else 0
+                if speed_mbps < 1.0:
+                    speed_kbps = (total_downloaded_bytes / 1024) / elapsed if elapsed > 0 else 0
+                    speed_str = f"{speed_kbps:.1f} KB/s"
+                else:
+                    speed_str = f"{speed_mbps:.2f} MB/s"
+                progress_cb(i + 1, total, speed_str)
                 
     return corpus

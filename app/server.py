@@ -42,10 +42,10 @@ def process_document(file_id, filepath, original_filename, exclude_quotes=True, 
         # Mode Deep Search: 35 Sampel (Mewakili seluruh bab 1 s/d 5)
         urls, preloaded_corpus = get_candidate_urls(sentences, max_probes=35, progress_cb=ddg_progress)
         
-        def scrape_progress(completed, total, speed=0):
+        def scrape_progress(completed, total, speed="0 KB/s"):
             pct = 40 + int((completed / total) * 40) # 40% to 80%
             if total == 0: pct = 80
-            speed_text = f" ({speed:.1f} file/detik)" if speed > 0 else ""
+            speed_text = f" ({speed})" if speed != "0 KB/s" else ""
             set_progress(pct, f"Mengunduh isi web ({completed}/{total}){speed_text}...")
             
         print(f"[!] Mengunduh teks dari {len(urls)} kandidat...")
