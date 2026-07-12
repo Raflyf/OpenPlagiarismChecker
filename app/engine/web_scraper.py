@@ -88,8 +88,14 @@ def fetch_ddgs(probe):
         for res in list(results):
             if 'href' in res and not res['href'].endswith('.pdf'):
                 url = res['href'].lower()
-                # Deteksi domain prioritas tinggi ala Turnitin
-                if any(domain in url for domain in ['.ac.id', '.edu', 'jurnal', 'repository', 'eprints', '123dok', 'core.ac.uk', 'scribd', 'researchgate', 'digilib', 'scholar']):
+                # Deteksi domain prioritas tinggi ala Turnitin (berdasarkan referensi PDF Asli)
+                priority_keywords = [
+                    '.ac.id', '.edu', 'jurnal', 'journal', 'ejurnal', 'repository', 
+                    'repositori', 'repo.', 'eprints', 'etheses', 'dspace', '123dok', 
+                    'core.ac.uk', 'scribd', 'slideshare', 'docplayer', 'doku.pub', 
+                    'researchgate', 'digilib', 'scholar', 'doaj.org'
+                ]
+                if any(kw in url for kw in priority_keywords):
                     priority_urls.append(res['href'])
                 else:
                     normal_urls.append(res['href'])
