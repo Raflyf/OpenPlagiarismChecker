@@ -143,29 +143,35 @@ def get_candidate_urls(sentences, max_probes=100, progress_cb=None):
     urls = set()
     preloaded_corpus = {}
     
-    print(f"[API] Meluncurkan Perplexity AI (Sonar) untuk 100 kalimat paling unik...")
+    print(f"[API] Meluncurkan Perplexity AI & Google Gemini untuk 100 kalimat paling unik...")
     try:
         def fetch_pplx(probe):
-            url_api = 'https://api.perplexity.ai/chat/completions'
-            api_key = "pplx-" + "3VSlkCtWU9mFCb5CWFaf64FiPNwp36oFq7p0bUQ2Vf7X7hdh"
-            headers = {
-                'Authorization': f'Bearer {api_key}',
-                'Content-Type': 'application/json'
-            }
-            payload = {
-                'model': 'sonar',
-                'messages': [
-                    {'role': 'system', 'content': 'Find the exact academic journal or repository source for this text. Return URLs in citations.'},
-                    {'role': 'user', 'content': f'Find exact source for: {probe}'}
-                ]
-            }
-            res = requests.post(url_api, json=payload, headers=headers, timeout=20)
-            if res.status_code == 200:
-                data = res.json()
-                pplx_urls = data.get('citations', [])
-                if pplx_urls: return pplx_urls
+            combined_urls = set()
+            
+            # 1. PERPLEXITY AI
+            try:
+                url_api = 'https://api.perplexity.ai/chat/completions'
+                api_key = "pplx-" + "3VSlkCtWU9mFCb5CWFaf64FiPNwp36oFq7p0bUQ2Vf7X7hdh"
+                headers = {
+                    'Authorization': f'Bearer {api_key}',
+                    'Content-Type': 'application/json'
+                }
+                payload = {
+                    'model': 'sonar',
+                    'messages': [
+                        {'role': 'system', 'content': 'Find the exact academic journal or repository source for this text. Return URLs in citations.'},
+                        {'role': 'user', 'content': f'Find exact source for: {probe}'}
+                    ]
+                }
+                res = requests.post(url_api, json=payload, headers=headers, timeout=20)
+                if res.status_code == 200:
+                    data = res.json()
+                    for u in data.get('citations', []):
+                        combined_urls.add(u)
+            except Exception:
+                pass
                 
-            # FALLBACK KE GEMINI JIKA PERPLEXITY GAGAL/HABIS KREDIT
+            # 2. GEMINI AI GROUNDING
             try:
                 from google import genai
                 from google.genai import types
@@ -179,18 +185,16 @@ def get_candidate_urls(sentences, max_probes=100, progress_cb=None):
                         temperature=0.0
                     )
                 )
-                gemini_urls = []
                 if response.candidates:
                     for cand in response.candidates:
                         if cand.grounding_metadata and cand.grounding_metadata.grounding_chunks:
                             for chunk in cand.grounding_metadata.grounding_chunks:
                                 if chunk.web and chunk.web.uri:
-                                    gemini_urls.append(chunk.web.uri)
-                return gemini_urls
+                                    combined_urls.add(chunk.web.uri)
             except Exception:
                 pass
                 
-            return []
+            return list(combined_urls)
             
         import concurrent.futures
         with concurrent.futures.ThreadPoolExecutor(max_workers=3) as executor:
