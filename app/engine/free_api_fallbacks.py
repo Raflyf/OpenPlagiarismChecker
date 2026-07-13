@@ -224,7 +224,7 @@ def search_with_fallbacks(query, use_cache=True):
         'AIzaSyDXq3lXq3lXq3lXq3lXq3lXq3lXq3lXq3l',  # Backup 1
         'AIzaSyDYr4mYr4mYr4mYr4mYr4mYr4mYr4mYr4m',  # Backup 2
     ]
-    cx_id = 'YOUR_CX_ID_HERE'
+    cx_id = '71bc58731f30a4f5d'
     
     all_urls = []
     all_texts = []
