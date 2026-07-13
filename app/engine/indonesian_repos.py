@@ -12,7 +12,9 @@ import time
 INDONESIAN_REPOSITORIES = [
     # Tier 1: BSI dan kampus prioritas
     "https://repository.bsi.ac.id",
-    "https://ejurnal.seminar-id.com",
+    "https://jurnal.bsi.ac.id",
+    "https://staffv2.bsi.ac.id",
+    "https://repository.nusamandiri.ac.id",
     "https://repository.umsu.ac.id", 
     "https://etheses.uin-malang.ac.id",
     "https://ejournal.itn.ac.id",
@@ -20,7 +22,23 @@ INDONESIAN_REPOSITORIES = [
     "https://repository.uinjkt.ac.id",
     "https://eprints.uns.ac.id",
     
-    # Tier 2: Universitas besar Indonesia
+    # Tier 2: Universitas besar Indonesia & Jurnal Turnitin Asli
+    "https://123dok.com",
+    "https://ejurnal.stmik-budidarma.ac.id",
+    "https://repository.um-surabaya.ac.id",
+    "https://ejurnal.lkpkaryaprima.id",
+    "https://jurnal.sttmcileungsi.ac.id",
+    "https://core.ac.uk",
+    "https://journal.paramadina.ac.id",
+    "https://journal.almuslim.ac.id",
+    "https://repository.pnj.ac.id",
+    "https://ejournal.catursakti.ac.id",
+    "https://jurnal.polibatam.ac.id",
+    "https://www.csauthors.net",
+    "https://eprints.upj.ac.id",
+    "https://kc.umn.ac.id",
+    "https://repo.darmajaya.ac.id",
+    "https://journal.uin-alauddin.ac.id",
     "https://repository.unair.ac.id",
     "https://eprints.umm.ac.id",
     "https://repository.upi.edu",
