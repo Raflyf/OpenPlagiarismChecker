@@ -246,14 +246,18 @@ def calculate_similarity(doc_text, corpus, exclude_small=False, use_semantic=Tru
                     })
                     
                     # Update global match status untuk kalimat ini
+                    # PENTING: Hanya hitung kata yang BELUM terdeteksi N-Gram (no double counting)
                     sent_start, sent_end = sentence_word_positions[actual_sent_idx]
+                    newly_detected_words = 0
+                    
                     for word_idx in range(sent_start, sent_end):
                         if word_idx < len(is_matched_global):
-                            is_matched_global[word_idx] = True
+                            if not is_matched_global[word_idx]:  # Hanya hitung yang BELUM terdeteksi
+                                newly_detected_words += 1
+                                is_matched_global[word_idx] = True
                     
-                    # Hitung kata tambahan yang terdeteksi oleh semantic
-                    sent_word_count = sent_end - sent_start
-                    semantic_plagiarized_words += sent_word_count
+                    # Hitung HANYA kata tambahan yang terdeteksi oleh semantic (no double counting)
+                    semantic_plagiarized_words += newly_detected_words
                     
                     # Update sources_report dengan info semantic
                     source_url = best_match['source_url']

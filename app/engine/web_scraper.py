@@ -216,41 +216,76 @@ def fetch_ddgs(probe):
         short_probe = " ".join(probe.split()[:15])
         
         import random
-        # 3 Variasi Dorking DuckDuckGo
+        # 4 Variasi Dorking DuckDuckGo dengan Prioritas BSI
         rand_val = random.random()
-        if rand_val < 0.33:
+        if rand_val < 0.25:
+            # PRIORITAS TERTINGGI: Repository BSI dan kampus Indonesia
+            query = f'{short_probe} (site:repository.bsi.ac.id OR site:ejurnal.seminar-id.com OR site:repository.umsu.ac.id OR site:etheses.uin-malang.ac.id)'
+        elif rand_val < 0.50:
             query = f'{short_probe} (jurnal OR repository OR skripsi OR site:garuda.kemdikbud.go.id)'
-        elif rand_val < 0.66:
+        elif rand_val < 0.75:
             query = f'{short_probe} site:ac.id'
         else:
             query = short_probe
             
-        # Ambil 15 hasil teratas untuk disortir
-        results = ddgs.text(query, max_results=15)
+        # Ambil 20 hasil teratas untuk disortir dengan prioritas
+        results = ddgs.text(query, max_results=20)
         
-        priority_urls = []
-        normal_urls = []
+        # SISTEM PRIORITAS BERTINGKAT (semakin tinggi semakin prioritas)
+        tier1_urls = []  # BSI dan kampus prioritas
+        tier2_urls = []  # Repositori dan jurnal akademik Indonesia
+        tier3_urls = []  # Situs akademik umum
+        normal_urls = []  # Situs non-akademik
         
         for res in list(results):
             if 'href' in res:
                 url = res['href'].lower()
-                # Deteksi domain prioritas tinggi ala Turnitin (berdasarkan referensi PDF Asli)
-                priority_keywords = [
-                    '.ac.id', '.edu', 'jurnal', 'journal', 'ejurnal', 'repository', 
-                    'repositori', 'repo.', 'eprints', 'etheses', 'dspace', '123dok', 
-                    'core.ac.uk', 'scribd', 'slideshare', 'docplayer', 'doku.pub', 
-                    'researchgate', 'digilib', 'scholar', 'doaj.org'
+                
+                # TIER 1: Repository BSI dan kampus prioritas Indonesia
+                tier1_keywords = [
+                    'repository.bsi.ac.id', 'ejurnal.seminar-id.com', 
+                    'repository.umsu.ac.id', 'etheses.uin-malang.ac.id',
+                    'ejournal.itn.ac.id', 'eprints.undip.ac.id',
+                    'repository.uinjkt.ac.id', 'eprints.uns.ac.id'
                 ]
-                if any(kw in url for kw in priority_keywords):
-                    priority_urls.append(res['href'])
+                if any(kw in url for kw in tier1_keywords):
+                    tier1_urls.append(res['href'])
+                    continue
+                
+                # TIER 2: Repositori dan jurnal akademik Indonesia
+                tier2_keywords = [
+                    'repository', 'repositori', 'eprints', 'etheses', 
+                    'digilib', 'ejurnal', 'jurnal', 'dspace',
+                    'garuda.kemdikbud.go.id', 'sinta.kemdikbud.go.id'
+                ]
+                if any(kw in url for kw in tier2_keywords) and '.ac.id' in url:
+                    tier2_urls.append(res['href'])
+                    continue
+                
+                # TIER 3: Situs akademik umum
+                tier3_keywords = [
+                    '.ac.id', '.edu', 'scholar', 'researchgate', 
+                    'core.ac.uk', 'doaj.org', '123dok', 'scribd'
+                ]
+                if any(kw in url for kw in tier3_keywords):
+                    tier3_urls.append(res['href'])
                 else:
                     normal_urls.append(res['href'])
-                    
-        # Gabungkan: Ambil maksimal 5 situs akademik/prioritas, dan sisa slot diisi situs umum
-        final_urls = priority_urls[:5]
-        sisa_slot = 6 - len(final_urls)
-        if sisa_slot > 0:
-            final_urls.extend(normal_urls[:sisa_slot])
+        
+        # Gabungkan dengan prioritas: Tier1 (max 4) -> Tier2 (max 3) -> Tier3 (max 2) -> Normal (sisa)
+        final_urls = tier1_urls[:4]
+        remaining = 10 - len(final_urls)
+        
+        if remaining > 0:
+            final_urls.extend(tier2_urls[:min(3, remaining)])
+            remaining = 10 - len(final_urls)
+        
+        if remaining > 0:
+            final_urls.extend(tier3_urls[:min(2, remaining)])
+            remaining = 10 - len(final_urls)
+        
+        if remaining > 0:
+            final_urls.extend(normal_urls[:remaining])
             
         urls_found.extend(final_urls)
         time.sleep(random.uniform(0.5, 1.5))
