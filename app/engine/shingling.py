@@ -1,4 +1,5 @@
 import re
+from .semantic_similarity import batch_semantic_check
 
 def get_sentences(text):
     sentences = re.split(r'(?<=[.!?]) +', text)
@@ -19,11 +20,19 @@ def get_ngrams(text, n=5):
 def get_shingles(text, n=5):
     return set(get_ngrams(text, n))
 
-def calculate_similarity(doc_text, corpus, exclude_small=False):
+def calculate_similarity(doc_text, corpus, exclude_small=False, use_semantic=True, semantic_threshold=0.75):
     """
-    Algoritma Turnitin Asli (Rabin-Karp / N-Gram Exact Match).
-    Tidak menggunakan Cosine Similarity / AI Topic Matching agar tidak terjadi False Positives.
-    Skor dihitung 100% mutlak berdasarkan rasio kata yang benar-benar overlap (plagiat).
+    Algoritma Turnitin Asli (Rabin-Karp / N-Gram Exact Match) + Semantic Similarity.
+    
+    Layer 1: N-Gram exact matching untuk deteksi copy-paste langsung
+    Layer 2: Semantic similarity untuk deteksi parafrasa (opsional)
+    
+    Args:
+        doc_text: Teks dokumen yang akan dicek
+        corpus: Dictionary mapping URL ke teks sumber
+        exclude_small: Exclude sumber dengan persentase < 1%
+        use_semantic: Aktifkan layer semantic similarity untuk deteksi parafrasa
+        semantic_threshold: Minimum similarity score (0-1) untuk semantic matching
     """
     doc_sentences = get_sentences(doc_text)
     if not doc_sentences:
@@ -161,8 +170,122 @@ def calculate_similarity(doc_text, corpus, exclude_small=False):
     for s in sorted_sources:
         s.pop('overlap_ngrams', None)
 
-    # Total Kata Plagiat Global
+    # Total Kata Plagiat Global (dari N-Gram)
     total_plagiarized_words_global = sum(is_matched_global)
+    ngram_similarity = float((total_plagiarized_words_global / total_doc_words) * 100.0)
+    
+    # ========== LAYER 2: SEMANTIC SIMILARITY (Deteksi Parafrasa) ==========
+    semantic_matches = {}
+    semantic_plagiarized_words = 0
+    
+    if use_semantic and corpus:
+        print("\n[!] ===== STARTING SEMANTIC SIMILARITY CHECK =====")
+        print(f"[!] Threshold: {semantic_threshold}, Total sentences: {len(doc_sentences)}")
+        
+        # Identifikasi kalimat yang TIDAK terdeteksi oleh N-Gram
+        unmatched_sentences = []
+        unmatched_indices = []
+        
+        sentence_word_positions = []  # Track posisi kata untuk setiap kalimat
+        current_pos = 0
+        
+        for sent_idx, sentence in enumerate(doc_sentences):
+            sent_words = sentence.split()
+            sent_word_count = len(sent_words)
+            
+            # Cek apakah kalimat ini sebagian besar belum terdeteksi oleh N-Gram
+            sent_start = current_pos
+            sent_end = current_pos + sent_word_count
+            
+            if sent_end > len(is_matched_global):
+                sent_end = len(is_matched_global)
+            
+            matched_in_sentence = sum(is_matched_global[sent_start:sent_end])
+            match_ratio = matched_in_sentence / sent_word_count if sent_word_count > 0 else 0
+            
+            sentence_word_positions.append((sent_start, sent_end))
+            
+            # Jika kurang dari 30% kata di kalimat ini terdeteksi N-Gram, cek semantic
+            if match_ratio < 0.3 and sent_word_count >= 5:
+                unmatched_sentences.append(sentence)
+                unmatched_indices.append(sent_idx)
+            
+            current_pos += sent_word_count
+        
+        print(f"[!] Found {len(unmatched_sentences)} unmatched sentences for semantic check")
+        
+        if unmatched_sentences:
+            # Siapkan corpus dalam format yang diperlukan semantic_similarity
+            corpus_by_sentence = {}
+            for url, source_text in corpus.items():
+                corpus_by_sentence[url] = get_sentences(source_text)
+            
+            # Jalankan batch semantic check
+            semantic_results = batch_semantic_check(
+                unmatched_sentences, 
+                corpus_by_sentence, 
+                threshold=semantic_threshold
+            )
+            
+            print(f"[!] Semantic check found {len(semantic_results)} potential paraphrase matches")
+            
+            # Proses hasil semantic similarity
+            for unmatched_idx, matches in semantic_results.items():
+                if matches:
+                    actual_sent_idx = unmatched_indices[unmatched_idx]
+                    best_match = matches[0]  # Ambil match terbaik
+                    
+                    # Tambahkan ke plagiarized_sentences_data dengan marker khusus
+                    plagiarized_sentences_data.append({
+                        'text': unmatched_sentences[unmatched_idx],
+                        'source_id': len(top_sources) + 1,  # ID khusus untuk semantic
+                        'detection_method': 'semantic',
+                        'similarity_score': best_match['similarity_score'],
+                        'matched_source': best_match['source_url'],
+                        'matched_text': best_match['matched_text']
+                    })
+                    
+                    # Update global match status untuk kalimat ini
+                    sent_start, sent_end = sentence_word_positions[actual_sent_idx]
+                    for word_idx in range(sent_start, sent_end):
+                        if word_idx < len(is_matched_global):
+                            is_matched_global[word_idx] = True
+                    
+                    # Hitung kata tambahan yang terdeteksi oleh semantic
+                    sent_word_count = sent_end - sent_start
+                    semantic_plagiarized_words += sent_word_count
+                    
+                    # Update sources_report dengan info semantic
+                    source_url = best_match['source_url']
+                    if source_url not in sources_report:
+                        # Buat entry baru untuk sumber yang terdeteksi via semantic
+                        sources_report[source_url] = {
+                            'percentage': 0.0,
+                            'matched_words': 0,
+                            'url': source_url,
+                            'sort_score': 0.0,
+                            'detection_method': 'semantic'
+                        }
+                    
+                    # Update statistik sumber
+                    sources_report[source_url]['matched_words'] += sent_word_count
+                    sources_report[source_url]['percentage'] = (
+                        sources_report[source_url]['matched_words'] / total_doc_words
+                    ) * 100.0
+                    sources_report[source_url]['sort_score'] = sources_report[source_url]['percentage']
+            
+            # Recalculate total similarity dengan semantic results
+            total_plagiarized_words_global = sum(is_matched_global)
+            
+            # Sort ulang sources dengan semantic results
+            sorted_sources = sorted(list(sources_report.values()), key=lambda x: x['sort_score'], reverse=True)
+            top_sources = sorted_sources[:20]
+    
     total_similarity = float((total_plagiarized_words_global / total_doc_words) * 100.0)
+    
+    print(f"\n[!] ===== DETECTION SUMMARY =====")
+    print(f"[!] N-Gram similarity: {ngram_similarity:.2f}%")
+    print(f"[!] Semantic additional detection: {(semantic_plagiarized_words / total_doc_words * 100):.2f}%")
+    print(f"[!] Total similarity (combined): {total_similarity:.2f}%")
     
     return sorted_sources, total_similarity, plagiarized_sentences_data
