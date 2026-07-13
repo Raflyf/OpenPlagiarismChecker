@@ -20,13 +20,14 @@ app.config['UPLOAD_FOLDER'] = os.path.join(base_dir, 'uploads')
 app.config['REPORT_FOLDER'] = os.path.join(base_dir, 'reports')
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024 # 16MB max
 
+
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 os.makedirs(app.config['REPORT_FOLDER'], exist_ok=True)
 
 # Store results in memory
 results_db = {}
 
-def process_document(file_id, filepath, original_filename, exclude_quotes=True, exclude_biblio=True, exclude_small=False):
+def process_document(file_id, filepath, original_filename, exclude_quotes=True, exclude_biblio=True, exclude_small=False, use_semantic=False):
     def set_progress(pct, msg):
         if file_id in results_db:
             results_db[file_id]['progress'] = pct
@@ -57,7 +58,7 @@ def process_document(file_id, filepath, original_filename, exclude_quotes=True, 
         
         set_progress(85, "Menghitung kemiripan (Algoritma N-Gram)...")
         print("[!] Menghitung similaritas dengan algoritma N-Gram Shingling...")
-        sorted_sources, total_similarity, plagiarized_sentences = calculate_similarity(doc_text, corpus, exclude_small)
+        sorted_sources, total_similarity, plagiarized_sentences = calculate_similarity(doc_text, corpus, exclude_small, use_semantic=use_semantic)
         
         data = {
             'filename': original_filename.replace('.pdf', ''),
@@ -72,20 +73,26 @@ def process_document(file_id, filepath, original_filename, exclude_quotes=True, 
         report_pdf_path = os.path.join(app.config['REPORT_FOLDER'], f"{file_id}_report.pdf")
         generate_report_pdf(filepath, report_pdf_path, data)
         
-        results_db[file_id] = {
+        results_db[file_id].update({
             'status': 'completed',
             'progress': 100,
             'message': 'Selesai.',
             'data': data
-        }
+        })
         print(f"[!] Selesai. Hasil: {total_similarity}%")
     except Exception as e:
         import traceback
         traceback.print_exc()
-        results_db[file_id] = {
-            'status': 'error',
-            'message': str(e)
-        }
+        if file_id in results_db:
+            results_db[file_id].update({
+                'status': 'error',
+                'message': str(e)
+            })
+        else:
+            results_db[file_id] = {
+                'status': 'error',
+                'message': str(e)
+            }
 
 @app.route('/')
 def index():
@@ -100,6 +107,7 @@ def upload_file():
     exclude_quotes = request.form.get('exclude_quotes') == 'true'
     exclude_biblio = request.form.get('exclude_biblio') == 'true'
     exclude_small = request.form.get('exclude_small') == 'true'
+    use_semantic = request.form.get('use_semantic') == 'true'
 
     if file.filename == '':
         return jsonify({'error': 'No selected file'}), 400
@@ -122,7 +130,7 @@ def upload_file():
             'session_id': session['session_id'],  # Track ownership
             'filename': filename
         }
-        thread = threading.Thread(target=process_document, args=(file_id, filepath, filename, exclude_quotes, exclude_biblio, exclude_small), daemon=True)
+        thread = threading.Thread(target=process_document, args=(file_id, filepath, filename, exclude_quotes, exclude_biblio, exclude_small, use_semantic), daemon=True)
         thread.start()
         
         return jsonify({'file_id': file_id, 'filename': filename})

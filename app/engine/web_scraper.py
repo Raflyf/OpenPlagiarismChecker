@@ -295,9 +295,6 @@ def fetch_ddgs(probe):
 
 def fetch_probe_multi(probe):
     """Mencari ke semua mesin secara serentak dengan free API fallbacks"""
-    # Import modul baru
-    from .free_api_fallbacks import search_with_fallbacks
-    from .indonesian_repos import search_all_indonesian_repos
     
     # 1. Try academic APIs first (free, unlimited)
     u_ss, t_ss = fetch_semantic_scholar(probe)
@@ -313,10 +310,22 @@ def fetch_probe_multi(probe):
     u_dd, _ = fetch_ddgs(probe)
     
     # 4. NEW: Direct search Indonesian repositories (no API limits!)
-    u_repo, t_repo = search_all_indonesian_repos(probe, max_repos=5, results_per_repo=2)
+    u_repo, t_repo = [], []
+    try:
+        from .indonesian_repos import search_all_indonesian_repos
+        u_repo, t_repo = search_all_indonesian_repos(probe, max_repos=5, results_per_repo=2)
+        print(f"[INDO REPOS] Found {len(u_repo)} URLs from Indonesian repositories")
+    except Exception as e:
+        print(f"[!] Indonesian repos module error: {e}")
     
     # 5. NEW: Free API fallbacks with caching (jika paid APIs gagal)
-    u_fallback, t_fallback = search_with_fallbacks(probe, use_cache=True)
+    u_fallback, t_fallback = [], []
+    try:
+        from .free_api_fallbacks import search_with_fallbacks
+        u_fallback, t_fallback = search_with_fallbacks(probe, use_cache=True)
+        print(f"[FREE APIs] Found {len(u_fallback)} URLs from free API fallbacks")
+    except Exception as e:
+        print(f"[!] Free API fallbacks error: {e}")
     
     # Gabungkan URL yang sudah ada abstraknya
     api_urls = u_ss + u_cr + u_oa + u_repo

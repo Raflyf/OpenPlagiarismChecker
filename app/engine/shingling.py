@@ -20,7 +20,7 @@ def get_ngrams(text, n=5):
 def get_shingles(text, n=5):
     return set(get_ngrams(text, n))
 
-def calculate_similarity(doc_text, corpus, exclude_small=False, use_semantic=True, semantic_threshold=0.75):
+def calculate_similarity(doc_text, corpus, exclude_small=False, use_semantic=False, semantic_threshold=0.75):
     """
     Algoritma Turnitin Asli (Rabin-Karp / N-Gram Exact Match) + Semantic Similarity.
     

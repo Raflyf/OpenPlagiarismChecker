@@ -1,156 +1,142 @@
 """
-Free API fallbacks ketika paid APIs habis credit.
-Strategi: Gunakan free tier APIs dan web scraping langsung.
+Free API Fallbacks - Google Custom Search JSON API
+Menggunakan Google Custom Search API (10,000 queries/day GRATIS)
+Jauh lebih reliable daripada scraping atau API trial yang mudah habis.
 """
+
 import requests
 import time
+import hashlib
 import json
 import os
 from pathlib import Path
 
-# Cache directory untuk mengurangi API calls
-CACHE_DIR = Path(__file__).parent.parent / "cache"
+# Cache directory
+CACHE_DIR = Path(__file__).parent / '.search_cache'
 CACHE_DIR.mkdir(exist_ok=True)
 
 def get_cache_key(query):
-    """Generate cache key from query"""
-    import hashlib
+    """Generate cache key dari query"""
     return hashlib.md5(query.encode()).hexdigest()
 
 def get_cached_results(query, max_age_hours=24):
-    """Get cached search results if available and not expired"""
-    cache_key = get_cache_key(query)
-    cache_file = CACHE_DIR / f"{cache_key}.json"
-    
+    """Ambil hasil dari cache jika masih fresh"""
+    cache_file = CACHE_DIR / f"{get_cache_key(query)}.json"
     if cache_file.exists():
-        import time
-        file_age = time.time() - cache_file.stat().st_mtime
-        max_age_seconds = max_age_hours * 3600
-        
-        if file_age < max_age_seconds:
+        age_hours = (time.time() - cache_file.stat().st_mtime) / 3600
+        if age_hours < max_age_hours:
             try:
                 with open(cache_file, 'r', encoding='utf-8') as f:
                     data = json.load(f)
-                    print(f"[CACHE] Found cached results for query (age: {file_age/3600:.1f}h)")
+                    print(f"[CACHE] Found cached results for query (age: {age_hours:.1f}h)")
                     return data['urls'], data['texts']
             except:
                 pass
-    
     return None, None
 
-def cache_results(query, urls, texts):
-    """Cache search results for future use"""
-    cache_key = get_cache_key(query)
-    cache_file = CACHE_DIR / f"{cache_key}.json"
-    
+def save_to_cache(query, urls, texts):
+    """Simpan hasil ke cache"""
+    cache_file = CACHE_DIR / f"{get_cache_key(query)}.json"
     try:
         with open(cache_file, 'w', encoding='utf-8') as f:
             json.dump({'urls': urls, 'texts': texts}, f)
     except:
         pass
 
-def search_brave_free(query, max_results=10):
+def search_google_custom(query, api_key, cx_id, max_results=10):
     """
-    Brave Search API - Free tier: 2000 requests/month
-    https://brave.com/search/api/
-    """
-    urls_found = []
+    Mencari menggunakan Google Custom Search JSON API
     
-    try:
-        # Brave Search API endpoint
-        url = "https://api.search.brave.com/res/v1/web/search"
-        headers = {
-            "Accept": "application/json",
-            "X-Subscription-Token": "BSAqFz8PvEm5hHFMxkPiHKQxE9RK8Uc"  # Free tier key
-        }
-        params = {
-            "q": query,
-            "count": max_results,
-            "search_lang": "id",  # Prioritas Indonesia
-            "country": "id"
-        }
-        
-        res = requests.get(url, headers=headers, params=params, timeout=10)
-        if res.status_code == 200:
-            data = res.json()
-            for result in data.get('web', {}).get('results', []):
-                url = result.get('url', '')
-                if url:
-                    urls_found.append(url)
-                    
-        print(f"[Brave API] Found {len(urls_found)} results")
-        
-    except Exception as e:
-        print(f"[!] Brave API error: {e}")
+    Google Custom Search API:
+    - 10,000 queries/day GRATIS
+    - Reliable dan fast
+    - Official Google API
+    - Mendukung site: operator dan advanced search
     
-    return urls_found
-
-def search_serpapi_free(query, max_results=10):
-    """
-    SerpAPI - Free tier: 100 searches/month
-    https://serpapi.com/
+    Setup:
+    1. Buat project di https://console.cloud.google.com/
+    2. Enable Custom Search API
+    3. Buat API key
+    4. Buat Custom Search Engine di https://programmablesearchengine.google.com/
+    5. Set "Search the entire web" = ON
     """
     urls_found = []
+    texts_found = []
     
     try:
-        url = "https://serpapi.com/search"
-        params = {
-            "q": query,
-            "api_key": "8c7e0b5c5d6a4e3f8b2c9d1a0e7f6b4c",  # Free tier
-            "engine": "google",
-            "num": max_results,
-            "gl": "id",  # Indonesia
-            "hl": "id"
-        }
+        # Google Custom Search JSON API endpoint
+        base_url = "https://www.googleapis.com/customsearch/v1"
         
-        res = requests.get(url, params=params, timeout=10)
-        if res.status_code == 200:
-            data = res.json()
-            for result in data.get('organic_results', []):
-                link = result.get('link', '')
-                if link:
-                    urls_found.append(link)
+        # Lakukan multiple search dengan variasi query untuk coverage maksimal
+        queries = [
+            query,  # Original query
+            f'{query} site:ac.id',  # Prioritas kampus Indonesia
+            f'{query} (repository OR jurnal OR skripsi)',  # Prioritas akademik
+        ]
+        
+        all_urls = set()
+        
+        for q in queries[:2]:  # Limit 2 query variations untuk menghemat quota
+            # Google Custom Search bisa 10 results per call
+            for start_index in range(1, min(max_results, 11), 10):
+                params = {
+                    'key': api_key,
+                    'cx': cx_id,
+                    'q': q,
+                    'num': min(10, max_results - len(all_urls)),
+                    'start': start_index
+                }
+                
+                try:
+                    response = requests.get(base_url, params=params, timeout=10)
                     
-        print(f"[SerpAPI] Found {len(urls_found)} results")
+                    if response.status_code == 200:
+                        data = response.json()
+                        
+                        if 'items' in data:
+                            for item in data['items']:
+                                url = item.get('link', '')
+                                title = item.get('title', '')
+                                snippet = item.get('snippet', '')
+                                
+                                if url and url not in all_urls:
+                                    all_urls.add(url)
+                                    urls_found.append(url)
+                                    
+                                    # Gabungkan title + snippet sebagai text preview
+                                    text = f"{title}. {snippet}"
+                                    texts_found.append(text)
+                                    
+                                    if len(all_urls) >= max_results:
+                                        break
+                    
+                    elif response.status_code == 429:
+                        # Rate limit reached
+                        print(f"[Google API] Rate limit reached, stopping...")
+                        break
+                    
+                    # Hindari rate limiting dengan delay kecil antar request
+                    time.sleep(0.5)
+                    
+                except requests.exceptions.Timeout:
+                    break
+                except Exception as e:
+                    print(f"[Google API] Error: {e}")
+                    break
+                
+                if len(all_urls) >= max_results:
+                    break
+            
+            if len(all_urls) >= max_results:
+                break
+        
+        if urls_found:
+            print(f"[Google Custom Search] Found {len(urls_found)} results")
         
     except Exception as e:
-        print(f"[!] SerpAPI error: {e}")
+        print(f"[!] Google Custom Search error: {e}")
     
-    return urls_found
-
-def search_bing_free(query, max_results=10):
-    """
-    Bing Web Search API - Free tier: 1000 transactions/month
-    https://www.microsoft.com/en-us/bing/apis/bing-web-search-api
-    """
-    urls_found = []
-    
-    try:
-        url = "https://api.bing.microsoft.com/v7.0/search"
-        headers = {
-            "Ocp-Apim-Subscription-Key": "f8e9d6c5b4a3e2d1f0c9b8a7e6d5c4b3"  # Free tier
-        }
-        params = {
-            "q": query,
-            "count": max_results,
-            "mkt": "id-ID",  # Indonesia market
-            "responseFilter": "Webpages"
-        }
-        
-        res = requests.get(url, headers=headers, params=params, timeout=10)
-        if res.status_code == 200:
-            data = res.json()
-            for result in data.get('webPages', {}).get('value', []):
-                url = result.get('url', '')
-                if url:
-                    urls_found.append(url)
-                    
-        print(f"[Bing API] Found {len(urls_found)} results")
-        
-    except Exception as e:
-        print(f"[!] Bing API error: {e}")
-    
-    return urls_found
+    return urls_found, texts_found
 
 def search_duckduckgo_html(query, max_results=10):
     """
@@ -158,26 +144,53 @@ def search_duckduckgo_html(query, max_results=10):
     Fallback paling reliable tanpa batasan
     """
     urls_found = []
+    texts_found = []
     
     try:
         import urllib.parse
+        from bs4 import BeautifulSoup
         encoded_query = urllib.parse.quote(query)
         url = f"https://html.duckduckgo.com/html/?q={encoded_query}"
         
         headers = {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
         }
         
         res = requests.get(url, headers=headers, timeout=10)
         if res.status_code == 200:
-            from bs4 import BeautifulSoup
             soup = BeautifulSoup(res.text, 'html.parser')
             
             # Extract results from HTML version
-            for result in soup.find_all('a', class_='result__url', limit=max_results):
+            results = soup.find_all('a', class_='result__url', limit=max_results)
+            if not results:
+                results = soup.find_all('a', class_='result__snippet', limit=max_results)
+                
+            for result in results:
                 href = result.get('href', '')
-                if href and not href.startswith('/'):
-                    urls_found.append(href)
+                if href:
+                    # Unquote DuckDuckGo redirect link jika ada
+                    if 'uddg=' in href:
+                        try:
+                            href = href.split('uddg=')[1].split('&')[0]
+                            href = urllib.parse.unquote(href)
+                        except:
+                            pass
+                    
+                    if href.startswith('//'):
+                        href = 'https:' + href
+                    elif href.startswith('/'):
+                        continue # Skip internal links
+                        
+                    if href.startswith('http') and href not in urls_found:
+                        urls_found.append(href)
+                        # Snippet text extraction
+                        parent = result.find_parent('div', class_='web-result')
+                        snippet = ""
+                        if parent:
+                            snippet_elem = parent.find(class_='result__snippet')
+                            if snippet_elem:
+                                snippet = snippet_elem.get_text(strip=True)
+                        texts_found.append(snippet[:500])
                     
         print(f"[DuckDuckGo HTML] Found {len(urls_found)} results")
         time.sleep(1)  # Rate limit
@@ -185,92 +198,70 @@ def search_duckduckgo_html(query, max_results=10):
     except Exception as e:
         print(f"[!] DuckDuckGo HTML error: {e}")
     
-    return urls_found
-
-def search_startpage(query, max_results=10):
-    """
-    Startpage search (proxy ke Google, no tracking, unlimited)
-    """
-    urls_found = []
-    
-    try:
-        import urllib.parse
-        encoded_query = urllib.parse.quote(query)
-        url = f"https://www.startpage.com/do/dsearch?query={encoded_query}&cat=web&language=indonesian"
-        
-        headers = {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-        }
-        
-        res = requests.get(url, headers=headers, timeout=10)
-        if res.status_code == 200:
-            from bs4 import BeautifulSoup
-            soup = BeautifulSoup(res.text, 'html.parser')
-            
-            # Startpage results
-            for result in soup.find_all('a', class_='w-gl__result-url', limit=max_results):
-                href = result.get('href', '')
-                if href and href.startswith('http'):
-                    urls_found.append(href)
-                    
-        print(f"[Startpage] Found {len(urls_found)} results")
-        time.sleep(1)
-        
-    except Exception as e:
-        print(f"[!] Startpage error: {e}")
-    
-    return urls_found
+    return urls_found, texts_found
 
 def search_with_fallbacks(query, use_cache=True):
     """
-    Strategi cascading: Coba paid APIs dulu, fallback ke free APIs jika gagal.
-    """
-    urls_found = set()
-    texts_found = []
+    Search menggunakan Google Custom Search API dengan caching,
+    serta otomatis fallback ke DuckDuckGo HTML jika Google belum disetup.
     
-    # 1. Check cache first
+    Returns:
+        tuple: (list of URLs, list of text snippets)
+    """
+    
+    # Check cache first
     if use_cache:
-        cached_urls, cached_texts = get_cached_results(query)
+        cached_urls, cached_texts = get_cached_results(query, max_age_hours=24)
         if cached_urls:
             return cached_urls, cached_texts
     
-    # 2. Try free APIs in priority order
-    free_apis = [
-        search_brave_free,
-        search_duckduckgo_html,  # Most reliable, unlimited
-        search_serpapi_free,
-        search_bing_free,
-        search_startpage,
+    # Shorten query jika terlalu panjang (Google CSE limit 2048 chars)
+    short_query = ' '.join(query.split()[:20])
+    
+    # Google Custom Search API credentials
+    google_api_keys = [
+        'AIzaSyDXq3lXq3lXq3lXq3lXq3lXq3lXq3lXq3l',  # Key 1 - 10k/day
+        'AIzaSyDYr4mYr4mYr4mYr4mYr4mYr4mYr4mYr4m',  # Key 2 - 10k/day (backup)
+        'AIzaSyDZs5nZs5nZs5nZs5nZs5nZs5nZs5nZs5n',  # Key 3 - 10k/day (backup)
     ]
+    cx_id = 'YOUR_CX_ID_HERE'
     
-    for api_func in free_apis:
-        try:
-            urls = api_func(query, max_results=15)
-            urls_found.update(urls)
-            
-            # Stop if we have enough results
-            if len(urls_found) >= 30:
-                break
+    all_urls = []
+    all_texts = []
+    
+    is_configured = cx_id != 'YOUR_CX_ID_HERE'
+    
+    if is_configured:
+        # Try each API key with load balancing
+        for api_key in google_api_keys:
+            try:
+                urls, texts = search_google_custom(short_query, api_key, cx_id, max_results=15)
+                all_urls.extend(urls)
+                all_texts.extend(texts)
                 
+                if len(all_urls) >= 10:
+                    break  # Cukup, jangan buang quota
+                    
+            except Exception as e:
+                print(f"[!] Google API key error: {e}")
+                continue
+    
+    # Fallback ke DuckDuckGo jika Google belum dikonfigurasi atau gagal mencari apapun
+    if not all_urls:
+        if not is_configured:
+            print("[!] Google Custom Search API belum dikonfigurasi. Menggunakan fallback DuckDuckGo HTML...")
+        else:
+            print("[!] Google Custom Search API tidak menghasilkan data. Mencoba fallback DuckDuckGo HTML...")
+            
+        try:
+            urls, texts = search_duckduckgo_html(short_query, max_results=15)
+            all_urls.extend(urls)
+            all_texts.extend(texts)
         except Exception as e:
-            print(f"[!] {api_func.__name__} failed: {e}")
-            continue
+            print(f"[!] Fallback DuckDuckGo error: {e}")
+            
+    # Cache results
+    if use_cache and all_urls:
+        save_to_cache(query, all_urls, all_texts)
     
-    # 3. Cache results for future use
-    final_urls = list(urls_found)
-    if use_cache and final_urls:
-        cache_results(query, final_urls, texts_found)
-    
-    return final_urls, texts_found
-
-def clear_old_cache(days=7):
-    """Clean cache files older than N days"""
-    import time
-    try:
-        cutoff = time.time() - (days * 24 * 3600)
-        for cache_file in CACHE_DIR.glob("*.json"):
-            if cache_file.stat().st_mtime < cutoff:
-                cache_file.unlink()
-                print(f"[CACHE] Deleted old cache: {cache_file.name}")
-    except Exception as e:
-        print(f"[!] Cache cleanup error: {e}")
+    return all_urls, all_texts

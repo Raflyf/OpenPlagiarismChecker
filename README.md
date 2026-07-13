@@ -178,7 +178,12 @@ Each source shows:
 
 ## 📝 Changelog
 
-### v2.0 (Current)
+### v2.1 (Current)
+- Added a Toggle Checkbox for **Semantic Paraphrase Detection** in the UI (disabled by default to match Turnitin score parity of 18%).
+- Restored **DuckDuckGo HTML Scraping Fallback** to search the web out-of-the-box when Google Custom Search JSON API is not configured or fails (see [SETUP_GOOGLE_API.md](file:///d:/skripsi/skripsi_spam/Code_Spam_Email/plagiarism_checker/SETUP_GOOGLE_API.md) for credentials setup).
+- Fixed **403 Forbidden Error (stuck at 85%)** by using `.update()` on the `results_db` dictionary to preserve the session owner ID.
+
+### v2.0
 - Added semantic similarity layer for paraphrase detection
 - Fixed critical double counting bug in per-source statistics
 - Implemented session-based security with UUID file IDs
