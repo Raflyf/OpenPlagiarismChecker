@@ -159,8 +159,8 @@ def search_duckduckgo_html(query, max_results=10):
         from duckduckgo_search import DDGS
         import time
         
-        # Limit panjang query (DDG menolak query yang sangat panjang)
-        short_query = ' '.join(query.split()[:15])
+        # Gunakan query yang lebih panjang (30 kata) agar hasil spesifik dan similarity tinggi
+        short_query = ' '.join(query.split()[:30])
         
         # Delay singkat acak untuk menghindari rate limit agresif
         time.sleep(0.5)
