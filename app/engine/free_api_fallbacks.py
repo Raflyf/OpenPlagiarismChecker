@@ -220,9 +220,9 @@ def search_with_fallbacks(query, use_cache=True):
     
     # Google Custom Search API credentials
     google_api_keys = [
-        'AIzaSyDXq3lXq3lXq3lXq3lXq3lXq3lXq3lXq3l',  # Key 1 - 10k/day
-        'AIzaSyDYr4mYr4mYr4mYr4mYr4mYr4mYr4mYr4m',  # Key 2 - 10k/day (backup)
-        'AIzaSyDZs5nZs5nZs5nZs5nZs5nZs5nZs5nZs5n',  # Key 3 - 10k/day (backup)
+        'AIzaSyASFkoAGGe3XMIWCb2w9ztcCg8W5TpLu70',  # Key Utama Anda
+        'AIzaSyDXq3lXq3lXq3lXq3lXq3lXq3lXq3lXq3l',  # Backup 1
+        'AIzaSyDYr4mYr4mYr4mYr4mYr4mYr4mYr4mYr4m',  # Backup 2
     ]
     cx_id = 'YOUR_CX_ID_HERE'
     
