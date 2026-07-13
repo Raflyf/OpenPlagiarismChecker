@@ -148,6 +148,8 @@ def fetch_google_web(probe):
         short_probe = " ".join(probe.split()[:15])
         
         import random
+        # Potong jadi 8 kata saja. 15 kata terlalu spesifik untuk search engine dan berujung 0 hasil
+        short_probe = " ".join(probe.split()[:8])
         rand_val = random.random()
         if rand_val < 0.33:
             query = urllib.parse.quote(f'{short_probe} site:ac.id')
@@ -190,7 +192,8 @@ def fetch_garuda(probe):
     urls_found = []
     try:
         import urllib.parse
-        short_probe = " ".join(probe.split()[:15])
+        # Potong jadi 8 kata saja. 15 kata terlalu spesifik
+        short_probe = " ".join(probe.split()[:8])
         query = urllib.parse.quote(short_probe)
         target_url = f"https://garuda.kemdikbud.go.id/documents?q={query}"
         
@@ -227,8 +230,8 @@ def fetch_ddgs(probe):
         
         # FUZZY SEARCH KEMBALI!
         # Ekstraksi PDF sangat rawan typo (spasi hilang, dsb). Exact match mutlak sering berujung 0 hasil.
-        # Kita gunakan Fuzzy Search di Search Engine, dan Exact Match di N-Gram Lokal!
-        short_probe = " ".join(probe.split()[:15])
+        # Kita gunakan Fuzzy Search di Search Engine dengan potongan 8 kata (standar Turnitin), bukan 15 kata!
+        short_probe = " ".join(probe.split()[:8])
         
         import random
         # 4 Variasi Dorking DuckDuckGo dengan Prioritas BSI

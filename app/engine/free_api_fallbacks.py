@@ -159,14 +159,14 @@ def search_duckduckgo_html(query, max_results=10):
         from duckduckgo_search import DDGS
         import time
         
-        # Gunakan query yang lebih panjang (30 kata) agar hasil spesifik dan similarity tinggi
-        short_query = ' '.join(query.split()[:30])
+        # Ambil 8 kata saja, JANGAN gunakan quotes "" karena spasi/newline dari ekstraksi PDF bisa menggagalkan exact match!
+        search_query = " ".join(query.split()[:8])
         
         # Delay singkat acak untuk menghindari rate limit agresif
         time.sleep(0.5)
         
         with DDGS() as ddgs:
-            results = list(ddgs.text(short_query, max_results=max_results))
+            results = list(ddgs.text(search_query, max_results=max_results))
             
             for res in results:
                 url = res.get('href', '')
