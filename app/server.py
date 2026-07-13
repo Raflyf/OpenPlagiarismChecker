@@ -3,7 +3,11 @@ import time
 import math
 import uuid
 import secrets
+import urllib3
 from dotenv import load_dotenv
+
+# Nonaktifkan peringatan SSL (banyak web kampus SSL-nya kedaluwarsa)
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 # Load API keys from .env file FIRST before anything else uses them
 load_dotenv()
