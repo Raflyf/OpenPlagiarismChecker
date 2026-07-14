@@ -156,7 +156,10 @@ def search_duckduckgo_html(query, max_results=10):
     texts_found = []
     
     try:
-        from duckduckgo_search import DDGS
+        try:
+            from ddgs import DDGS
+        except ImportError:
+            from duckduckgo_search import DDGS
         import time
         
         # Ambil 8 kata saja, JANGAN gunakan quotes "" karena spasi/newline dari ekstraksi PDF bisa menggagalkan exact match!

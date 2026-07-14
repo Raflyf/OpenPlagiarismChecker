@@ -76,32 +76,48 @@ def extract_text_from_txt(txt_path):
 
 def clean_text(text, exclude_quotes=True, exclude_biblio=True):
     text = re.sub(r'\s+', ' ', text).strip()
-    
+
     # [1] Exclude Front Matter (Cover, Pengesahan, Daftar Isi) - Turnitin Behavior
-    # Mencari kemunculan pertama BAB I, BAB 1, atau PENDAHULUAN (dengan batas wajar di awal)
-    first_bab_idx = -1
+    # PENTING: "BAB I" pertama biasanya muncul di DAFTAR ISI (diikuti dot-leader "....." dan
+    # nomor halaman), BUKAN heading bab asli. Kita cari kemunculan yang diikuti KONTEN nyata,
+    # bukan titik-titik daftar isi.
     upper_text = text.upper()
-    
-    # Cari indeks terkecil dari BAB 1, BAB I, atau PENDAHULUAN
-    idx_1 = upper_text.find('BAB I ')
-    idx_2 = upper_text.find('BAB 1 ')
-    idx_3 = upper_text.find('PENDAHULUAN')
-    
-    valid_indices = [idx for idx in [idx_1, idx_2, idx_3] if idx != -1 and idx < len(text) * 0.3]
-    if valid_indices:
-        first_bab_idx = min(valid_indices)
-        text = text[first_bab_idx:]
-    
+
+    # Pola heading bab asli: "BAB I" / "BAB 1" diikuti KONTEN nyata, bukan dot-leader
+    # daftar isi. Cari SEMUA kemunculan lalu ambil yang bukan bagian daftar isi.
+    chosen_idx = -1
+    for m in re.finditer(r'BAB\s+(?:I|1)\b', upper_text):
+        idx = m.start()
+        # Ambil 40 karakter setelah match untuk cek apakah ini entri daftar isi
+        tail = text[m.end():m.end() + 40]
+        # Entri daftar isi: didominasi titik-titik atau langsung angka halaman
+        dot_ratio = tail.count('.') / max(len(tail), 1)
+        is_toc_entry = dot_ratio > 0.3 or bool(re.match(r'[\s\.]*\d{1,3}\s*$', tail[:15]))
+        if not is_toc_entry:
+            chosen_idx = idx
+            break
+
+    # Fallback: jika semua kemunculan tampak seperti TOC, pakai kemunculan terakhir di 40%
+    # awal dokumen (heading asli selalu setelah daftar isi).
+    if chosen_idx == -1:
+        candidates = [m.start() for m in re.finditer(r'BAB\s+(?:I|1)\b', upper_text)
+                      if m.start() < len(text) * 0.4]
+        if candidates:
+            chosen_idx = candidates[-1]
+
+    if chosen_idx != -1 and chosen_idx < len(text) * 0.4:
+        text = text[chosen_idx:]
+
     # [2] Exclude Bibliography
     if exclude_biblio:
         last_idx = max(text.upper().rfind('DAFTAR PUSTAKA'), text.upper().rfind('REFERENCES'))
         if last_idx > len(text) * 0.5:
             text = text[:last_idx]
-    
+
     # [3] Exclude Quotes
     if exclude_quotes:
         text = re.sub(r'["""].*?["""]', '', text)
-    
+
     return text
 
 def get_sentences(text):

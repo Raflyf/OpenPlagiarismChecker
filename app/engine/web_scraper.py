@@ -229,9 +229,14 @@ def fetch_ddgs(probe):
     """Mencari website publik biasa via DuckDuckGo, dengan Prioritas Situs Kampus/Jurnal"""
     urls_found = []
     try:
-        from duckduckgo_search import DDGS
+        # Library duckduckgo_search lama (<=8.x) sudah mati (return 0). Utamakan paket
+        # baru `ddgs`; fallback ke nama lama hanya bila paket baru tidak terpasang.
+        try:
+            from ddgs import DDGS
+        except ImportError:
+            from duckduckgo_search import DDGS
         ddgs = DDGS()
-        
+
         # FUZZY SEARCH KEMBALI!
         # Ekstraksi PDF sangat rawan typo (spasi hilang, dsb). Exact match mutlak sering berujung 0 hasil.
         # Kita gunakan Fuzzy Search di Search Engine dengan potongan 8 kata (standar Turnitin), bukan 15 kata!
