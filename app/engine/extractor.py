@@ -105,5 +105,6 @@ def clean_text(text, exclude_quotes=True, exclude_biblio=True):
     return text
 
 def get_sentences(text):
-    sentences = re.split(r'(?<=[.!?]) +', text)
+    text = re.sub(r'\n+', '. ', text)
+    sentences = re.split(r'(?<=[.!?;])\s+', text)
     return [s.strip() for s in sentences if len(s.split()) >= 5]

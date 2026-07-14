@@ -26,7 +26,7 @@ Modul ini adalah _tools_ pengecek plagiarisme mandiri tingkat lanjut (Clone Turn
 Sistem menggunakan ekosistem *Hybrid* skala besar dengan **2-Layer Detection**:
 
 ### Layer 1: N-Gram Exact Matching
-1. **Hybrid Winnowing Fingerprinting:** Mengekstrak **50 Sampel Fingerprints** (25 kalimat terpanjang untuk jaminan penemuan URL spesifik + 25 sampel seragam/merata dari Bab 1 s/d Bab 5 untuk penyisiran area dokumen).
+1. **Hybrid Winnowing Fingerprinting:** Mengekstrak **75 Sampel Fingerprints** (25 kalimat terpanjang + 25 medium-length + 25 sampel seragam/merata dari Bab 1 s/d Bab 5 untuk penyisiran area dokumen).
 2. **AI Search Engine:** Mengandalkan **Perplexity AI, Google Gemini, Cohere, dan Tavily** secara paralel (*Load Balanced*) untuk mencari sumber kutipan tersembunyi.
 3. **Academic Repository Crawler:** Menggunakan *ScrapingBee* & *ScraperAPI* untuk menembus proteksi Cloudflare/WAF kampus demi mengumpulkan data secara instan dari:
    - **Repository BSI** (repository.bsi.ac.id) - **PRIORITAS TERTINGGI**
@@ -35,6 +35,9 @@ Sistem menggunakan ekosistem *Hybrid* skala besar dengan **2-Layer Detection**:
    - **OpenAlex** (250+ Juta Makalah Akademik)
    - **Semantic Scholar**
    - **Crossref**
+   - **DOAJ** (Directory of Open Access Journals - 9M+ articles)
+   - **arXiv** (2.4M+ preprints)
+   - **CORE** (300M+ papers aggregator)
 4. **Fuzzy Search & Strict Local N-Gram:** Menembakkan kueri secara *Fuzzy (BM25)* ke mesin pencari agar toleran terhadap *typo/OCR error* teks PDF, kemudian memproses silang seluruh teks sumber yang berhasil diunduh menggunakan mesin **N-Gram Shingling Exact Match** secara lokal.
 
 ### Layer 2: Semantic Similarity (NEW!)
@@ -151,7 +154,7 @@ plagiarism_checker/
 
 Where:
 - **N-Gram Layer**: Detects exact/near-exact matches (5-word sequences)
-- **Semantic Layer**: Detects paraphrases (similarity score ≥ 0.75)
+- **Semantic Layer**: Detects paraphrases (similarity score >= 0.88)
 - **No Double Counting**: Each word counted only once, even if detected by both layers
 
 **Per-Source Score = (Matched Words from Source / Total Document Words) × 100%**
@@ -184,7 +187,17 @@ Each source shows:
 
 ## 📝 Changelog
 
-### v2.1 (Current)
+### v3.0 (Current)
+- Added **3 new free academic APIs**: DOAJ (9M+ open-access articles), arXiv (2.4M+ preprints), CORE (300M+ papers)
+- Upgraded probe sampling from 50 to **75 probes** with 3-tier strategy (longest + medium + uniform)
+- Added **Common Academic Phrase Filter** (75 boilerplate phrases) to reduce false positives from generic Indonesian academic sentences
+- Conservative **Gap-Fill** algorithm: only fills gaps between strong consecutive matches (>= 2 words each side)
+- Improved **sentence splitter**: handles newline-separated and semicolon-separated sentences
+- Removed domain-grouping of corpus (per-URL matching is more accurate)
+- Fixed rounding: `round()` instead of `math.floor()` for similarity score (matches Turnitin behavior)
+- Audit Ronde 4: **[docs/AUDIT_R4.md](docs/AUDIT_R4.md)** -- Juli 2026
+
+### v2.1
 - Added a Toggle Checkbox for **Semantic Paraphrase Detection** in the UI (disabled by default to match Turnitin score parity of 18%).
 - Restored **DuckDuckGo HTML Scraping Fallback** to search the web out-of-the-box when Google Custom Search JSON API is not configured or fails (see [SETUP_GOOGLE_API.md](file:///d:/skripsi/skripsi_spam/Code_Spam_Email/plagiarism_checker/SETUP_GOOGLE_API.md) for credentials setup).
 - Fixed **403 Forbidden Error (stuck at 85%)** by using `.update()` on the `results_db` dictionary to preserve the session owner ID.
@@ -209,4 +222,4 @@ This is an educational project for thesis plagiarism detection. Not affiliated w
 
 **Created for:** Academic integrity support
 **Algorithm:** N-Gram Shingling + Semantic Similarity
-**Models:** sentence-transformers (all-MiniLM-L6-v2)
+**Models:** sentence-transformers (paraphrase-multilingual-MiniLM-L12-v2)

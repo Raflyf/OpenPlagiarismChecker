@@ -311,13 +311,118 @@ def fetch_ddgs(probe):
         print(f"[!] Warning: API/Scraper error -> {e}")
     return urls_found, []
 
+def fetch_doaj(probe):
+    """Mencari artikel open-access di DOAJ (Directory of Open Access Journals — 9M+ articles)"""
+    urls_found = []
+    texts_found = []
+    try:
+        short_probe = " ".join(probe.split()[:12])
+        url = "https://doaj.org/api/search/articles/" + requests.utils.quote(short_probe)
+        params = {"pageSize": 5}
+        res = requests.get(url, params=params, timeout=8)
+        if res.status_code == 200:
+            data = res.json()
+            for item in data.get('results', []):
+                bibjson = item.get('bibjson', {})
+                title = bibjson.get('title', '')
+                abstract = bibjson.get('abstract', '')
+                links = bibjson.get('link', [])
+                p_url = ''
+                for lnk in links:
+                    if lnk.get('type') == 'fulltext':
+                        p_url = lnk.get('url', '')
+                        break
+                if not p_url:
+                    identifiers = bibjson.get('identifier', [])
+                    for ident in identifiers:
+                        if ident.get('type') == 'doi':
+                            p_url = f"https://doi.org/{ident.get('id', '')}"
+                            break
+                combined = f"{title}. {abstract}"
+                if p_url and len(combined) > 50:
+                    urls_found.append(p_url)
+                    texts_found.append(combined)
+    except Exception as e:
+        print(f"[!] DOAJ API error: {e}")
+    return urls_found, texts_found
+
+def fetch_arxiv(probe):
+    """Mencari preprint di arXiv (2.4M+ papers, gratis tanpa API key)"""
+    urls_found = []
+    texts_found = []
+    try:
+        import urllib.parse
+        short_probe = " ".join(probe.split()[:10])
+        search_url = "http://export.arxiv.org/api/query"
+        params = {
+            "search_query": f"all:{urllib.parse.quote(short_probe)}",
+            "start": 0,
+            "max_results": 3
+        }
+        res = requests.get(search_url, params=params, timeout=8)
+        if res.status_code == 200:
+            from bs4 import BeautifulSoup
+            soup = BeautifulSoup(res.text, 'xml')
+            for entry in soup.find_all('entry'):
+                title = entry.find('title')
+                summary = entry.find('summary')
+                link = entry.find('id')
+                if title and summary and link:
+                    combined = f"{title.text.strip()}. {summary.text.strip()}"
+                    if len(combined) > 50:
+                        urls_found.append(link.text.strip())
+                        texts_found.append(combined)
+        time.sleep(0.5)
+    except Exception as e:
+        print(f"[!] arXiv API error: {e}")
+    return urls_found, texts_found
+
+def fetch_core(probe):
+    """Mencari paper di CORE.ac.uk (300M+ papers, gratis tanpa API key untuk search)"""
+    urls_found = []
+    texts_found = []
+    try:
+        short_probe = " ".join(probe.split()[:12])
+        url = "https://api.core.ac.uk/v3/search/works"
+        params = {"q": short_probe, "limit": 5}
+        headers = {"Accept": "application/json"}
+        res = requests.get(url, params=params, headers=headers, timeout=8)
+        if res.status_code == 200:
+            data = res.json()
+            for item in data.get('results', []):
+                title = item.get('title', '')
+                abstract = item.get('abstract', '') or ''
+                p_url = ''
+                for lnk in item.get('links', []):
+                    if lnk.get('type') == 'download':
+                        p_url = lnk.get('url', '')
+                        break
+                if not p_url:
+                    p_url = item.get('downloadUrl') or item.get('sourceFulltextUrls', [''])[0] if item.get('sourceFulltextUrls') else ''
+                if not p_url:
+                    doi = item.get('doi', '')
+                    if doi:
+                        p_url = f"https://doi.org/{doi}"
+                combined = f"{title}. {abstract}"
+                if p_url and len(combined) > 50:
+                    urls_found.append(p_url)
+                    texts_found.append(combined)
+    except Exception as e:
+        print(f"[!] CORE API error: {e}")
+    return urls_found, texts_found
+
 def fetch_probe_multi(probe):
     """Mencari ke semua mesin secara serentak dengan free API fallbacks"""
-    
+
     # 1. Try academic APIs first (free, unlimited)
     u_ss, t_ss = fetch_semantic_scholar(probe)
     u_cr, t_cr = fetch_crossref(probe)
     u_oa, t_oa = fetch_openalex(probe)
+
+    # 1b. Additional free academic APIs
+    u_doaj, t_doaj = fetch_doaj(probe)
+    u_arxiv, t_arxiv = fetch_arxiv(probe)
+    u_core, t_core = fetch_core(probe)
     
     # 2. Try paid APIs (may fail if credit exhausted)
     u_gs, _ = fetch_google_scholar(probe)
@@ -350,6 +455,9 @@ def fetch_probe_multi(probe):
     for u, t in zip(u_ss, t_ss): preloaded[u] = t
     for u, t in zip(u_cr, t_cr): preloaded[u] = t
     for u, t in zip(u_repo, t_repo): preloaded[u] = t
+    for u, t in zip(u_doaj, t_doaj): preloaded[u] = t
+    for u, t in zip(u_arxiv, t_arxiv): preloaded[u] = t
+    for u, t in zip(u_core, t_core): preloaded[u] = t
     
     # OpenAlex dan Fallback CSE sering punya snippet/teks yang layak
     normal_urls = u_gs + u_gw + u_gr + u_dd
@@ -368,35 +476,47 @@ def fetch_probe_multi(probe):
     
     return preloaded, normal_urls
 
-def get_candidate_urls(sentences, max_probes=50, progress_cb=None):
+def get_candidate_urls(sentences, max_probes=75, progress_cb=None):
     """
     Fungsi ini kini mengembalikan dua hal:
     1. urls (List URL web biasa untuk discrape manual)
     2. preloaded_corpus (Dict berisi teks abstrak/jurnal berbayar yang langsung didapat via API)
+
+    Strategi sampling 3-tier (75 probe):
+    - Tier 1 (33%): Kalimat terpanjang (high-specificity, likely unique content)
+    - Tier 2 (33%): Kalimat medium-length (balanced coverage)
+    - Tier 3 (34%): Uniform sampling across document (ensures all chapters covered)
     """
-    # Hibrida Algoritma: 
-    # 1. Separuh Fingerprint dari kalimat terpanjang (Mencegah pencarian gagal karena kalimat umum)
-    # 2. Separuh Fingerprint Uniform Sampling (Memastikan Bab 1 s/d Bab 5 tersisir rata layaknya Turnitin)
     valid_sentences = [s for s in sentences if len(s.split()) >= 8]
     if len(valid_sentences) <= max_probes:
         probes = valid_sentences
     else:
-        # Ambil 50% Terpanjang
-        half = max_probes // 2
-        longest = sorted(valid_sentences, key=lambda s: len(s.split()), reverse=True)[:half]
-        
-        # Ambil sisanya secara merata, JANGAN sertakan yang sudah masuk di 'longest'
-        remaining_needed = max_probes - len(longest)
-        uniform_candidates = [s for s in valid_sentences if s not in longest]
-        
-        if remaining_needed > 0 and uniform_candidates:
-            step = len(uniform_candidates) / remaining_needed
-            uniform = [uniform_candidates[int(i * step)] for i in range(remaining_needed)]
+        tier1_count = max_probes // 3
+        tier2_count = max_probes // 3
+        tier3_count = max_probes - tier1_count - tier2_count
+
+        sorted_by_len = sorted(valid_sentences, key=lambda s: len(s.split()), reverse=True)
+
+        tier1 = sorted_by_len[:tier1_count]
+
+        mid_start = len(sorted_by_len) // 4
+        mid_end = len(sorted_by_len) * 3 // 4
+        mid_candidates = [s for s in sorted_by_len[mid_start:mid_end] if s not in tier1]
+        if len(mid_candidates) >= tier2_count:
+            step = len(mid_candidates) / tier2_count
+            tier2 = [mid_candidates[int(i * step)] for i in range(tier2_count)]
         else:
-            uniform = []
-            
-        # Gabungkan tanpa takut duplikat
-        probes = (longest + uniform)[:max_probes]
+            tier2 = mid_candidates
+
+        used = set(id(s) for s in tier1 + tier2)
+        uniform_candidates = [s for s in valid_sentences if id(s) not in used]
+        if len(uniform_candidates) >= tier3_count:
+            step = len(uniform_candidates) / tier3_count
+            tier3 = [uniform_candidates[int(i * step)] for i in range(tier3_count)]
+        else:
+            tier3 = uniform_candidates
+
+        probes = (tier1 + tier2 + tier3)[:max_probes]
         
     urls = set()
     preloaded_corpus = {}

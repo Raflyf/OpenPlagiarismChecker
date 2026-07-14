@@ -52,9 +52,8 @@ def process_document(file_id, filepath, original_filename, exclude_quotes=True, 
             pct = 5 + int((completed / total) * 35) # 5% to 40%
             set_progress(pct, f"Mencari web ({completed}/{total})...")
             
-        print(f"[!] Mencari kandidat dari web (Mode Hybrid: 50 Fingerprints Skripsi)...")
-        # Mode Hybrid: 25 Kalimat Terpanjang + 25 Sampel Merata (Bab 1 s/d 5)
-        urls, preloaded_corpus = get_candidate_urls(sentences, max_probes=50, progress_cb=ddg_progress)
+        print(f"[!] Mencari kandidat dari web (Mode Hybrid: 75 Fingerprints Skripsi)...")
+        urls, preloaded_corpus = get_candidate_urls(sentences, max_probes=75, progress_cb=ddg_progress)
         
         def scrape_progress(completed, total, speed="0 KB/s"):
             pct = 40 + int((completed / total) * 40) # 40% to 80%
@@ -64,33 +63,14 @@ def process_document(file_id, filepath, original_filename, exclude_quotes=True, 
             
         print(f"[!] Mengunduh teks dari {len(urls)} kandidat...")
         corpus = scrape_all_candidates(urls, preloaded_corpus, progress_cb=scrape_progress)
-        
-        # === GROUP BY DOMAIN (Mengatasi duplikat doi.org / website sama) ===
-        from urllib.parse import urlparse
-        grouped_corpus = {}
-        for url, text in corpus.items():
-            try:
-                parsed = urlparse(url)
-                if parsed.netloc:
-                    domain = parsed.netloc.replace('www.', '')
-                    domain_url = f"{parsed.scheme}://{domain}"
-                    if domain_url not in grouped_corpus:
-                        grouped_corpus[domain_url] = text
-                    else:
-                        grouped_corpus[domain_url] += "\n\n" + text
-                else:
-                    grouped_corpus[url] = text
-            except:
-                grouped_corpus[url] = text
-        corpus = grouped_corpus
-        
+
         set_progress(85, "Menghitung kemiripan (Algoritma N-Gram)...")
         print("[!] Menghitung similaritas dengan algoritma N-Gram Shingling...")
         sorted_sources, total_similarity, plagiarized_sentences = calculate_similarity(doc_text, corpus, exclude_small, use_semantic=use_semantic)
         
         data = {
             'filename': original_filename.replace('.pdf', ''),
-            'total_similarity': int(math.floor(total_similarity)),
+            'total_similarity': round(total_similarity),
             'sources': sorted_sources,
             'plagiarized_sentences': plagiarized_sentences,
             'manipulation_warnings': manipulation_warnings

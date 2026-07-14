@@ -1,8 +1,97 @@
 import re
 from .semantic_similarity import batch_semantic_check
 
+# Frasa umum akademik Indonesia yang BUKAN plagiarisme (boilerplate phrases)
+# Filter ini mencegah false positive pada kalimat generik
+COMMON_ACADEMIC_PHRASES = {
+    "yang telah dilakukan oleh",
+    "dalam penelitian ini penulis",
+    "berdasarkan hasil penelitian yang",
+    "dari hasil penelitian ini",
+    "dapat disimpulkan bahwa hasil",
+    "metode yang digunakan dalam",
+    "data yang diperoleh dari",
+    "hasil penelitian menunjukkan bahwa",
+    "penelitian ini bertujuan untuk",
+    "teknik pengumpulan data yang",
+    "populasi dan sampel dalam",
+    "analisis data menggunakan metode",
+    "hasil dan pembahasan dalam",
+    "berdasarkan latar belakang masalah",
+    "rumusan masalah dalam penelitian",
+    "manfaat penelitian ini adalah",
+    "batasan masalah dalam penelitian",
+    "definisi operasional variabel dalam",
+    "kerangka berpikir dalam penelitian",
+    "hipotesis penelitian ini adalah",
+    "jenis penelitian yang digunakan",
+    "sumber data dalam penelitian",
+    "teknik analisis data yang",
+    "uji validitas dan reliabilitas",
+    "hasil uji hipotesis menunjukkan",
+    "ini penulis menggunakan metode",
+    "penulis menggunakan metode yang",
+    "menggunakan metode yang telah",
+    "penelitian ini menggunakan metode",
+    "yang digunakan dalam penelitian",
+    "digunakan dalam penelitian ini",
+    "ini adalah penelitian yang",
+    "sampel dalam penelitian ini",
+    "penelitian ini adalah untuk",
+    "tujuan penelitian ini adalah",
+    "objek penelitian ini adalah",
+    "subjek penelitian ini adalah",
+    "lokasi penelitian ini adalah",
+    "waktu penelitian ini dilakukan",
+    "variabel dalam penelitian ini",
+    "instrumen dalam penelitian ini",
+    "indikator dalam penelitian ini",
+    "penelitian ini dilakukan di",
+    "penelitian ini dilakukan pada",
+    "penelitian ini dilakukan untuk",
+    "metode penelitian yang digunakan",
+    "pendekatan yang digunakan dalam",
+    "teknik yang digunakan dalam",
+    "analisis yang digunakan dalam",
+    "berdasarkan hasil analisis yang",
+    "berdasarkan hasil observasi yang",
+    "berdasarkan data yang diperoleh",
+    "berdasarkan tabel di atas",
+    "berdasarkan gambar di atas",
+    "berdasarkan grafik di atas",
+    "dari tabel di atas",
+    "dari gambar di atas",
+    "pada tabel di atas",
+    "pada gambar di atas",
+    "seperti yang terlihat pada",
+    "seperti yang ditunjukkan pada",
+    "hal ini menunjukkan bahwa",
+    "hal ini disebabkan oleh",
+    "hal ini dikarenakan oleh",
+    "hal ini sesuai dengan",
+    "hal ini sejalan dengan",
+    "hal ini berbeda dengan",
+    "dengan demikian dapat disimpulkan",
+    "oleh karena itu dapat",
+    "oleh karena itu penelitian",
+    "oleh karena itu penulis",
+    "dengan kata lain bahwa",
+    "adapun yang menjadi tujuan",
+    "adapun yang menjadi manfaat",
+    "adapun yang menjadi rumusan",
+}
+
+def is_common_phrase(ngram_text):
+    """Cek apakah n-gram adalah frasa umum akademik (bukan plagiarisme)"""
+    for phrase in COMMON_ACADEMIC_PHRASES:
+        if phrase in ngram_text or ngram_text in phrase:
+            return True
+    return False
+
 def get_sentences(text, filter_short=False):
-    sentences = re.split(r'(?<=[.!?])\s+', text)
+    # Improved: handle kalimat tanpa titik yang dipisah newline atau semicolon
+    text = re.sub(r'\n+', '. ', text)
+    sentences = re.split(r'(?<=[.!?;])\s+', text)
     if filter_short:
         return [s.strip() for s in sentences if len(s.split()) >= 3]
     return [s.strip() for s in sentences if s.strip()]
@@ -43,12 +132,15 @@ def get_ngrams(text, n=5):
     Menghasilkan N-Grams dari teks.
     Turnitin default menggunakan threshold 5 kata berurutan.
     """
-    # 1. OPTIMALISASI PRE-PROCESSING: Gabungkan kata yang terpisah oleh tanda hubung (hyphen) di akhir baris
     text = re.sub(r'-\s+', '', text)
-    # 2. Hapus semua tanda baca kecuali karakter alfanumerik dan spasi
     text = re.sub(r'[^\w\s]', '', text)
     words = text.lower().split()
-    return [" ".join(words[i:i+n]) for i in range(len(words)-n+1)]
+    ngrams = []
+    for i in range(len(words)-n+1):
+        gram = " ".join(words[i:i+n])
+        if not is_common_phrase(gram):
+            ngrams.append(gram)
+    return ngrams
 
 def get_shingles(text, n=5):
     return set(get_ngrams(text, n))
@@ -101,14 +193,17 @@ def calculate_similarity(doc_text, corpus, exclude_small=False, use_semantic=Fal
                 for j in range(5):
                     is_matched_source[i+j] = True
                     
-        # Gap Filling untuk Sumber (Meniru blok Turnitin)
+        # Gap Filling konservatif: hanya isi gap 1-2 kata jika kedua sisi match cukup kuat
         for i in range(len(is_matched_source) - 3):
             if is_matched_source[i] and not is_matched_source[i+1]:
-                # Cari True terdekat dalam jarak 3 kata
+                left_strength = 0
+                for k in range(max(0, i-1), i+1):
+                    if is_matched_source[k]: left_strength += 1
                 for gap in range(2, 4):
                     if i + gap < len(is_matched_source) and is_matched_source[i+gap]:
-                        for fill in range(1, gap):
-                            is_matched_source[i+fill] = True
+                        if left_strength >= 2:
+                            for fill in range(1, gap):
+                                is_matched_source[i+fill] = True
                         break
                     
         matched_word_count = sum(is_matched_source)
@@ -148,13 +243,14 @@ def calculate_similarity(doc_text, corpus, exclude_small=False, use_semantic=Fal
             for j in range(i, i+5):
                 is_matched_global[j] = True
 
-    # Global Gap Filling: Sorot 1-3 kata yang terselip di antara frasa plagiat
-    for i in range(len(is_matched_global) - 3):
-        if is_matched_global[i] and not is_matched_global[i+1]:
+    # Global Gap Filling (konservatif): hanya fill gap jika kedua sisi >= 2 kata match
+    for i in range(len(is_matched_global) - 4):
+        if is_matched_global[i] and i > 0 and is_matched_global[i-1] and not is_matched_global[i+1]:
             for gap in range(2, 4):
                 if i + gap < len(is_matched_global) and is_matched_global[i+gap]:
-                    for fill in range(1, gap):
-                        is_matched_global[i+fill] = True
+                    if i + gap + 1 < len(is_matched_global) and is_matched_global[i+gap+1]:
+                        for fill in range(1, gap):
+                            is_matched_global[i+fill] = True
                     break
 
     # Bangun kalimat yang di-highlight berdasarkan is_matched_global
