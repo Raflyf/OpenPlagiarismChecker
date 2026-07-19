@@ -2,9 +2,15 @@
 
 Modul ini adalah _tools_ pengecek plagiarisme mandiri tingkat lanjut (Clone Turnitin) yang berjalan secara lokal untuk mendeteksi indeks kesamaan (plagiarisme) dari dokumen skripsi Anda dengan seluruh sumber publik maupun repositori di Internet.
 
-## 🚀 Latest Updates (v2.0)
+## 🚀 Latest Updates (v3.1)
 
-### ✨ New Features
+### ✨ v3.1 Highlights
+- **Audit API key**: buang sumber mati (Perplexity/Gemini/Tavily/Google CSE), pertahankan yang aktif & gratis.
+- **Rotasi multi-key** untuk Semantic Scholar (3 key) & Cohere (2 key) — throughput + backup.
+- **Cohere jadi query-expander** (web-search connector-nya dihapus vendor) → umpan ke DuckDuckGo.
+- **Dukungan GPU (CUDA)** untuk layer Semantic Similarity (auto-detect, fallback CPU).
+
+### ✨ v2.0 New Features
 - **Semantic Similarity Layer**: Deteksi parafrasa tingkat lanjut menggunakan sentence-transformers (model 'paraphrase-multilingual-MiniLM-L12-v2') dengan dukungan bahasa Indonesia yang akurat.
 - **BSI Repository Priority**: Prioritas tinggi untuk repository.bsi.ac.id dan kampus Indonesia lainnya
 - **Session-Based Security**: File access dilindungi dengan ownership validation
@@ -27,7 +33,7 @@ Sistem menggunakan ekosistem *Hybrid* skala besar dengan **2-Layer Detection**:
 
 ### Layer 1: N-Gram Exact Matching
 1. **Hybrid Winnowing Fingerprinting:** Mengekstrak **75 Sampel Fingerprints** (25 kalimat terpanjang + 25 medium-length + 25 sampel seragam/merata dari Bab 1 s/d Bab 5 untuk penyisiran area dokumen).
-2. **AI Search Engine:** Mengandalkan **Perplexity AI, Google Gemini, Cohere, dan Tavily** secara paralel (*Load Balanced*) untuk mencari sumber kutipan tersembunyi.
+2. **AI Search Engine:** Menggunakan **Cohere (command-a) sebagai query-expander** yang menghasilkan variasi frasa pencarian akademik, lalu diumpankan ke **DuckDuckGo**. (Catatan v3.1: Perplexity, Gemini, Tavily quota-nya habis dan Google Custom Search ditutup permanen oleh Google untuk akun baru; Cohere web-search connector juga dihapus per 15 Sep 2025. Lihat Changelog v3.1.)
 3. **Academic Repository Crawler:** Menggunakan *ScrapingBee* & *ScraperAPI* untuk menembus proteksi Cloudflare/WAF kampus demi mengumpulkan data secara instan dari:
    - **Repository BSI** (repository.bsi.ac.id) - **PRIORITAS TERTINGGI**
    - **Garuda Kemdikbud** (Seluruh Jurnal Nasional & Kampus Indonesia)
@@ -187,7 +193,18 @@ Each source shows:
 
 ## 📝 Changelog
 
-### v3.0 (Current)
+### v3.1 (Current)
+- **Audit & pembersihan sumber pencarian**: memverifikasi semua API key dan membuang yang mati/quota-habis:
+  - ❌ **Perplexity** (401 quota exceeded), **Gemini** (429 quota exceeded), **Tavily** (432 plan limit), **Google Custom Search** (403 — API ditutup Google secara permanen untuk akun/project baru).
+  - ✅ Yang aktif & gratis dipertahankan: **Semantic Scholar**, **Cohere (chat)**, **ScraperAPI**, plus DuckDuckGo (via paket `ddgs`), Crossref, DOAJ, arXiv, CORE.
+- **Rotasi multi-key (round-robin, thread-safe)**:
+  - **Semantic Scholar**: 3 key (`S2_API_KEYS`) untuk throughput lebih tinggi + backup, menghilangkan rate-limit 429.
+  - **Cohere**: 2 key (`COHERE_KEYS`) dengan rotasi otomatis.
+- **Cohere dialihfungsikan jadi Query-Expander**: connector web-search Cohere dihapus vendor (15 Sep 2025) dan model `command-r-plus` pensiun, sehingga blok pencarian URL lama tidak lagi berfungsi. Sekarang Cohere `command-a-03-2025` (chat v2) dipakai menghasilkan variasi frasa pencarian yang diumpankan ke DuckDuckGo — menambah recall tanpa bergantung pada API mati.
+- **Dukungan GPU (CUDA) untuk Semantic Similarity**: model sentence-transformers otomatis memakai GPU bila tersedia (`torch.cuda.is_available()`), fallback ke CPU. Mempercepat encoding embedding pada GPU (mis. RTX 3050 4GB). Membutuhkan instalasi torch build CUDA.
+- **Blacklist repo mati lebih robust**: deteksi error timeout/SSL/connection dibuat case-insensitive di `indonesian_repos.py` agar repo yang benar-benar mati langsung masuk blacklist dan tidak memblokir thread pool.
+
+### v3.0
 - Added **3 new free academic APIs**: DOAJ (9M+ open-access articles), arXiv (2.4M+ preprints), CORE (300M+ papers)
 - Upgraded probe sampling from 50 to **75 probes** with 3-tier strategy (longest + medium + uniform)
 - Added **Common Academic Phrase Filter** (75 boilerplate phrases) to reduce false positives from generic Indonesian academic sentences

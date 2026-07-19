@@ -1,3 +1,4 @@
+import os
 import time
 import random
 import requests
@@ -7,6 +8,81 @@ from concurrent.futures import ThreadPoolExecutor
 
 # Sembunyikan peringatan jika situs web yang di-scrape berupa XML/RSS
 warnings.filterwarnings("ignore", category=XMLParsedAsHTMLWarning)
+
+# --- Rotasi API Key (round-robin) untuk backup & mengurangi rate-limit 429 ---
+import itertools, threading
+
+def _load_keys(*env_names):
+    """Kumpulkan key dari beberapa env var (comma-separated), buang duplikat & kosong."""
+    seen, keys = set(), []
+    for name in env_names:
+        for k in os.environ.get(name, "").split(","):
+            k = k.strip()
+            if k and k not in seen:
+                seen.add(k)
+                keys.append(k)
+    return keys
+
+_s2_lock = threading.Lock()
+_s2_cycle = None
+
+def _next_s2_key():
+    """Ambil S2 key berikutnya secara round-robin (thread-safe). None bila tak ada key."""
+    global _s2_cycle
+    with _s2_lock:
+        if _s2_cycle is None:
+            keys = _load_keys("S2_API_KEYS", "S2_API_KEY")
+            _s2_cycle = itertools.cycle(keys) if keys else itertools.cycle([None])
+        return next(_s2_cycle)
+
+_cohere_lock = threading.Lock()
+_cohere_cycle = None
+
+def _next_cohere_key():
+    """Ambil Cohere key berikutnya secara round-robin (thread-safe). None bila tak ada key."""
+    global _cohere_cycle
+    with _cohere_lock:
+        if _cohere_cycle is None:
+            keys = _load_keys("COHERE_KEYS", "COHERE_KEY")
+            _cohere_cycle = itertools.cycle(keys) if keys else itertools.cycle([None])
+        return next(_cohere_cycle)
+
+def cohere_expand_queries(probe, n=3):
+    """Pakai Cohere chat (command-a) sebagai query-expander: hasilkan variasi frasa
+    pencarian akademik Indonesia untuk 1 probe. Connector web-search Cohere sudah
+    dihapus (15 Sep 2025), jadi Cohere TIDAK dipakai mencari URL langsung; variasi
+    ini diumpankan ke DuckDuckGo yang masih berfungsi. Return list frasa (bisa kosong)."""
+    key = _next_cohere_key()
+    if not key:
+        return []
+    try:
+        prompt = (
+            "Anda membantu mendeteksi plagiarisme skripsi Bahasa Indonesia. "
+            f"Buat {n} variasi frasa pencarian singkat (5-8 kata) untuk menemukan sumber "
+            "jurnal/skripsi yang mungkin menjadi asal kalimat berikut. Jawab HANYA daftar "
+            "frasa, satu per baris, tanpa nomor atau penjelasan.\n\n"
+            f"Kalimat: {probe}"
+        )
+        res = requests.post(
+            "https://api.cohere.ai/v2/chat",
+            headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json"},
+            json={"model": "command-a-03-2025",
+                  "messages": [{"role": "user", "content": prompt}],
+                  "temperature": 0.3},
+            timeout=20,
+        )
+        if res.status_code != 200:
+            return []
+        data = res.json()
+        # v2 chat: message.content adalah list blok {type:'text', text:...}
+        text = ""
+        for block in data.get("message", {}).get("content", []):
+            if block.get("type") == "text":
+                text += block.get("text", "")
+        lines = [ln.strip(" -*0123456789.\t") for ln in text.splitlines()]
+        return [ln for ln in lines if len(ln.split()) >= 3][:n]
+    except Exception:
+        return []
 
 # Budget global: jumlah probe yang boleh menyisir repo Indonesia (lambat karena throttling
 # server kampus). Di-reset tiap run di get_candidate_urls(). Melindungi dari 75x hit.
@@ -24,7 +100,9 @@ def fetch_semantic_scholar(probe):
             "limit": 5,
             "fields": "title,abstract,url"
         }
-        res = requests.get(url, params=params, timeout=10)
+        s2_key = _next_s2_key()
+        s2_headers = {"x-api-key": s2_key} if s2_key else {}
+        res = requests.get(url, params=params, headers=s2_headers, timeout=10)
         if res.status_code == 200:
             data = res.json()
             for paper in data.get('data', []):
@@ -560,10 +638,48 @@ def get_candidate_urls(sentences, max_probes=75, progress_cb=None):
     print(f"[API] Meluncurkan Bot AI & Browser Crawler untuk {len(probes)} Fingerprints...")
     
     try:
+        # ========================================================================
+        # COHERE QUERY-EXPANDER -> DUCKDUCKGO
+        # Perplexity/Gemini/Tavily quota habis & Google CSE ditutup permanen.
+        # Cohere web-search connector juga dihapus (15 Sep 2025). Yang tersisa &
+        # gratis: Cohere chat (command-a) sebagai peng-EKSPAN query. Tiap probe
+        # kita minta variasi frasa, lalu variasi itu dicari via DuckDuckGo (fetch_ddgs).
+        # Ini menambah recall sumber tanpa bergantung pada API yang sudah mati.
+        # ========================================================================
+        def fetch_expanded(args):
+            idx, probe = args
+            found = set()
+            for variant in cohere_expand_queries(probe, n=3):
+                try:
+                    v_urls, _ = fetch_ddgs(variant)
+                    for u in v_urls:
+                        if u and u.startswith('http'):
+                            found.add(u)
+                except Exception:
+                    pass
+            return list(found)
+
+        import concurrent.futures
+        # max_workers=2: hormati Cohere trial 1 req/detik + hindari DDG rate-limit
+        with concurrent.futures.ThreadPoolExecutor(max_workers=2) as executor:
+            futures_exp = {executor.submit(fetch_expanded, (i, p)): i for i, p in enumerate(probes)}
+            for i, future in enumerate(concurrent.futures.as_completed(futures_exp)):
+                if progress_cb:
+                    progress_cb(futures_exp[future] + 1, len(probes) + len(probes))
+                try:
+                    for u in future.result():
+                        urls.add(u)
+                except Exception:
+                    pass
+    except Exception as e:
+        print(f"[!] Cohere/DDG expander error: {e}")
+
+    # --- blok API mati di bawah dinonaktifkan (disimpan sbagai referensi histori) ---
+    if False:
         def fetch_pplx(args):
             idx, probe = args
             combined_urls = set()
-            
+
             # 1. PERPLEXITY AI
             import time
             for attempt in range(3):
@@ -596,7 +712,7 @@ def get_candidate_urls(sentences, max_probes=75, progress_cb=None):
                 except Exception as e:
                     if attempt == 2:
                         print(f"[!] Perplexity API Error: {e}")
-                
+
             # 2. GEMINI AI GROUNDING (Sistem Load Balancer dengan Auto-Failover)
             import os
             gemini_env = os.environ.get("GEMINI_KEYS", "")
@@ -708,8 +824,7 @@ def get_candidate_urls(sentences, max_probes=75, progress_cb=None):
                             urls.add(u)
                 except Exception:
                     pass
-    except Exception as e:
-        print(f"[!] Perplexity API Error: {e}")
+    # --- akhir blok API mati ---
 
     print(f"[API] Mencari jurnal dari {len(probes)} sampel kalimat via Semantic Scholar, Crossref & DuckDuckGo...")
     
@@ -741,6 +856,13 @@ def get_candidate_urls(sentences, max_probes=75, progress_cb=None):
 def scrape_url(url):
     """Mengekstrak teks mentah dari URL (Website atau PDF) menggunakan AbstractAPI Proxy untuk menembus WAF/Cloudflare"""
     total_bytes = 0
+    # Banyak situs (Medium, repositori kampus) mengembalikan halaman kosong/blokir
+    # tanpa User-Agent browser. Header ini menaikkan keberhasilan & kelengkapan teks.
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+                      "(KHTML, like Gecko) Chrome/120.0 Safari/537.36",
+        "Accept-Language": "id-ID,id;q=0.9,en;q=0.8",
+    }
     try:
         import urllib.parse
         import os
@@ -748,16 +870,16 @@ def scrape_url(url):
         abstract_key = os.environ.get("ABSTRACT_KEY", "")
         if abstract_key:
             proxy_url = f"https://scrape.abstractapi.com/v1/?api_key={abstract_key}&url={encoded_url}"
-            
+
             # Naikkan timeout agar proses scrape web lambat (misal repositori kampus) tidak langsung gagal,
             # tapi cukup agresif (15 detik) untuk mencegah sistem tersedak.
             res = requests.get(proxy_url, timeout=15)
-            
+
             # FALLBACK: Jika API Proxy habis limit (429) atau gagal (401), coba unduh langsung tanpa proxy!
             if res.status_code != 200:
-                res = requests.get(url, timeout=15, verify=False)
+                res = requests.get(url, timeout=20, verify=False, headers=headers)
         else:
-            res = requests.get(url, timeout=15, verify=False)
+            res = requests.get(url, timeout=20, verify=False, headers=headers)
             
         if res.status_code == 200:
             total_bytes += len(res.content)
@@ -796,15 +918,16 @@ def scrape_url(url):
                     # Ambil MAKSIMAL 3 file PDF per halaman untuk mencegah server tersedak (Hanging Process)
                     for pdf_url in pdf_links[:3]:
                         try:
-                            # Gunakan AbstractAPI lagi untuk mendownload PDF jika dilindungi Cloudflare
-                            encoded_pdf = urllib.parse.quote(pdf_url)
-                            proxy_pdf = f"https://scrape.abstractapi.com/v1/?api_key={abstract_key}&url={encoded_pdf}"
-                            
-                            # Timeout sangat ketat (10 detik) untuk PDF. Jika server terlalu lemot, lewati!
-                            pdf_res = requests.get(proxy_pdf, timeout=10)
-                            
-                            if pdf_res.status_code != 200:
-                                pdf_res = requests.get(pdf_url, timeout=10, verify=False)
+                            # Gunakan AbstractAPI lagi untuk mendownload PDF jika dilindungi Cloudflare.
+                            # Skip proxy jika tidak ada key (mencegah request sia-sia yang selalu gagal).
+                            if abstract_key:
+                                encoded_pdf = urllib.parse.quote(pdf_url)
+                                proxy_pdf = f"https://scrape.abstractapi.com/v1/?api_key={abstract_key}&url={encoded_pdf}"
+                                pdf_res = requests.get(proxy_pdf, timeout=15)
+                                if pdf_res.status_code != 200:
+                                    pdf_res = requests.get(pdf_url, timeout=20, verify=False, headers=headers)
+                            else:
+                                pdf_res = requests.get(pdf_url, timeout=20, verify=False, headers=headers)
                                 
                             if pdf_res.status_code == 200:
                                 total_bytes += len(pdf_res.content)
@@ -848,8 +971,12 @@ def scrape_all_candidates(urls, preloaded_corpus, progress_cb=None):
     import time
     start_time = time.time()
     total_downloaded_bytes = 0
-    with concurrent.futures.ThreadPoolExecutor(max_workers=40) as executor:
-        futures = [executor.submit(scrape_url, u) for u in urls]
+    # max_workers=8: 40 koneksi HTTPS serentak dari 1 IP memicu rate-limit server,
+    # SSL handshake gagal, dan connection-pool jenuh (banyak sumber relevan gagal
+    # download meski solo-nya sukses). 8 worker jauh lebih andal walau sedikit lambat.
+    failed_urls = []
+    with concurrent.futures.ThreadPoolExecutor(max_workers=8) as executor:
+        futures = {executor.submit(scrape_url, u): u for u in urls}
         total = len(futures)
         for i, future in enumerate(concurrent.futures.as_completed(futures)):
             try:
@@ -857,7 +984,10 @@ def scrape_all_candidates(urls, preloaded_corpus, progress_cb=None):
                 total_downloaded_bytes += downloaded_bytes
                 if len(text) > 150: # Validasi panjang minimal teks
                     corpus[url] = text
+                else:
+                    failed_urls.append(futures[future])
             except Exception as e:
+                failed_urls.append(futures[future])
                 print(f"[!] Warning: API/Scraper error -> {e}")
             
             if progress_cb:
@@ -869,5 +999,20 @@ def scrape_all_candidates(urls, preloaded_corpus, progress_cb=None):
                 else:
                     speed_str = f"{speed_mbps:.2f} MB/s"
                 progress_cb(i + 1, total, speed_str)
-                
+
+    # RETRY PASS: URL yang gagal (kosong/error) sering korban rate-limit sesaat, bukan
+    # benar-benar mati. Coba sekali lagi dengan konkurensi sangat rendah (4 worker).
+    if failed_urls:
+        print(f"[Scraper] Retry {len(failed_urls)} sumber yang gagal (konkurensi rendah)...")
+        with concurrent.futures.ThreadPoolExecutor(max_workers=4) as executor:
+            futures = {executor.submit(scrape_url, u): u for u in failed_urls}
+            for future in concurrent.futures.as_completed(futures):
+                try:
+                    url, text, downloaded_bytes = future.result()
+                    total_downloaded_bytes += downloaded_bytes
+                    if len(text) > 150:
+                        corpus[url] = text
+                except Exception:
+                    pass
+
     return corpus

@@ -17,10 +17,13 @@ def get_model():
     """
     global _model
     if _model is None:
-        print("[!] Loading Sentence-Transformer model for semantic similarity...")
+        # Pakai GPU (CUDA) bila tersedia; jatuh ke CPU bila tidak. RTX 3050 4GB cukup
+        # untuk MiniLM (~300MB) dan mempercepat encoding embedding secara signifikan.
+        device = "cuda" if torch.cuda.is_available() else "cpu"
+        print(f"[!] Loading Sentence-Transformer model for semantic similarity... (device={device})")
         # LOG-05: Menggunakan model multilingual yang akurat untuk Bahasa Indonesia
-        _model = SentenceTransformer('paraphrase-multilingual-MiniLM-L12-v2')
-        print("[!] Model loaded successfully.")
+        _model = SentenceTransformer('paraphrase-multilingual-MiniLM-L12-v2', device=device)
+        print(f"[!] Model loaded successfully on {device.upper()}.")
     return _model
 
 def calculate_semantic_similarity(sentence1, sentence2):

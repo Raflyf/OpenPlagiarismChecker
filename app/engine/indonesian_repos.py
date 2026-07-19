@@ -95,7 +95,12 @@ def search_repository_direct(repo_url, query, max_results=5):
             urls_found = google_site_search_fallback(repo_url, query, max_results)
             
     except Exception as e:
-        if "Timeout" in str(e) or "Max retries exceeded" in str(e):
+        # Pesan error aktual bervariasi: "Read timed out", "ConnectTimeout",
+        # "Max retries exceeded", "SSLError". Cek case-insensitive agar repo mati
+        # benar-benar masuk blacklist (tidak di-query ulang tiap probe & memblokir pool).
+        err = str(e).lower()
+        if any(k in err for k in ("timed out", "timeout", "max retries", "sslerror",
+                                   "connection", "ssl:")):
             print(f"[!] {repo_url} mati/timeout. Menambahkan ke Blacklist...")
             DEAD_REPOSITORIES.add(repo_url)
         else:
