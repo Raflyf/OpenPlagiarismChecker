@@ -2,7 +2,15 @@
 
 Modul ini adalah _tools_ pengecek plagiarisme mandiri tingkat lanjut (Clone Turnitin) yang berjalan secara lokal untuk mendeteksi indeks kesamaan (plagiarisme) dari dokumen skripsi Anda dengan seluruh sumber publik maupun repositori di Internet.
 
-## 🚀 Latest Updates (v3.1)
+## 🚀 Latest Updates (v3.2)
+
+### 🐛 v3.2 Critical Scoring Fix (0% → mendekati target)
+- **Fix bug agregasi `exclude_small`**: filter sumber `<1%` dulu dijalankan SEBELUM agregasi global, sehingga plagiarisme yang tersebar tipis di banyak sumber (masing-masing `<1%`) dipaksa jadi skor total 0%. Kini agregasi (union kata ter-match) dihitung dari SEMUA sumber ber-overlap; filter `<1%` hanya memangkas DAFTAR TAMPILAN, bukan skor — persis perilaku Turnitin. Bug identik di layer semantic juga diperbaiki.
+- **Dampak terukur** (ground-truth, GPU aktif): Rafly `0% → ~6%` (target 8%), Hesti `0% → ~12-14%` (target 18%).
+- **Fallback tampilan**: bila filter `>=1%` mengosongkan daftar padahal skor signifikan, tampilkan 10 penyumbang terbesar agar asal skor tetap terlihat.
+- **Deep-PDF crawl**: cap baca dinaikkan `5 → 30/40` halaman per PDF agar teks penuh sumber ikut terindeks (bukan hanya abstrak landing page).
+- Diagnosa lengkap akar masalah: [docs/DIAGNOSA_0_PERSEN.md](docs/DIAGNOSA_0_PERSEN.md).
+- **Sisa gap ke target** disebabkan recall korpus (banyak sumber = abstrak metadata, bukan teks penuh dokumen asli) + non-determinisme search — lihat dokumen diagnosa.
 
 ### ✨ v3.1 Highlights
 - **Audit API key**: buang sumber mati (Perplexity/Gemini/Tavily/Google CSE), pertahankan yang aktif & gratis.
