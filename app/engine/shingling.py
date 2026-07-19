@@ -416,30 +416,13 @@ def calculate_similarity(doc_text, corpus, exclude_small=False, use_semantic=Fal
                     if word_idx < len(is_matched_global):
                         is_matched_global[word_idx] = True
 
-            # === FINAL FILTERING (hanya untuk DAFTAR TAMPILAN, bukan skor total) ===
-            # Buang sumber yang TOTAL kontribusinya < 1.0% dari laporan per-sumber saja.
-            dropped_source_urls = set()
-            if exclude_small:
-                filtered_sources_report = {}
-                for url, s_data in sources_report.items():
-                    if s_data['percentage'] >= 1.0:
-                        filtered_sources_report[url] = s_data
-                    else:
-                        dropped_source_urls.add(url)
-                sources_report = filtered_sources_report
-
-                # Rapikan array highlight dari sumber yang tak lagi tampil di daftar
-                if dropped_source_urls:
-                    surviving_sentences = []
-                    for sent_data in plagiarized_sentences_data:
-                        if sent_data.get('matched_source') not in dropped_source_urls:
-                            surviving_sentences.append(sent_data)
-                    plagiarized_sentences_data = surviving_sentences
-
             # Recalculate total similarity (union penuh, tidak terpengaruh exclude_small)
             total_plagiarized_words_global = sum(is_matched_global)
-                
-            # Sort ulang sources dengan semantic results
+
+            # Sort ulang sources dengan semantic results.
+            # PENTING: JANGAN timpa sources_report menjadi hanya >=1% di sini. Daftar
+            # penuh harus bertahan agar filter tampilan + fallback di akhir fungsi punya
+            # sumber untuk ditampilkan (jika tidak, "14% tapi 0 sumber" tampak seperti bug).
             sorted_sources = sorted(list(sources_report.values()), key=lambda x: x['sort_score'], reverse=True)
             top_sources = sorted_sources[:20]
     
