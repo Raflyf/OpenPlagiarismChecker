@@ -4,9 +4,9 @@ Alat pengecek plagiarisme lokal gratis yang meniru perilaku Turnitin: mendeteksi
 
 **Bukan pengganti Turnitin** — tapi estimasi batas bawah yang akurat. Kalau di sini sudah tinggi, di Turnitin asli pasti lebih tinggi. Perbaiki dulu, hemat biaya.
 
-## Hasil Validasi (6 Dokumen vs Turnitin Asli)
+## Hasil Validasi (8 Dokumen vs Turnitin Asli)
 
-Diuji terhadap 6 dokumen skripsi nyata yang sudah punya skor Turnitin asli sebagai ground truth, di rentang 4-24%:
+Diuji terhadap 8 dokumen skripsi nyata yang sudah punya skor Turnitin asli sebagai ground truth, di rentang 4-24%:
 
 | Dokumen | Skor Lokal | Target Turnitin | Delta | Status |
 |---|---|---|---|---|
@@ -16,8 +16,10 @@ Diuji terhadap 6 dokumen skripsi nyata yang sudah punya skor Turnitin asli sebag
 | Laila before parafrase | 24.2% | 24% | +0.2pt | Tepat |
 | Laila after parafrase | 5.4% | 4% | +1.4pt | Tepat |
 | Tesyar | 10.4% | 8% | +2.4pt | Dekat |
+| Andyan | 18.1% | 23% | -4.9pt | Jauh |
+| Melani | 20.4% | 19% | +1.4pt | Tepat |
 
-**Rata-rata error absolut: 1.25 poin persentase.** Threshold 0.88 terbukti generalize tanpa overfit — 4 dari 6 dokumen dalam +/-1.4pt, dan dokumen terparafrase tetap mendapat skor rendah (tidak over-flag).
+**Rata-rata error absolut: 1.73 poin persentase.** Threshold 0.88 terbukti generalize cukup baik — 6 dari 8 dokumen dalam +/-2.5pt, dan dokumen terparafrase tetap mendapat skor rendah (tidak over-flag).
 
 ## Cara Kerja
 
