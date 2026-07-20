@@ -1,4 +1,4 @@
-﻿# Aturan Mutlak Sistem Asisten Pribadi Rafly (Global Rules)
+# Aturan Mutlak Sistem Asisten Pribadi Rafly (Global Rules)
 
 File ini berisi aturan universal yang **WAJIB MUTLAK** dipatuhi oleh AI di semua proyek/folder (workspace). Karena file ini berada di konfigurasi global (`CLAUDE.md`), instruksi di dalamnya akan selalu disuntikkan secara otomatis ke dalam _system prompt_ AI.
 
@@ -39,6 +39,7 @@ File ini berisi aturan universal yang **WAJIB MUTLAK** dipatuhi oleh AI di semua
 
 - **Wajib Update Dokumentasi:** Setiap ada perubahan, penambahan fitur, atau modifikasi sekecil apa pun, Anda **DIWAJIBKAN** untuk langsung meng-update dokumentasi (atau membuat file .md baru jika belum ada) sebagai riwayat perubahan konseptual.
 - **Wajib Git Push:** Setelah mengubah kode dan memperbarui dokumentasi, **berinisiatiflah untuk langsung melakukan commit dan push** (kecuali diminta sebaliknya). Ini sangat krusial sebagai _restore point_.
+- **Pengecualian Push bank.json:** File `app/corpus_bank/bank.json` berukuran sangat besar (ratusan MB). **DILARANG KERAS** melakukan _stage/commit/push_ untuk file ini kecuali user memberikan instruksi eksplisit (misal: "push bank.json"). File ini telah disetel ke `git update-index --assume-unchanged` di mesin lokal agar tidak ter-_track_ otomatis oleh perintah _git add_. Jika user menyuruh _push_, jalankan `git update-index --no-assume-unchanged app/corpus_bank/bank.json` terlebih dahulu.
 - Gunakan pesan commit berbahasa Inggris yang deskriptif dan profesional (contoh: `UI/UX: Add tab fade animation` atau `fix: resolve auth timeout error`).
 
 ## 5. Rutinitas Asisten Pribadi (Jarvis Routines)
