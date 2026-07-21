@@ -186,6 +186,73 @@
             margin-bottom: 20px;
         }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+        /* Frozen corpus detection banner */
+        .frozen-banner {
+            background: linear-gradient(135deg, #f0fdf4, #ecfdf5);
+            border: 1px solid #86efac;
+            border-radius: 10px;
+            padding: 18px 20px;
+            margin-bottom: 30px;
+            display: none;
+            animation: slideDown 0.35s ease-out;
+        }
+        @keyframes slideDown {
+            from { opacity: 0; transform: translateY(-12px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .frozen-banner .frozen-title {
+            font-size: 13px;
+            font-weight: 700;
+            color: #166534;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .frozen-banner .frozen-title svg {
+            flex-shrink: 0;
+        }
+        .frozen-radio-group {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .frozen-radio-group label {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 13px;
+            color: #374151;
+            cursor: pointer;
+            padding: 10px 14px;
+            border-radius: 8px;
+            border: 1.5px solid transparent;
+            transition: all 0.2s;
+        }
+        .frozen-radio-group label:hover {
+            background-color: #f0fdf4;
+        }
+        .frozen-radio-group label.selected {
+            background-color: #fff;
+            border-color: #22c55e;
+            box-shadow: 0 1px 4px rgba(34,197,94,0.15);
+        }
+        .frozen-radio-group label.selected-orange {
+            background-color: #fffbeb;
+            border-color: #f97316;
+            box-shadow: 0 1px 4px rgba(249,115,22,0.15);
+        }
+        .frozen-radio-group input[type="radio"] {
+            accent-color: #22c55e;
+            width: 16px;
+            height: 16px;
+        }
+        .frozen-radio-group .radio-desc {
+            font-size: 11px;
+            color: #6b7280;
+            margin-top: 2px;
+        }
     </style>
 </head>
 <body>
@@ -227,6 +294,30 @@
                 </label>
             </div>
         </div>
+
+        <!-- Frozen corpus detection banner (hidden by default) -->
+        <div class="frozen-banner" id="frozenBanner">
+            <div class="frozen-title">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+                <span id="frozenTitleText">Dokumen Dikenali</span>
+            </div>
+            <div class="frozen-radio-group">
+                <label id="lblFrozen" class="selected" onclick="selectFrozenOption('frozen')">
+                    <input type="radio" name="corpusChoice" value="frozen" checked>
+                    <div>
+                        <div>Gunakan Korpus Beku (Lebih Cepat)</div>
+                        <div class="radio-desc" id="frozenDesc">Menggunakan data sumber yang sudah tersimpan.</div>
+                    </div>
+                </label>
+                <label id="lblScrape" onclick="selectFrozenOption('scrape')">
+                    <input type="radio" name="corpusChoice" value="scrape">
+                    <div>
+                        <div>Scrape Ulang dari Internet</div>
+                        <div class="radio-desc">Mencari sumber baru dari internet (~15-25 menit). Korpus lama akan ditimpa.</div>
+                    </div>
+                </label>
+            </div>
+        </div>
         
         <div class="submit-container">
             <button class="btn-submit" id="submitBtn" onclick="uploadFile()">
@@ -254,6 +345,21 @@
 
 <script>
     let selectedFile = null;
+    let frozenDetected = false;
+
+    function selectFrozenOption(choice) {
+        const lblFrozen = document.getElementById('lblFrozen');
+        const lblScrape = document.getElementById('lblScrape');
+        lblFrozen.classList.remove('selected');
+        lblScrape.classList.remove('selected-orange');
+        if (choice === 'frozen') {
+            lblFrozen.classList.add('selected');
+            lblFrozen.querySelector('input').checked = true;
+        } else {
+            lblScrape.classList.add('selected-orange');
+            lblScrape.querySelector('input').checked = true;
+        }
+    }
 
     function fileSelected() {
         const fileInput = document.getElementById('fileInput');
@@ -266,9 +372,37 @@
             const btn = document.getElementById('submitBtn');
             btn.classList.add('active');
             document.getElementById('fileCount').innerText = '1';
+
+            // Check frozen corpus
+            checkFrozenCorpus(selectedFile);
         }
     }
-    
+
+    function checkFrozenCorpus(file) {
+        const banner = document.getElementById('frozenBanner');
+        banner.style.display = 'none';
+        frozenDetected = false;
+
+        const formData = new FormData();
+        formData.append('file', file);
+
+        fetch('/check_frozen', { method: 'POST', body: formData })
+            .then(r => r.json())
+            .then(data => {
+                if (data.exists) {
+                    frozenDetected = true;
+                    document.getElementById('frozenTitleText').innerText =
+                        'Dokumen Dikenali (' + data.corpus_size + ' sumber tersimpan)';
+                    document.getElementById('frozenDesc').innerText =
+                        'Menggunakan ' + data.corpus_size + ' sumber yang sudah tersimpan. Estimasi proses (~3-6 menit).';
+                    // Reset to frozen option
+                    selectFrozenOption('frozen');
+                    banner.style.display = 'block';
+                }
+            })
+            .catch(() => { /* silent fail */ });
+    }
+
     // Fitur Drag and Drop
     const dropZone = document.getElementById('dropZone');
 
@@ -297,10 +431,12 @@
     
     function resetFile() {
         selectedFile = null;
+        frozenDetected = false;
         document.getElementById('fileInput').value = '';
         document.getElementById('fileText').innerText = 'Cek Plagiasi No-Repository';
         document.getElementById('fileSub').innerText = 'TARIK FILE MU KESINI / KLIK AJA DISINI';
         document.getElementById('fileExt').innerText = 'Hanya menerima format .pdf';
+        document.getElementById('frozenBanner').style.display = 'none';
         
         const btn = document.getElementById('submitBtn');
         btn.classList.remove('active');
@@ -318,10 +454,25 @@
         formData.append('exclude_quotes', document.getElementById('chkKutipan').checked);
         formData.append('exclude_biblio', document.getElementById('chkPustaka').checked);
         formData.append('exclude_small', document.getElementById('chkKecil').checked);
-        formData.append('use_semantic', 'true');  // Deteksi parafrasa selalu nyala (tanpa opsi UI)
+        formData.append('use_semantic', 'true');
 
-        document.getElementById('loadingSubtitle').innerText =
-            'Mencari sumber di internet lalu mencocokkan (metodologi sama dengan validasi, ~10-15 menit).';
+        let isScrape = true;
+        if (frozenDetected) {
+            const choice = document.querySelector('input[name="corpusChoice"]:checked');
+            if (choice && choice.value === 'frozen') {
+                isScrape = false;
+            } else {
+                formData.append('force_scrape', 'true');
+            }
+        }
+
+        if (isScrape) {
+            document.getElementById('loadingSubtitle').innerText =
+                'Mencari sumber di internet lalu mencocokkan (~15-25 menit)...';
+        } else {
+            document.getElementById('loadingSubtitle').innerText =
+                'Memproses dokumen dengan korpus beku (~3-6 menit)...';
+        }
 
         document.getElementById('loadingOverlay').style.display = 'flex';
         document.getElementById('progressContainer').style.display = 'block';

@@ -49,7 +49,7 @@ results_db = {}
 INTERNET_MAX_PROBES = int(os.environ.get("INTERNET_MAX_PROBES", "100"))
 
 
-def process_document(file_id, filepath, original_filename, exclude_quotes=True, exclude_biblio=True, exclude_small=False, use_semantic=False, use_internet=True):
+def process_document(file_id, filepath, original_filename, exclude_quotes=True, exclude_biblio=True, exclude_small=False, use_semantic=False, use_internet=True, force_scrape=False):
     def set_progress(pct, msg):
         if file_id in results_db:
             results_db[file_id]['progress'] = pct
@@ -83,7 +83,9 @@ def process_document(file_id, filepath, original_filename, exclude_quotes=True, 
         doc_hash = hashlib.md5(doc_text.encode("utf-8")).hexdigest()[:16]
         frozen_path = os.path.join(base_dir, "frozen_corpus", f"web_{doc_hash}.json")
         corpus = None
-        if os.path.exists(frozen_path):
+        if force_scrape:
+            print(f"[!] FORCE SCRAPE: user meminta scrape ulang dari internet, abaikan korpus beku.")
+        elif os.path.exists(frozen_path):
             try:
                 with open(frozen_path, encoding="utf-8") as f:
                     corpus = json.load(f)
@@ -175,6 +177,41 @@ def process_document(file_id, filepath, original_filename, exclude_quotes=True, 
 def index():
     return render_template('index.html')
 
+@app.route('/check_frozen', methods=['POST'])
+def check_frozen():
+    """Cek apakah file yang di-drop sudah memiliki korpus beku (frozen corpus).
+    Endpoint ringan: hanya ekstrak teks -> hash -> cek file exists."""
+    if 'file' not in request.files:
+        return jsonify({'exists': False})
+    file = request.files['file']
+    if not file.filename.lower().endswith('.pdf'):
+        return jsonify({'exists': False})
+
+    # Simpan sementara untuk ekstraksi
+    tmp_path = os.path.join(app.config['UPLOAD_FOLDER'], f"_check_{uuid.uuid4().hex[:8]}.pdf")
+    try:
+        file.save(tmp_path)
+        doc_text, _ = extract_text_from_pdf(tmp_path)
+        doc_hash = hashlib.md5(doc_text.encode("utf-8")).hexdigest()[:16]
+        frozen_path = os.path.join(base_dir, "frozen_corpus", f"web_{doc_hash}.json")
+        exists = os.path.exists(frozen_path)
+        corpus_size = 0
+        if exists:
+            try:
+                with open(frozen_path, encoding="utf-8") as f:
+                    corpus_size = len(json.load(f))
+            except Exception:
+                pass
+        return jsonify({'exists': exists, 'corpus_size': corpus_size, 'hash': doc_hash})
+    except Exception as e:
+        return jsonify({'exists': False, 'error': str(e)})
+    finally:
+        try:
+            os.remove(tmp_path)
+        except OSError:
+            pass
+
+
 @app.route('/upload', methods=['POST'])
 def upload_file():
     if 'file' not in request.files:
@@ -187,6 +224,7 @@ def upload_file():
     # Deteksi parafrasa (Semantic AI) selalu nyala; UI tak lagi menampilkan opsinya.
     # Default True agar tetap aktif walau field 'use_semantic' tidak dikirim form.
     use_semantic = request.form.get('use_semantic', 'true') == 'true'
+    force_scrape = request.form.get('force_scrape') == 'true'
 
     if file.filename == '':
         return jsonify({'error': 'No selected file'}), 400
@@ -209,7 +247,7 @@ def upload_file():
             'session_id': session['session_id'],  # Track ownership
             'filename': filename
         }
-        thread = threading.Thread(target=process_document, args=(file_id, filepath, filename, exclude_quotes, exclude_biblio, exclude_small, use_semantic), daemon=True)
+        thread = threading.Thread(target=process_document, args=(file_id, filepath, filename, exclude_quotes, exclude_biblio, exclude_small, use_semantic, True, force_scrape), daemon=True)
         thread.start()
         
         return jsonify({'file_id': file_id, 'filename': filename})
