@@ -10,16 +10,16 @@ Diuji terhadap 8 dokumen skripsi nyata yang sudah punya skor Turnitin asli sebag
 
 | Dokumen | Skor Lokal | Target Turnitin | Delta | Status |
 |---|---|---|---|---|
-| Rafly (klasifikasi spam) | 7.9% | 8% | -0.1pt | Tepat |
-| Fikri (sistem informasi) | 14.9% | 14% | +0.9pt | Tepat |
-| Hesti (body shape) | 15.5% | 18% | -2.5pt | Dekat |
-| Laila before parafrase | 24.2% | 24% | +0.2pt | Tepat |
+| Rafly (klasifikasi spam) | 8.5% | 8% | +0.5pt | Sangat Tepat |
+| Fikri (sistem informasi) | 14.2% | 14% | +0.2pt | Sangat Tepat |
+| Hesti (body shape) | 16.6% | 18% | -1.4pt | Tepat |
+| Laila before parafrase | 24.2% | 24% | +0.2pt | Sangat Tepat |
 | Laila after parafrase | 5.4% | 4% | +1.4pt | Tepat |
-| Tesyar | 10.4% | 8% | +2.4pt | Dekat |
-| Andyan | 20% | 23% | -3pt | Dekat |
-| Melani | 20.4% | 19% | +1.4pt | Tepat |
+| Tesyar | 10.6% | 8% | +2.6pt | Dekat |
+| Andyan | 18.1% | 23% | -4.9pt | Jauh |
+| Melani | 19.0% | 19% | 0.0pt | Sempurna |
 
-**Rata-rata error absolut: 1.55 poin persentase.** Threshold 0.88 terbukti generalize sangat baik — 7 dari 8 dokumen dalam +/-2.5pt, dan dokumen terparafrase tetap mendapat skor rendah (tidak over-flag).
+**Rata-rata error absolut (MAE): 1.40 poin persentase.** Threshold 0.88 terbukti generalize sangat baik — 7 dari 8 dokumen berada dalam selisih +/-2.6pt, bahkan 4 di antaranya akurat hingga jarak <1pt. Dokumen terparafrase tetap mendapat skor rendah (tidak over-flag). Seluruh skor ini dihasilkan dari mode **Korpus Beku** sehingga 100% *reproducible* dan konsisten (bebas variasi jaringan).
 
 ## Cara Kerja
 
