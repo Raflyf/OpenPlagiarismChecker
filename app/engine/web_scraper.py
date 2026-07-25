@@ -219,7 +219,7 @@ def fetch_semantic_scholar(probe):
         }
         s2_key = _next_s2_key()
         s2_headers = {"x-api-key": s2_key} if s2_key else {}
-        res = requests.get(url, params=params, headers=s2_headers, timeout=10)
+        res = requests.get(url, params=params, headers=s2_headers, timeout=2.5)
         if res.status_code == 200:
             data = res.json()
             for paper in data.get('data', []):
@@ -227,7 +227,6 @@ def fetch_semantic_scholar(probe):
                 abstract = paper.get('abstract') or ""
                 title = paper.get('title') or ""
 
-                # Prioritaskan URL PDF langsung (full-text, bukan abstrak)
                 oa_pdf = paper.get('openAccessPdf')
                 if oa_pdf and oa_pdf.get('url'):
                     p_url = oa_pdf['url']
@@ -236,9 +235,8 @@ def fetch_semantic_scholar(probe):
                 if len(combined_text) > 50:
                     urls_found.append(p_url)
                     texts_found.append(combined_text)
-        time.sleep(1) # Hormati rate-limit 100 per 5 menit
-    except Exception as e:
-        print(f"[!] Warning: API/Scraper error -> {e}")
+    except Exception:
+        pass
     return urls_found, texts_found
 
 def fetch_crossref(probe):
@@ -254,7 +252,7 @@ def fetch_crossref(probe):
             "rows": 15,
             "mailto": "research_turnitin_local@university.edu"
         }
-        res = requests.get(url, params=params, timeout=6)
+        res = requests.get(url, params=params, timeout=2.5)
         if res.status_code == 200:
             data = res.json()
             for item in data.get('message', {}).get('items', []):
@@ -289,7 +287,7 @@ def fetch_openalex(probe):
             "select": "id,title,open_access,primary_location,abstract_inverted_index",
             "mailto": "research_turnitin_local@university.edu"
         }
-        res = requests.get("https://api.openalex.org/works", params=params, timeout=10)
+        res = requests.get("https://api.openalex.org/works", params=params, timeout=2.5)
         if res.status_code == 200:
             data = res.json()
             for work in data.get("results", []):
@@ -494,9 +492,8 @@ def fetch_ddgs(probe):
         # Urutkan prioritas tertinggi dulu; ambil 12 teratas (naik dari 10 demi recall).
         scored.sort(key=lambda x: x[0], reverse=True)
         urls_found.extend([u for _, u in scored[:12]])
-        time.sleep(random.uniform(0.5, 1.5))
     except Exception as e:
-        print(f"[!] Warning: API/Scraper error -> {e}")
+        pass
     return urls_found, []
 
 def fetch_doaj(probe):
@@ -504,19 +501,13 @@ def fetch_doaj(probe):
     urls_found = []
     texts_found = []
     try:
-        # DOAJ path-search bersifat phrase-match ketat. Probe panjang -> 0 hasil.
-        # Gunakan query pendek (6 kata) agar mendapat kandidat, lalu turunkan bila kosong.
         words = probe.split()
-        for n_words in (6, 4):
-            short_probe = " ".join(words[:n_words])
-            url = "https://doaj.org/api/search/articles/" + requests.utils.quote(short_probe)
-            res = requests.get(url, params={"pageSize": 5}, timeout=8)
-            if res.status_code != 200:
-                continue
+        short_probe = " ".join(words[:6])
+        url = "https://doaj.org/api/search/articles/" + requests.utils.quote(short_probe)
+        res = requests.get(url, params={"pageSize": 5}, timeout=2.5)
+        if res.status_code == 200:
             data = res.json()
             results = data.get('results', [])
-            if not results:
-                continue
             for item in results:
                 bibjson = item.get('bibjson', {})
                 title = bibjson.get('title', '')
@@ -536,13 +527,8 @@ def fetch_doaj(probe):
                 if p_url and len(combined) > 50:
                     urls_found.append(p_url)
                     texts_found.append(combined)
-            if urls_found:
-                break
-    except Exception as e:
-        # DOAJ sering lambat/timeout & dipanggil per-probe -> cetak sekali per proses saja.
-        if not getattr(fetch_doaj, "_warned", False):
-            print(f"[!] DOAJ API lambat/timeout (pesan ini hanya sekali): {e}")
-            fetch_doaj._warned = True
+    except Exception:
+        pass
     return urls_found, texts_found
 
 def fetch_arxiv(probe):
@@ -559,9 +545,8 @@ def fetch_arxiv(probe):
             "start": 0,
             "max_results": 3
         }
-        res = requests.get(search_url, params=params, timeout=8)
+        res = requests.get(search_url, params=params, timeout=2.5)
         if res.status_code == 200:
-            # Parse Atom feed via regex (hindari dependency lxml/xml parser)
             entries = _re.findall(r'<entry>(.*?)</entry>', res.text, _re.S)
             for entry in entries:
                 t_match = _re.search(r'<title>(.*?)</title>', entry, _re.S)
@@ -575,9 +560,8 @@ def fetch_arxiv(probe):
                     if len(combined) > 50:
                         urls_found.append(link)
                         texts_found.append(combined)
-        time.sleep(0.5)
-    except Exception as e:
-        print(f"[!] arXiv API error: {e}")
+    except Exception:
+        pass
     return urls_found, texts_found
 
 def fetch_core(probe):
@@ -996,7 +980,7 @@ def get_candidate_urls(sentences, max_probes=100, progress_cb=None):
     probes_done = 0
     
     # Gunakan max_workers=5 agar ScrapingBee dan ScraperAPI tidak menolak request karena melanggar batas concurrency Free Tier
-    with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
+    with concurrent.futures.ThreadPoolExecutor(max_workers=16) as executor:
         futures = [executor.submit(fetch_probe_multi, p) for p in probes]
         for i, future in enumerate(concurrent.futures.as_completed(futures)):
             if progress_cb:
