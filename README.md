@@ -245,3 +245,69 @@ Skor Total = (Kata Ter-match N-Gram + Kata Ter-match Semantic) / Total Kata Doku
 - **Fix silent data-loss bank**: `save_to_corpus_bank` hanya commit ke cache in-memory setelah tulis disk sukses.
 - **Fix kebocoran handle**: `fitz.open` di scraper ditutup via `try/finally`.
 - **Fix race**: `_INDO_REPO_BUDGET` dibungkus lock.
+- **UI**: terima ekstensi `.PDF` huruf besar; teks hint diperbaiki.
+- Kode aplikasi memakai path relatif (`__file__`) sepenuhnya, sehingga project portabel — bisa dipindah ke folder mana pun tanpa mengubah route/path. Helper `run.bat`/`run.sh` ditambahkan.
+- Diverifikasi via 3 audit paralel + runtime: compile OK, 8 modul engine import OK, skoring deterministik cocok baseline (Hesti 11.4%, Rafly 5.5%), PDF report jalan, jalur scraping tereksekusi tanpa crash.
+
+### v3.6 — Localhost Setara Metodologi Groundtruth
+
+- **Alur localhost = metodologi validasi.** Saat upload PDF, korpus skoring dibangun dari hasil scrape internet **khusus dokumen itu** (100 probe), persis seperti `run_test_groundtruth.py`. Skor dokumen tervalidasi konsisten saat dites via localhost.
+- **Bank korpus turun peran jadi CACHE**, bukan basis korpus. Bank mentah (17k+ sumber) dulu dijadikan korpus dan menyebabkan over-counting: union global "menjahit" potongan pendek dari ratusan sumber tak relevan jadi blok plagiat palsu. Kini bank hanya dipakai di dalam `scrape_all_candidates` untuk mempercepat (URL yang sudah pernah diunduh diambil instan) + auto-freeze sumber baru. Komposisi korpus skoring tetap terkurasi.
+- **Parameter engine default aman.** `calculate_similarity` menerima `semantic_max_sources` (default None) & `min_source_overlap` (default 1) — keduanya diset ke default lama pada jalur groundtruth & localhost, sehingga skor tervalidasi TIDAK berubah.
+- **Toggle "Perkaya dari Internet" dihapus.** Internet selalu ON (wajib untuk PDF baru agar skor defensible). Untuk PDF yang belum ada frozen-nya, bank-only tidak dipakai lagi karena bisa menghasilkan skor palsu-rendah.
+- **Deteksi parafrasa (Semantic AI) default nyala**, opsi UI dihapus.
+- **Percepat fase pencarian**: Cohere query-expander (bottleneck rate-limit) kini default MATI via env `USE_COHERE_EXPANDER=1`. Sumber utama tetap dari DOAJ + Crossref + OpenAlex + Semantic Scholar + arXiv + CORE + DuckDuckGo langsung.
+
+### v3.5 — Audit Engine + Perbaikan Ketahanan
+
+- **Fix hyphenation**: normalisasi kata terpotong tanda hubung akhir baris sekali di awal, agar semua stream token (spans/words/ngrams) konsisten — overlap sumber ter-atribusi dengan benar
+- **Gap-fill per-sumber diperketat**: aturan sama dengan global fill (butuh >=2 kata match di kedua sisi gap), sumber tak bisa menampilkan % melebihi kontribusi union
+- **Fix `sent_word_count`**: dihitung setelah clamp, memperbaiki `match_ratio` kalimat terakhir
+- **Semantic sort**: daftar match per-kalimat diurutkan skor tertinggi, `matches[0]` benar-benar match terbaik
+- **Bank korpus tahan-korupsi**: tulis atomik (temp + `os.replace`), guard JSON korup saat load, lock antar-thread
+- **Anti-cheat extractor aman**: hanya pakai teks span-extracted bila ada teks yang benar-benar terbuang; PDF bersih tetap verbatim (skor tak bergeser)
+- Validasi ulang 6 dokumen: MAE 1.25pt, 4/6 dokumen bit-identical vs baseline
+
+### v3.4 — Validasi 5 Dokumen + Kalibrasi Threshold
+
+- **Validasi 5 dokumen**: Rafly 8%, Hesti 18%, Fikri 14%, Laila-before 24%, Laila-after 4% — rata-rata error 0.96pt
+- **Threshold semantic dikalibrasi ke 0.88** (sweep 0.85-0.95, dipilih yang meminimalkan error lintas 5 dokumen)
+- **Auto-discover dokumen validasi**: taruh file `NamaFile NN%.pdf` di `before_turnitin/`, runner otomatis parse target
+- **Freeze corpus**: korpus dikumpulkan sekali → disimpan ke disk → skor 100% deterministik tiap run ulang
+- **Dukungan DOCX**: `extract_text_auto` mendeteksi ekstensi dan pakai `python-docx` untuk file Word
+
+### v3.3 — Recall Boost + Determinisme
+
+- **Domain-seeding**: prioritas pencarian ke 123 repositori akademik Indonesia (`priority_domains.py`)
+- **Determinisme search**: hash stabil (`hashlib.md5`) menggantikan `random.random()` untuk pemilihan varian query
+- **DDG backend fix**: pin ke backend `lite` → `html` → `auto` (menghilangkan SSL CERTIFICATE_VERIFY_FAILED)
+- **OpenAlex fulltext.search**: filter `language:id,open_access.is_oa:true` untuk recall full-text Indonesia
+
+### v3.2 — Critical Scoring Fix (0% → mendekati target)
+
+- **Fix bug agregasi `exclude_small`**: filter <1% dipindah dari pra-agregasi ke pasca-agregasi (skor total tidak lagi terpaksa 0% saat plagiarisme tersebar tipis di banyak sumber)
+- **Deep-PDF crawl**: cap baca dinaikkan 5 → 30/40 halaman per PDF
+- Diagnosa lengkap: [docs/DIAGNOSA_0_PERSEN.md](docs/DIAGNOSA_0_PERSEN.md)
+
+### v3.1 — Audit API + GPU
+
+- Buang API mati (Perplexity/Gemini/Tavily/Google CSE), pertahankan yang aktif & gratis
+- Rotasi multi-key Semantic Scholar (3) & Cohere (2)
+- GPU CUDA auto-detect untuk semantic layer
+
+### v2.0 — Semantic Similarity Layer
+
+- Deteksi parafrasa via sentence-transformers
+- Fix double counting, session security, BSI priority
+
+### v1.0 — Initial Release
+
+- N-Gram shingling, web UI, multi-source scraping, PDF report
+
+## Kontribusi & Lisensi
+
+Project edukasi untuk membantu mahasiswa mengecek plagiarisme. Tidak berafiliasi dengan Turnitin LLC.
+
+**Dibuat oleh:** Rafly Firmansyah
+**Algoritma:** N-Gram Shingling (5-gram) + Semantic Similarity (sentence-transformers)
+**Model AI:** paraphrase-multilingual-MiniLM-L12-v2
