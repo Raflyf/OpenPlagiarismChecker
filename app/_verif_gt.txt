@@ -1,0 +1,3 @@
+[Melani  ] groundtruth(frozen)=20.4%  target_turnitin=19%  localhost_user=?  corpus=3165 sumber  [157s]
+[FIKRI   ] groundtruth(frozen)=14.9%  target_turnitin=14%  localhost_user=16%  corpus=3118 sumber  [136s]
+SELESAI
