@@ -10,70 +10,118 @@ from concurrent.futures import ThreadPoolExecutor
 # Sembunyikan peringatan jika situs web yang di-scrape berupa XML/RSS
 warnings.filterwarnings("ignore", category=XMLParsedAsHTMLWarning)
 
-# --- Bank Korpus Lokal (mirip database Turnitin) ---
+# --- Bank Korpus Lokal (SQLite3 Database) ---
+import sqlite3 as _sqlite3
 import json as _json
-
 import threading as _threading
+import ipaddress as _ipaddress
 
-_BANK_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "corpus_bank", "bank.json")
-_bank_cache = None
-_bank_lock = _threading.Lock()  # lindungi mutasi cache + tulis file dari race antar-thread
+_BANK_JSON_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "corpus_bank", "bank.json")
+_BANK_DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "corpus_bank", "bank.db")
+_bank_lock = _threading.Lock()  # lindungi mutasi DB dari race antar-thread
+
+def init_bank_db():
+    """Inisialisasi tabel SQLite3 dan lakukan auto-migrasi dari bank.json jika ada."""
+    os.makedirs(os.path.dirname(_BANK_DB_PATH), exist_ok=True)
+    with _bank_lock:
+        conn = _sqlite3.connect(_BANK_DB_PATH)
+        cur = conn.cursor()
+        cur.execute("CREATE TABLE IF NOT EXISTS corpus (url TEXT PRIMARY KEY, text TEXT)")
+        conn.commit()
+        
+        # Migrasi otomatis jika bank.json versi lama ada
+        if os.path.exists(_BANK_JSON_PATH):
+            try:
+                print(f"[Bank] Mengimpor data lama dari bank.json ke SQLite bank.db...")
+                with open(_BANK_JSON_PATH, "r", encoding="utf-8") as f:
+                    data = _json.load(f)
+                items = [(u, t) for u, t in data.items() if len(t) > 150]
+                cur.executemany("INSERT OR IGNORE INTO corpus (url, text) VALUES (?, ?)", items)
+                conn.commit()
+                print(f"[Bank] Berhasil migrasi {len(items)} sumber ke bank.db SQLite.")
+                # Rename bank.json agar migrasi hanya berjalan 1x
+                os.rename(_BANK_JSON_PATH, _BANK_JSON_PATH + ".bak")
+            except Exception as e:
+                print(f"[Bank] Warning migrasi: {e}")
+        conn.close()
+
+def get_bank_urls():
+    """Mengembalikan set URL yang tersimpan di bank.db (hemat RAM, ~1-2MB)."""
+    init_bank_db()
+    conn = _sqlite3.connect(_BANK_DB_PATH)
+    cur = conn.cursor()
+    cur.execute("SELECT url FROM corpus")
+    urls = set(row[0] for row in cur.fetchall())
+    conn.close()
+    return urls
+
+def get_bank_texts(target_urls):
+    """Mengambil teks spesifik HANYA untuk target_urls dari bank.db."""
+    if not target_urls:
+        return {}
+    init_bank_db()
+    conn = _sqlite3.connect(_BANK_DB_PATH)
+    cur = conn.cursor()
+    result = {}
+    target_list = list(target_urls)
+    for i in range(0, len(target_list), 500):
+        batch = target_list[i:i+500]
+        placeholders = ",".join("?" for _ in batch)
+        cur.execute(f"SELECT url, text FROM corpus WHERE url IN ({placeholders})", batch)
+        for url, text in cur.fetchall():
+            result[url] = text
+    conn.close()
+    return result
 
 def load_corpus_bank():
-    """Load bank korpus lokal (cache in-memory setelah load pertama).
-
-    Bila bank.json korup (mis. terputus saat proses lain crash saat menulis), JANGAN
-    membuat seluruh pengecekan gagal: beri peringatan dan perlakukan bank sebagai kosong."""
-    global _bank_cache
-    if _bank_cache is not None:
-        return _bank_cache
-    if os.path.exists(_BANK_PATH):
-        try:
-            with open(_BANK_PATH, "r", encoding="utf-8") as f:
-                _bank_cache = _json.load(f)
-            print(f"[Bank] Loaded {len(_bank_cache)} sumber dari bank lokal")
-        except (ValueError, OSError) as e:
-            print(f"[Bank] PERINGATAN: gagal membaca bank ({e}); memakai bank kosong")
-            _bank_cache = {}
-    else:
-        _bank_cache = {}
-    return _bank_cache
+    """Load seluruh isi bank.db sebagai dict (untuk backward compatibility Pemanggil)."""
+    init_bank_db()
+    conn = _sqlite3.connect(_BANK_DB_PATH)
+    cur = conn.cursor()
+    cur.execute("SELECT url, text FROM corpus")
+    data = {row[0]: row[1] for row in cur.fetchall()}
+    conn.close()
+    return data
 
 def save_to_corpus_bank(new_corpus):
-    """Tambahkan sumber baru ke bank (append-only, tidak menghapus yang sudah ada).
-
-    Penulisan ATOMIK: tulis ke file sementara lalu os.replace, agar bank.json tak pernah
-    setengah-tertulis walau proses mati di tengah jalan. Dijaga lock agar aman multi-thread."""
-    global _bank_cache
+    """Simpan sumber baru ke bank.db SQLite (atomik & thread-safe)."""
+    if not new_corpus:
+        return
+    init_bank_db()
     with _bank_lock:
-        current = load_corpus_bank()
-        # Bangun kandidat di dict TERPISAH; cache in-memory (_bank_cache) baru di-commit
-        # SETELAH tulis disk sukses. Kalau tidak, kegagalan tulis meninggalkan sumber di
-        # memori tapi tak pernah di disk -> panggilan berikut menganggapnya sudah ada
-        # (added=0) sehingga tak pernah ditulis ulang (kehilangan data diam-diam).
-        merged = dict(current)
-        added = 0
-        for url, text in new_corpus.items():
-            if url not in merged and len(text) > 150:
-                merged[url] = text
-                added += 1
-        if added > 0:
-            os.makedirs(os.path.dirname(_BANK_PATH), exist_ok=True)
-            tmp_path = _BANK_PATH + ".tmp"
-            try:
-                with open(tmp_path, "w", encoding="utf-8") as f:
-                    _json.dump(merged, f, ensure_ascii=False)
-                os.replace(tmp_path, _BANK_PATH)  # atomic pada satu filesystem
-            except OSError as e:
-                print(f"[Bank] PERINGATAN: gagal menyimpan bank ({e}); cache in-memory tak diubah, akan dicoba lagi")
-                if os.path.exists(tmp_path):
-                    try:
-                        os.remove(tmp_path)
-                    except OSError:
-                        pass
-                return
-            _bank_cache = merged  # commit ke cache HANYA setelah disk sukses
-            print(f"[Bank] +{added} sumber baru disimpan (total: {len(merged)})")
+        try:
+            conn = _sqlite3.connect(_BANK_DB_PATH)
+            cur = conn.cursor()
+            items = [(u, t) for u, t in new_corpus.items() if isinstance(t, str) and len(t) > 150]
+            cur.executemany("INSERT OR IGNORE INTO corpus (url, text) VALUES (?, ?)", items)
+            conn.commit()
+            cur.execute("SELECT COUNT(*) FROM corpus")
+            total = cur.fetchone()[0]
+            conn.close()
+            print(f"[Bank] Tersimpan ke bank.db (total: {total} sumber)")
+        except Exception as e:
+            print(f"[Bank] PERINGATAN: gagal menyimpan ke bank.db: {e}")
+
+def is_safe_url(url):
+    """Sanitasi URL anti-SSRF: memblokir IP privat/local, loopback, dan metadata endpoint."""
+    try:
+        parsed = urllib.parse.urlparse(url)
+        if parsed.scheme not in ('http', 'https'):
+            return False
+        hostname = parsed.hostname
+        if not hostname:
+            return False
+        if hostname.lower() in ('localhost', '127.0.0.1', '0.0.0.0', '::1', 'metadata.google.internal'):
+            return False
+        try:
+            ip = _ipaddress.ip_address(hostname)
+            if ip.is_private or ip.is_loopback or ip.is_link_local or ip.is_multicast or ip.is_reserved:
+                return False
+        except ValueError:
+            pass
+        return True
+    except Exception:
+        return False
 
 # --- Rotasi API Key (round-robin) untuk backup & mengurangi rate-limit 429 ---
 import itertools, threading
@@ -571,6 +619,36 @@ def fetch_core(probe):
         print(f"[!] CORE API error: {e}")
     return urls_found, texts_found
 
+def fetch_europe_pmc(probe):
+    """Mencari artikel di Europe PMC (40M+ paper open-access, full-text gratis, tanpa API key)."""
+    urls_found = []
+    texts_found = []
+    try:
+        short_probe = " ".join(probe.split()[:8])
+        url = "https://www.ebi.ac.uk/europepmc/webservices/rest/search"
+        params = {
+            "query": f'"{short_probe}"',
+            "format": "json",
+            "pageSize": 5,
+            "resultType": "core"
+        }
+        headers = {"User-Agent": "TurnitinLocalBot/4.0 (mailto:research_turnitin_local@university.edu)"}
+        res = requests.get(url, params=params, headers=headers, timeout=3)
+        if res.status_code == 200:
+            data = res.json()
+            results = data.get("resultList", {}).get("result", [])
+            for item in results:
+                title = item.get("title", "")
+                abstract = item.get("abstractText", "")
+                p_url = f"https://europepmc.org/article/{item.get('source', 'MED')}/{item.get('id', '')}"
+                combined = f"{title}. {abstract}"
+                if len(combined) > 50:
+                    urls_found.append(p_url)
+                    texts_found.append(combined)
+    except Exception:
+        pass
+    return urls_found, texts_found
+
 def fetch_probe_multi(probe):
     """Mencari ke semua mesin secara serentak dengan free API fallbacks.
     Returns: (preloaded dict, normal_urls list, stats dict)"""
@@ -579,6 +657,7 @@ def fetch_probe_multi(probe):
     u_ss, t_ss = fetch_semantic_scholar(probe)
     u_cr, t_cr = fetch_crossref(probe)
     u_oa, t_oa = fetch_openalex(probe)
+    u_epmc, t_epmc = fetch_europe_pmc(probe)
 
     # 1b. Additional free academic APIs
     u_doaj, t_doaj = fetch_doaj(probe)
@@ -626,6 +705,7 @@ def fetch_probe_multi(probe):
         "SemanticScholar": len(u_ss),
         "Crossref": len(u_cr),
         "OpenAlex": len(u_oa),
+        "EuropePMC": len(u_epmc),
         "DOAJ": len(u_doaj),
         "arXiv": len(u_arxiv),
         "CORE": len(u_core),
@@ -641,6 +721,7 @@ def fetch_probe_multi(probe):
     preloaded = {}
     for u, t in zip(u_ss, t_ss): preloaded[u] = t
     for u, t in zip(u_cr, t_cr): preloaded[u] = t
+    for u, t in zip(u_epmc, t_epmc): preloaded[u] = t
     for u, t in zip(u_repo, t_repo): preloaded[u] = t
     for u, t in zip(u_doaj, t_doaj): preloaded[u] = t
     for u, t in zip(u_arxiv, t_arxiv): preloaded[u] = t
@@ -953,6 +1034,8 @@ def get_candidate_urls(sentences, max_probes=100, progress_cb=None):
 
 def scrape_url(url):
     """Mengekstrak teks mentah dari URL (Website atau PDF) menggunakan AbstractAPI Proxy untuk menembus WAF/Cloudflare"""
+    if not is_safe_url(url):
+        return url, "", 0
     total_bytes = 0
     # Banyak situs (Medium, repositori kampus) mengembalikan halaman kosong/blokir
     # tanpa User-Agent browser. Header ini menaikkan keberhasilan & kelengkapan teks.
@@ -968,102 +1051,39 @@ def scrape_url(url):
         abstract_key = os.environ.get("ABSTRACT_KEY", "")
         if abstract_key:
             proxy_url = f"https://scrape.abstractapi.com/v1/?api_key={abstract_key}&url={encoded_url}"
-
-            # Naikkan timeout agar proses scrape web lambat (misal repositori kampus) tidak langsung gagal,
-            # tapi cukup agresif (15 detik) untuk mencegah sistem tersedak.
-            res = requests.get(proxy_url, timeout=15)
-
-            # FALLBACK: Jika API Proxy habis limit (429) atau gagal (401), coba unduh langsung tanpa proxy!
+            res = requests.get(proxy_url, timeout=4)
             if res.status_code != 200:
-                res = requests.get(url, timeout=20, verify=False, headers=headers)
+                res = requests.get(url, timeout=4, verify=False, headers=headers)
         else:
-            res = requests.get(url, timeout=20, verify=False, headers=headers)
+            res = requests.get(url, timeout=4, verify=False, headers=headers)
             
         if res.status_code == 200:
             total_bytes += len(res.content)
             import re
             
-            # Deteksi jika file adalah PDF (Banyak repositori kampus langsung mengembalikan file PDF)
+            # Deteksi jika file adalah PDF langsung
             if 'application/pdf' in res.headers.get('Content-Type', '').lower() or url.lower().endswith('.pdf'):
                 import fitz
-                import io
                 doc = fitz.open(stream=res.content, filetype="pdf")
                 text = ""
-                # Direct-PDF: baca hingga 40 halaman (lebih tinggi dari deep-crawl karena
-                # link langsung = kandidat sumber utama), tapi tetap dibatasi agar tidak
-                # nyangkut di PDF ratusan halaman.
                 try:
                     for page_num, page in enumerate(doc):
-                        if page_num >= 40: break
+                        if page_num >= 30: break
                         text += page.get_text() + " "
                 finally:
-                    doc.close()  # lepas handle PyMuPDF (mencegah leak di pool multi-thread)
+                    doc.close()
                 text = re.sub(r'\s+', ' ', text).strip()
                 return url, text, total_bytes
             else:
-                # Parsing HTML biasa (Landing Page Repositori)
+                # Parsing HTML biasa (Fast Scraping tanpa Deep PDF Crawl yang lambat)
                 soup = BeautifulSoup(res.text, 'html.parser')
-                
-                # [DEEP PDF CRAWLER] Cari tombol Download PDF di halaman ini
-                pdf_links = []
-                for a in soup.find_all('a', href=True):
-                    href = a['href']
-                    href_lower = href.lower()
-                    # Deteksi link PDF dari EPrints, DSpace, OJS, dsb.
-                    if href_lower.endswith('.pdf') or '/download/' in href_lower or '/bitstream/' in href_lower or '/article/view/' in href_lower:
-                        if href.startswith('/'):
-                            from urllib.parse import urljoin
-                            href = urljoin(url, href)
-                        if href not in pdf_links and href.startswith('http'):
-                            pdf_links.append(href)
-                
-                pdf_text = ""
-                if pdf_links:
-                    import fitz
-                    # Ambil MAKSIMAL 3 file PDF per halaman untuk mencegah server tersedak (Hanging Process)
-                    for pdf_url in pdf_links[:3]:
-                        try:
-                            # Gunakan AbstractAPI lagi untuk mendownload PDF jika dilindungi Cloudflare.
-                            # Skip proxy jika tidak ada key (mencegah request sia-sia yang selalu gagal).
-                            if abstract_key:
-                                encoded_pdf = urllib.parse.quote(pdf_url)
-                                proxy_pdf = f"https://scrape.abstractapi.com/v1/?api_key={abstract_key}&url={encoded_pdf}"
-                                pdf_res = requests.get(proxy_pdf, timeout=15)
-                                if pdf_res.status_code != 200:
-                                    pdf_res = requests.get(pdf_url, timeout=20, verify=False, headers=headers)
-                            else:
-                                pdf_res = requests.get(pdf_url, timeout=20, verify=False, headers=headers)
-                                
-                            if pdf_res.status_code == 200:
-                                total_bytes += len(pdf_res.content)
-                            
-                            # Verifikasi apakah benar-benar PDF (Magic number %PDF)
-                            if 'application/pdf' in pdf_res.headers.get('Content-Type', '').lower() or pdf_res.content.startswith(b'%PDF'):
-                                pdf_doc = fitz.open(stream=pdf_res.content, filetype="pdf")
-                                # Baca hingga 30 halaman per PDF. Skripsi 60-100 halaman: 5 halaman
-                                # (versi lama) hanya menangkap cover+abstrak, sehingga isi Bab 2-4
-                                # yang paling sering diplagiat TIDAK ikut terindeks -> overlap 0.
-                                # Cap 30 halaman menyeimbangkan cakupan vs risiko nyangkut di PDF 300 hal.
-                                try:
-                                    for page_num, page in enumerate(pdf_doc):
-                                        if page_num >= 30: break
-                                        pdf_text += page.get_text() + " "
-                                finally:
-                                    pdf_doc.close()  # lepas handle PyMuPDF (hindari leak di pool multi-thread)
-                        except Exception as e:
-                            print(f"[!] Warning: API/Scraper error -> {e}")
-                
-                # Hapus tag yang tidak berisi konten ilmiah
-                for script in soup(["script", "style", "nav", "footer", "header", "aside", "menu"]):
-                    script.decompose()
-                
-                # Ekstrak teks HTML (abstrak) dan gabungkan dengan teks PDF (isi skripsi penuh)
+                for tag in soup(["script", "style", "nav", "footer", "header", "aside", "menu"]):
+                    tag.decompose()
                 text = soup.get_text(separator=' ')
-                text = text + " " + pdf_text
                 text = re.sub(r'\s+', ' ', text).strip()
                 return url, text, total_bytes
     except Exception as e:
-        print(f"[!] Warning: API/Scraper error -> {e}")
+        pass
     return url, "", total_bytes
 
 def scrape_all_candidates(urls, preloaded_corpus, progress_cb=None):
@@ -1071,17 +1091,16 @@ def scrape_all_candidates(urls, preloaded_corpus, progress_cb=None):
     Bank lokal di-merge terlebih dahulu (cek lokal dulu, internet pelengkap)."""
     corpus = preloaded_corpus.copy()
 
-    # BANK LOKAL: merge sumber yang sudah pernah di-scrape sebelumnya (instan).
-    bank = load_corpus_bank()
-    bank_hits = 0
-    for url in list(urls):
-        if url in bank:
-            corpus[url] = bank[url]
-            bank_hits += 1
-    # Hapus URL yang sudah ada di bank (tak perlu scrape ulang)
-    urls = [u for u in urls if u not in bank and u not in corpus]
-    if bank_hits:
-        print(f"[Bank] {bank_hits} sumber ditemukan di bank lokal (skip scrape)")
+    # BANK LOKAL (SQLite3): lookup instan via bank.db tanpa load memori raksasa
+    bank_urls = get_bank_urls()
+    found_urls = [u for u in urls if u in bank_urls]
+    if found_urls:
+        cached_texts = get_bank_texts(found_urls)
+        corpus.update(cached_texts)
+        print(f"[Bank] {len(cached_texts)} sumber ditemukan di bank.db lokal (skip scrape)")
+    
+    # Hapus URL yang sudah ada di bank / preloaded (tak perlu scrape ulang)
+    urls = [u for u in urls if u not in bank_urls and u not in corpus]
 
     if not urls:
         save_to_corpus_bank(corpus)
@@ -1100,7 +1119,7 @@ def scrape_all_candidates(urls, preloaded_corpus, progress_cb=None):
     # SSL handshake gagal, dan connection-pool jenuh (banyak sumber relevan gagal
     # download meski solo-nya sukses). 8 worker jauh lebih andal walau sedikit lambat.
     failed_urls = []
-    with concurrent.futures.ThreadPoolExecutor(max_workers=8) as executor:
+    with concurrent.futures.ThreadPoolExecutor(max_workers=16) as executor:
         futures = {executor.submit(scrape_url, u): u for u in urls}
         total = len(futures)
         for i, future in enumerate(concurrent.futures.as_completed(futures)):

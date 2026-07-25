@@ -9,12 +9,28 @@ reports/
 *.env
 
 # Audit R5 additions
+.venv/
+__pycache__/
+uploads/
+reports/
+
+# Konfigurasi rahasia
+.env
+.env.local
+*.env
+
+# Audit R5 additions
 .search_cache/
 app/before_turnitin/
 *.pdf
 
 # Runtime artifacts (log & hasil test, tidak perlu di-commit)
 *.log
+# Bank & cache lokal
+app/corpus_bank/*.db
+app/corpus_bank/*.bak
+app/corpus_bank/bank.json
+
 app/test_groundtruth_result.json
 *.tmp
 

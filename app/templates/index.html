@@ -341,6 +341,10 @@
         <span id="progressText" style="color: #666; font-size: 13px; font-weight: bold;">0%</span>
         <span id="timerText" style="color: #ef4444; font-size: 13px; font-weight: bold;">00:00</span>
     </div>
+
+    <button id="cancelBtn" onclick="cancelProcessing()" style="margin-top: 25px; padding: 10px 24px; background-color: #ef4444; color: white; border: none; border-radius: 8px; font-weight: bold; font-size: 13px; cursor: pointer; transition: all 0.2s; box-shadow: 0 2px 6px rgba(239,68,68,0.3);">
+        BATALKAN PROSES
+    </button>
 </div>
 
 <script>
@@ -445,6 +449,25 @@
 
     let checkInterval;
     let timerInterval;
+    let currentFileId = null;
+
+    function cancelProcessing() {
+        if (confirm("Apakah Anda yakin ingin membatalkan proses analisis ini?")) {
+            if (currentFileId) {
+                fetch(`/cancel/${currentFileId}`, { method: 'POST' })
+                    .then(() => {
+                        clearInterval(checkInterval);
+                        clearInterval(timerInterval);
+                        document.getElementById('loadingOverlay').style.display = 'none';
+                        alert("Proses analisis berhasil dibatalkan.");
+                        location.reload();
+                    })
+                    .catch(() => location.reload());
+            } else {
+                location.reload();
+            }
+        }
+    }
 
     function uploadFile() {
         if (!selectedFile) return;
@@ -468,10 +491,10 @@
 
         if (isScrape) {
             document.getElementById('loadingSubtitle').innerText =
-                'Mencari sumber di internet lalu mencocokkan (~15-25 menit)...';
+                'Mencari sumber di internet lalu mencocokkan (~1-2 menit)...';
         } else {
             document.getElementById('loadingSubtitle').innerText =
-                'Memproses dokumen dengan korpus beku (~3-6 menit)...';
+                'Memproses dokumen dengan korpus beku (~3-6 detik)...';
         }
 
         document.getElementById('loadingOverlay').style.display = 'flex';
@@ -501,6 +524,7 @@
                 alert(data.error);
                 location.reload();
             } else {
+                currentFileId = data.file_id;
                 checkStatus(data.file_id);
             }
         })

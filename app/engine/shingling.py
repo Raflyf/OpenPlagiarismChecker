@@ -255,10 +255,20 @@ def calculate_similarity(doc_text, corpus, exclude_small=False, use_semantic=Fal
     clean_doc_words = [re.sub(r'[^\w\s]', '', w).lower() for w in doc_words]
     is_matched_global = [False] * len(doc_words)
     
-    # Tandai seluruh array kata dokumen
+    # Tandai n-gram yang ber-overlap
+    matching_ngram_indices = set()
     for i in range(len(doc_words) - 5 + 1):
         ngram = " ".join(clean_doc_words[i:i+5])
         if ngram in global_overlap_ngrams:
+            matching_ngram_indices.add(i)
+
+    # Tandai array kata dokumen: saring n-gram 5-kata terisolasi (noise frasa 5-kata tunggal)
+    for i in matching_ngram_indices:
+        if (i - 1 in matching_ngram_indices) or (i + 1 in matching_ngram_indices) or \
+           (i - 2 in matching_ngram_indices) or (i + 2 in matching_ngram_indices):
+            for j in range(i, i+5):
+                is_matched_global[j] = True
+        elif len(matching_ngram_indices) < 5:
             for j in range(i, i+5):
                 is_matched_global[j] = True
 
