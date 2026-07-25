@@ -55,13 +55,21 @@ def process_document(file_id, filepath, original_filename, exclude_quotes=True, 
             results_db[file_id]['progress'] = pct
             results_db[file_id]['message'] = msg
 
+    def check_cancelled():
+        if results_db.get(file_id, {}).get('cancel_requested'):
+            results_db[file_id]['status'] = 'cancelled'
+            results_db[file_id]['message'] = 'Proses dibatalkan oleh pengguna.'
+            print(f"[!] PROSES DIBATALKAN USER: {file_id}")
+            return True
+        return False
+
     try:
         set_progress(5, "Mengekstrak teks dari PDF...")
         print(f"[!] Mulai ekstraksi teks dari: {filepath}")
-        # return_hidden=True: dapatkan juga teks mentah (hidden ikut) + koordinat span gaib
         extraction_result = extract_text_from_pdf(filepath, exclude_quotes, exclude_biblio, return_hidden=True)
         doc_text, manipulation_warnings, raw_text, hidden_spans = extraction_result
         sentences = get_sentences(doc_text)
+        if check_cancelled(): return
 
         # ===== METODOLOGI IDENTIK GROUNDTRUTH =====
         # Korpus skoring = hasil scrape KHUSUS dokumen ini (terkurasi & relevan), PERSIS
@@ -114,6 +122,7 @@ def process_document(file_id, filepath, original_filename, exclude_quotes=True, 
             except Exception as e:
                 print(f"[!] Gagal simpan frozen: {e}")
 
+        if check_cancelled(): return
         set_progress(85, "Menghitung kemiripan (Algoritma N-Gram)...")
         print("[!] Menghitung similaritas dengan algoritma N-Gram Shingling...")
         # PARAMETER IDENTIK GROUNDTRUTH: hanya semantic_threshold=0.88. TANPA
@@ -252,6 +261,18 @@ def upload_file():
         
         return jsonify({'file_id': file_id, 'filename': filename})
     return jsonify({'error': 'Hanya file PDF yang diizinkan'}), 400
+
+@app.route('/cancel/<file_id>', methods=['POST'])
+def cancel_process(file_id):
+    if file_id in results_db:
+        current_session = session.get('session_id')
+        if results_db[file_id].get('session_id') == current_session:
+            results_db[file_id]['cancel_requested'] = True
+            results_db[file_id]['status'] = 'cancelled'
+            results_db[file_id]['message'] = 'Proses dibatalkan oleh pengguna.'
+            print(f"[!] PROSES DIBATALKAN USER: {file_id}")
+            return jsonify({'success': True, 'message': 'Proses berhasil dibatalkan.'})
+    return jsonify({'error': 'File tidak ditemukan atau akses ditolak'}), 400
 
 @app.route('/status/<file_id>')
 def status(file_id):
