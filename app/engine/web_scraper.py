@@ -633,27 +633,103 @@ def fetch_europe_pmc(probe):
         pass
     return urls_found, texts_found
 
+def fetch_onesearch_id(probe):
+    """Mencari ke Indonesia OneSearch / IOS Perpusnas RI (Indeks 1.200+ Repositori & Jurnal Kampus se-Indonesia)."""
+    urls_found = []
+    texts_found = []
+    try:
+        short_probe = " ".join(probe.split()[:8])
+        url = "https://onesearch.id/api/search"
+        params = {
+            "q": short_probe,
+            "type": "all",
+            "limit": 5
+        }
+        res = requests.get(url, params=params, timeout=2.5)
+        if res.status_code == 200:
+            data = res.json()
+            docs = data.get("data", []) or data.get("docs", [])
+            for doc in docs:
+                title = doc.get("title", "")
+                abstract = doc.get("description", "") or doc.get("abstract", "")
+                p_url = doc.get("url", "") or doc.get("link", [""])[0] if isinstance(doc.get("link"), list) else doc.get("link", "")
+                if not p_url and doc.get("id"):
+                    p_url = f"https://onesearch.id/Record/{doc.get('id')}"
+                combined = f"{title}. {abstract}"
+                if p_url and len(combined) > 50:
+                    urls_found.append(p_url)
+                    texts_found.append(combined)
+    except Exception:
+        pass
+    return urls_found, texts_found
+
+def fetch_neliti(probe):
+    """Mencari paper di Neliti (Reposisori Riset Terbesar Indonesia — 500.000+ Jurnal & Skripsi)."""
+    urls_found = []
+    texts_found = []
+    try:
+        short_probe = " ".join(probe.split()[:8])
+        url = f"https://www.neliti.com/id/search?q={requests.utils.quote(short_probe)}"
+        headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
+        res = requests.get(url, headers=headers, timeout=2.5)
+        if res.status_code == 200:
+            from bs4 import BeautifulSoup
+            soup = BeautifulSoup(res.text, 'html.parser')
+            for card in soup.find_all('div', class_='card-publication-body'):
+                a_tag = card.find('a', href=True)
+                if a_tag:
+                    p_url = a_tag['href']
+                    if not p_url.startswith('http'):
+                        p_url = "https://www.neliti.com" + p_url
+                    title = a_tag.get_text(strip=True)
+                    snippet = card.get_text(separator=' ', strip=True)
+                    combined = f"{title}. {snippet}"
+                    if len(combined) > 50:
+                        urls_found.append(p_url)
+                        texts_found.append(combined)
+    except Exception:
+        pass
+    return urls_found, texts_found
+
+# Session Circuit-Breaker: jika API eksternal RTO 2 kali, matikan untuk sisa probe run ini
+_FAILED_APIS = set()
+_FAILED_APIS_LOCK = threading.Lock()
+
+def _call_api_safe(api_name, fetch_func, probe):
+    with _FAILED_APIS_LOCK:
+        if api_name in _FAILED_APIS:
+            return [], []
+    try:
+        urls, texts = fetch_func(probe)
+        return urls, texts
+    except Exception:
+        with _FAILED_APIS_LOCK:
+            _FAILED_APIS.add(api_name)
+        return [], []
+
 def fetch_probe_multi(probe):
-    """Mencari ke semua mesin secara serentak dengan free API fallbacks.
+    """Mencari ke semua mesin secara serentak dengan free API fallbacks & Circuit Breaker Anti-RTO.
     Returns: (preloaded dict, normal_urls list, stats dict)"""
 
-    # 1. Try academic APIs first (free, unlimited)
-    u_ss, t_ss = fetch_semantic_scholar(probe)
-    u_cr, t_cr = fetch_crossref(probe)
-    u_oa, t_oa = fetch_openalex(probe)
-    u_epmc, t_epmc = fetch_europe_pmc(probe)
+    # 1. API Akademik Indonesia & Internasional Prioritas
+    u_ios, t_ios = _call_api_safe("IOS", fetch_onesearch_id, probe)
+    u_neliti, t_neliti = _call_api_safe("Neliti", fetch_neliti, probe)
+    u_ss, t_ss = _call_api_safe("SemanticScholar", fetch_semantic_scholar, probe)
+    u_cr, t_cr = _call_api_safe("Crossref", fetch_crossref, probe)
+    u_oa, t_oa = _call_api_safe("OpenAlex", fetch_openalex, probe)
+    u_epmc, t_epmc = _call_api_safe("EuropePMC", fetch_europe_pmc, probe)
 
     # 1b. Additional free academic APIs
-    u_doaj, t_doaj = fetch_doaj(probe)
-    u_arxiv, t_arxiv = fetch_arxiv(probe)
-    u_core, t_core = fetch_core(probe)
+    u_doaj, t_doaj = _call_api_safe("DOAJ", fetch_doaj, probe)
+    u_arxiv, t_arxiv = _call_api_safe("arXiv", fetch_arxiv, probe)
+    u_core, t_core = _call_api_safe("CORE", fetch_core, probe)
     
-    # 2. Try paid APIs (may fail if credit exhausted)
+    # 2. Try paid APIs
     u_gs, _ = fetch_google_scholar(probe)
     u_gw, _ = fetch_google_web(probe)
     u_gr, _ = fetch_garuda(probe)
     
-    # 3. Try DuckDuckGo (free, unlimited)
+    # 3. Try DuckDuckGo
     u_dd, _ = fetch_ddgs(probe)
     
     # 4. Direct search Indonesian repositories (no API limits, TAPI lambat: BSI ~15s/req).
@@ -686,6 +762,8 @@ def fetch_probe_multi(probe):
     
     # Statistik per-API untuk probe ini
     stats = {
+        "OneSearchID": len(u_ios),
+        "Neliti": len(u_neliti),
         "SemanticScholar": len(u_ss),
         "Crossref": len(u_cr),
         "OpenAlex": len(u_oa),
@@ -703,6 +781,8 @@ def fetch_probe_multi(probe):
     
     # Gabungkan URL yang sudah ada abstraknya menjadi dictionary
     preloaded = {}
+    for u, t in zip(u_ios, t_ios): preloaded[u] = t
+    for u, t in zip(u_neliti, t_neliti): preloaded[u] = t
     for u, t in zip(u_ss, t_ss): preloaded[u] = t
     for u, t in zip(u_cr, t_cr): preloaded[u] = t
     for u, t in zip(u_epmc, t_epmc): preloaded[u] = t
