@@ -563,6 +563,12 @@
                     document.getElementById('progressText').innerText = '100%';
                     document.getElementById('loadingSubtitle').innerText = 'Selesai. Membuka laporan...';
                     window.location.href = `/report/${file_id}`;
+                } else if (data.status === 'cancelled') {
+                    clearInterval(checkInterval);
+                    clearInterval(timerInterval);
+                    document.getElementById('loadingOverlay').style.display = 'none';
+                    alert("Proses analisis berhasil dibatalkan.");
+                    location.reload();
                 } else if (data.status === 'error') {
                     stopPolling("Error processing file: " + (data.message || 'tidak diketahui'));
                 } else if (data.status === 'not_found') {

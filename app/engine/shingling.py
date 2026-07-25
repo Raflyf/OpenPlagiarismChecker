@@ -145,7 +145,7 @@ def get_ngrams(text, n=5):
 def get_shingles(text, n=5):
     return set(get_ngrams(text, n))
 
-def calculate_similarity(doc_text, corpus, exclude_small=False, use_semantic=False, semantic_threshold=0.88, semantic_max_sources=None, min_source_overlap=1):
+def calculate_similarity(doc_text, corpus, exclude_small=False, use_semantic=False, semantic_threshold=0.88, semantic_max_sources=None, min_source_overlap=1, is_cancelled_cb=None):
     """
     Algoritma Turnitin Asli (Rabin-Karp / N-Gram Exact Match) + Semantic Similarity.
 
@@ -314,6 +314,10 @@ def calculate_similarity(doc_text, corpus, exclude_small=False, use_semantic=Fal
     ngram_similarity = float((total_plagiarized_words_global / total_doc_words) * 100.0)
     
     # ========== LAYER 2: SEMANTIC SIMILARITY (Deteksi Parafrasa) ==========
+    if is_cancelled_cb and is_cancelled_cb():
+        print("[!] PROSES DIBATALKAN USER: Menghentikan kalkulasi semantik.")
+        return [], 0.0, []
+
     semantic_matches = {}
     semantic_plagiarized_words = 0
     
