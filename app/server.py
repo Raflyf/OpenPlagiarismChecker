@@ -131,7 +131,8 @@ def process_document(file_id, filepath, original_filename, exclude_quotes=True, 
         # dites di localhost (korpus sama-sama terkurasi, bukan bank mentah).
         sorted_sources, total_similarity, plagiarized_sentences = calculate_similarity(
             doc_text, corpus, exclude_small, use_semantic=use_semantic,
-            semantic_threshold=0.88)
+            semantic_threshold=0.88, is_cancelled_cb=check_cancelled)
+        if check_cancelled(): return
 
         # --- SKOR KEDUA: "fooled" (hidden text lolos) ---
         # Hanya dihitung jika ada manipulasi (hidden spans terdeteksi). Menggunakan
