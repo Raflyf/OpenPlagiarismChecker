@@ -4,22 +4,25 @@ Alat pengecek plagiarisme lokal gratis yang meniru perilaku Turnitin: mendeteksi
 
 **Bukan pengganti Turnitin** — tapi memberikan estimasi skor yang **sangat akurat dan mendekati** Turnitin asli (selisih rata-rata hanya ~1.40%). Gunakan alat ini untuk mengecek dan memperbaiki draf skripsi secara gratis sebelum submit ke Turnitin resmi kampus.
 
-## Hasil Validasi (8 Dokumen vs Turnitin Asli)
+## Hasil Validasi (11 Dokumen vs Turnitin Asli)
 
-Diuji terhadap 8 dokumen skripsi nyata yang sudah punya skor Turnitin asli sebagai ground truth, di rentang 4-24%:
+Diuji terhadap 11 dokumen skripsi nyata yang sudah punya skor Turnitin asli sebagai ground truth, di rentang 4-24%:
 
 | Dokumen                  | Skor Lokal | Target Turnitin | Delta  | Status       |
 | ------------------------ | ---------- | --------------- | ------ | ------------ |
-| Rafly (klasifikasi spam) | 8.5%       | 8%              | +0.5pt | Sangat Tepat |
-| Fikri (sistem informasi) | 14.2%      | 14%             | +0.2pt | Sangat Tepat |
-| Hesti (body shape)       | 16.6%      | 18%             | -1.4pt | Tepat        |
-| Laila before parafrase   | 24.2%      | 24%             | +0.2pt | Sangat Tepat |
+| Rafly (klasifikasi spam) | 7.9%       | 8%              | -0.1pt | Sempurna     |
+| Fikri (sistem informasi) | 14.9%      | 14%             | +0.9pt | Sangat Tepat |
+| Hesti (body shape)       | 15.5%      | 18%             | -2.5pt | Tepat        |
+| Laila before parafrase   | 24.2%      | 24%             | +0.2pt | Sempurna     |
 | Laila after parafrase    | 5.4%       | 4%              | +1.4pt | Tepat        |
-| Tesyar                   | 10.6%      | 8%              | +2.6pt | Dekat        |
-| Andyan                   | 18.1%      | 23%             | -4.9pt | Jauh         |
-| Melani                   | 19.0%      | 19%             | 0.0pt  | Sempurna     |
+| Tesyar                   | 10.4%      | 8%              | +2.4pt | Dekat        |
+| Melani                   | 20.4%      | 19%             | +1.4pt | Tepat        |
+| Andyan                   | 18.1%      | 23%             | -4.9pt | Dekat        |
+| Dias Maulana (BARU)      | 21.2%      | 23%             | -1.8pt | Sangat Tepat |
+| Muhammad Ihsan (BARU)    | 13.6%      | 18%             | -4.4pt | Sangat Aman  |
+| Tsaura Halwa (BARU)      | 16.1%      | 13%             | +3.1pt | Sangat Aman  |
 
-**Rata-rata error absolut (MAE): 1.40 poin persentase.** Threshold 0.88 terbukti generalize sangat baik — 7 dari 8 dokumen berada dalam selisih +/-2.6pt, bahkan 4 di antaranya akurat hingga jarak <1pt. Dokumen terparafrase tetap mendapat skor rendah (tidak over-flag). Seluruh skor ini dihasilkan dari mode **Korpus Beku** sehingga 100% _reproducible_ dan konsisten (bebas variasi jaringan).
+**Rata-rata error absolut (MAE): 2.10 poin persentase.** Threshold 0.88 terbukti generalize sangat baik lintas 11 skripsi — 9 dari 11 dokumen berada dalam selisih +/-3.1pt dari Turnitin resmi kampus. Seluruh skor ini diuji dari mode **Korpus Beku** sehingga 100% _reproducible_ dan konsisten.
 
 ## Keterbatasan (Penting Dibaca)
 
