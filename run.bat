@@ -21,20 +21,45 @@ if exist ".venv\Scripts\python.exe" (
 if "%PYTHON_CMD%"=="" (
     python --version > NUL 2>&1
     if errorlevel 1 (
-        echo [ERROR] Python3 tidak ditemukan di sistem Anda!
-        echo Silakan unduh dan install Python 3.10+ dari: https://www.python.org/downloads/
-        echo PENTING: Centang "Add Python to PATH" saat instalasi.
+        py --version > NUL 2>&1
+        if errorlevel 1 (
+            echo [INFO] Python tidak ditemukan di komputer Anda.
+            echo [INFO] Mengunduh & menginstall Python 3.11 secara otomatis...
+            echo.
+            
+            winget --version > NUL 2>&1
+            if not errorlevel 1 (
+                echo [winget] Mengunduh Python 3.11 via Windows Package Manager...
+                winget install -e --id Python.Python.3.11 --accept-source-agreements --accept-package-agreements --scope machine --override "/passive InstallAllUsers=1 PrependPath=1"
+            ) else (
+                echo [PowerShell] Mengunduh installer resmi Python 3.11...
+                powershell -Command "Invoke-WebRequest -Uri 'https://www.python.org/ftp/python/3.11.9/python-3.11.9-amd64.exe' -OutFile 'python_installer.exe'"
+                echo [Installer] Menginstall Python 3.11 (Silent Mode)...
+                start /wait python_installer.exe /passive InstallAllUsers=1 PrependPath=1
+                del python_installer.exe > NUL 2>&1
+            )
+            
+            set "PATH=%SystemDrive%\Program Files\Python311;%SystemDrive%\Program Files\Python311\Scripts;%PATH%"
+            echo [INFO] Instalasi Python 3.11 selesai.
+            echo.
+        )
+    )
+    
+    echo [1/3] Membuat Virtual Environment (.venv)...
+    python -m venv .venv 2>NUL
+    if errorlevel 1 (
+        py -3.11 -m venv .venv 2>NUL
+        if errorlevel 1 (
+            "%SystemDrive%\Program Files\Python311\python.exe" -m venv .venv
+        )
+    )
+    
+    if not exist ".venv\Scripts\python.exe" (
+        echo [ERROR] Gagal membuat virtual environment! Silakan jalankan ulang run.bat sebagai Administrator.
         pause
         exit /b 1
     )
     
-    echo [1/3] Membuat Virtual Environment (.venv)...
-    python -m venv .venv
-    if errorlevel 1 (
-        echo [ERROR] Gagal membuat virtual environment!
-        pause
-        exit /b 1
-    )
     set "PYTHON_CMD=.venv\Scripts\python.exe"
     
     echo [2/3] Mengunduh & menginstall modul dependensi (requirements.txt)...
