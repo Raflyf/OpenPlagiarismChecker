@@ -40,6 +40,28 @@ app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024 # 16MB max
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 os.makedirs(app.config['REPORT_FOLDER'], exist_ok=True)
 
+def cleanup_old_files(max_age_hours=24):
+    """Menghapus file upload & laporan lama (> 24 jam) agar disk tetap bersih & efisien"""
+    now = time.time()
+    cutoff = now - (max_age_hours * 3600)
+    cleaned_count = 0
+    for folder in [app.config['UPLOAD_FOLDER'], app.config['REPORT_FOLDER']]:
+        if not os.path.exists(folder): continue
+        for fname in os.listdir(folder):
+            fpath = os.path.join(folder, fname)
+            if os.path.isfile(fpath):
+                try:
+                    if os.path.getmtime(fpath) < cutoff:
+                        os.remove(fpath)
+                        cleaned_count += 1
+                except Exception:
+                    pass
+    if cleaned_count > 0:
+        print(f"[!] Cleanup: {cleaned_count} file temporary lama (> 24 jam) di uploads/reports berhasil dibersihkan.")
+
+# Purge file temporary lama saat server startup
+cleanup_old_files(24)
+
 # Store results in memory
 results_db = {}
 
