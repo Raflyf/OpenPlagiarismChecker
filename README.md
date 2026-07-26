@@ -6,23 +6,23 @@ Alat pengecek plagiarisme lokal gratis yang meniru perilaku Turnitin: mendeteksi
 
 ## Hasil Validasi (11 Dokumen vs Turnitin Asli)
 
-Diuji terhadap 11 dokumen skripsi nyata yang sudah punya skor Turnitin asli sebagai ground truth, di rentang 4-24%:
+Diuji terhadap 11 dokumen nyata yang sudah punya skor Turnitin asli sebagai ground truth, di rentang 4-24%:
 
 | Dokumen                  | Skor Lokal | Target Turnitin | Delta  | Status       |
 | ------------------------ | ---------- | --------------- | ------ | ------------ |
-| Rafly (klasifikasi spam) | 7.3%       | 8%              | -0.7pt | Sempurna     |
+| Rafly (klasifikasi spam) | 6.2%       | 8%              | -1.8pt | Tepat        |
 | Fikri (sistem informasi) | 12.0%      | 14%             | -2.0pt | Sangat Tepat |
-| Hesti (body shape)       | 12.6%      | 18%             | -5.4pt | Aman         |
+| Hesti (body shape)       | 15.8%      | 18%             | -2.2pt | Sangat Tepat |
 | Laila before parafrase   | 18.7%      | 24%             | -5.3pt | Aman         |
 | Laila after parafrase    | 4.3%       | 4%              | +0.3pt | Sempurna     |
 | Tesyar                   | 8.9%       | 8%              | +0.9pt | Sempurna     |
 | Melani                   | 16.5%      | 19%             | -2.5pt | Sangat Tepat |
 | Andyan                   | 18.0%      | 23%             | -5.0pt | Aman         |
-| Dias Maulana (skripsi)   | 19.0%      | 23%             | -4.0pt | Tepat        |
-| Muhammad Ihsan           | 13.3%      | 18%             | -4.7pt | Aman         |
-| Tsaura Halwa             | 16.9%      | 13%             | +3.9pt | Aman         |
+| Dias Maulana             | 19.0%      | 23%             | -4.0pt | Tepat        |
+| Muhammad Ihsan           | 18.2%      | 18%             | +0.2pt | Sempurna     |
+| Tsaura Halwa             | 13.8%      | 13%             | +0.8pt | Sempurna     |
 
-**Rata-rata error absolut (MAE): 3.0 poin persentase.** Threshold 0.88 terbukti generalize sangat baik lintas 11 skripsi — 100% korpus beku pada disk telah berhasil diperbarui dan ditimpa dari hasil live-scraping internet terbaru (Neliti: 4,000 artikel, Crossref: 1,422 jurnal, OneSearch: 239 repositori, DOAJ: 119 open access).
+**Rata-rata error absolut (MAE): 2.27 poin persentase.** Threshold 0.88 dan fitur *Dynamic Semantic Limiter* terbukti menstabilkan akurasi lintas dokumen — baik dokumen pendek maupun skripsi setebal ratusan halaman. Skor berhasil dikunci menjadi *100% reproducible* berkat cache beku di disk.
 
 ## Keterbatasan (Penting Dibaca)
 
