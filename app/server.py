@@ -126,7 +126,7 @@ def process_document(file_id, filepath, original_filename, exclude_quotes=True, 
                 corpus = None
 
         if corpus is None:
-            adaptive_probes = max(100, min(180, int(len(sentences) / 2.5)))
+            adaptive_probes = max(180, min(200, int(len(sentences) / 1.5)))
             print(f"[!] ADAPTIVE SAMPLING: {adaptive_probes} probes untuk {len(sentences)} kalimat...")
             urls, preloaded_corpus = get_candidate_urls(sentences, max_probes=adaptive_probes, progress_cb=ddg_progress)
 
@@ -153,8 +153,14 @@ def process_document(file_id, filepath, original_filename, exclude_quotes=True, 
         # semantic_max_sources/min_source_overlap -> engine berperilaku persis seperti
         # run_test_groundtruth.py, sehingga skor dokumen tervalidasi konsisten saat
         # dites di localhost (korpus sama-sama terkurasi, bukan bank mentah).
+        
+        # Terapkan pembatasan sumber semantik hanya untuk dokumen yang sangat panjang (>500 kalimat)
+        # Ini untuk mencegah over-detection (skor melambung) pada dokumen tebal ber-topik pasaran.
+        dynamic_max_sources = 50 if len(sentences) > 500 else None
+        
         sorted_sources, total_similarity, plagiarized_sentences = calculate_similarity(
             doc_text, corpus, exclude_small, use_semantic=use_semantic,
+            semantic_max_sources=dynamic_max_sources,
             semantic_threshold=0.88, is_cancelled_cb=check_cancelled)
         if check_cancelled(): return
 
@@ -167,7 +173,7 @@ def process_document(file_id, filepath, original_filename, exclude_quotes=True, 
             print("[!] Menghitung skor kedua (jika hidden text lolos)...")
             _, fooled_sim, _ = calculate_similarity(
                 raw_text, corpus, exclude_small, use_semantic=use_semantic,
-                semantic_threshold=0.88)
+                semantic_threshold=0.88, semantic_max_sources=10)
             fooled_similarity = round(fooled_sim)
             print(f"[!] Skor tertipu (hidden text lolos): {fooled_similarity}%")
 
@@ -233,7 +239,7 @@ def check_frozen():
     tmp_path = os.path.join(app.config['UPLOAD_FOLDER'], f"_check_{uuid.uuid4().hex[:8]}.pdf")
     try:
         file.save(tmp_path)
-        doc_text, _ = extract_text_from_pdf(tmp_path)
+        doc_text, _ = extract_text_from_pdf(tmp_path, fast_mode=True)
         doc_hash = hashlib.md5(doc_text.encode("utf-8")).hexdigest()[:16]
         frozen_path = os.path.join(base_dir, "frozen_corpus", f"web_{doc_hash}.json")
         exists = os.path.exists(frozen_path)
@@ -434,3 +440,4 @@ if __name__ == '__main__':
     
     # SEC-02: Matikan debug=True untuk mencegah remote code execution via Werkzeug
     app.run(host='0.0.0.0', port=5001, debug=False, use_reloader=False)
+

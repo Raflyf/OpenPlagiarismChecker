@@ -1,0 +1,212 @@
+{
+  "app/_rerun_andyan.py": {
+    "mtime": 1784646269.943666,
+    "ast_hash": "81a60d9b190ce266611b8585fd97d8c5",
+    "semantic_hash": "81a60d9b190ce266611b8585fd97d8c5"
+  },
+  "app/_skor8.py": {
+    "mtime": 1784645619.3128052,
+    "ast_hash": "25ccd8c924805bfb82a7aebf9f6cbeff",
+    "semantic_hash": "25ccd8c924805bfb82a7aebf9f6cbeff"
+  },
+  "app/calibrate_threshold.py": {
+    "mtime": 1784462850.7666438,
+    "ast_hash": "987cdf5a5517db1ebb0a7656176b61d7",
+    "semantic_hash": "987cdf5a5517db1ebb0a7656176b61d7"
+  },
+  "app/calibration_result.json": {
+    "mtime": 1784464667.6545725,
+    "ast_hash": "0eb7e49694b73c6c2855663ff671db8c",
+    "semantic_hash": "0eb7e49694b73c6c2855663ff671db8c"
+  },
+  "app/compare_threshold.py": {
+    "mtime": 1784522182.2850933,
+    "ast_hash": "fb5b7f0d763e6f53f3dc03b9d02dd009",
+    "semantic_hash": "fb5b7f0d763e6f53f3dc03b9d02dd009"
+  },
+  "app/engine/extractor.py": {
+    "mtime": 1784638832.9608996,
+    "ast_hash": "2ad078b575b44b52498eb2f106d7963a",
+    "semantic_hash": "2ad078b575b44b52498eb2f106d7963a"
+  },
+  "app/engine/free_api_fallbacks.py": {
+    "mtime": 1785051748.8786619,
+    "ast_hash": "28c5db3ba44959f1fe95248836e5dce3",
+    "semantic_hash": "28c5db3ba44959f1fe95248836e5dce3"
+  },
+  "app/engine/indonesian_repos.py": {
+    "mtime": 1785043690.8964777,
+    "ast_hash": "9c42530327fbfb10166fff5f1537ffb6",
+    "semantic_hash": "9c42530327fbfb10166fff5f1537ffb6"
+  },
+  "app/engine/pdf_generator.py": {
+    "mtime": 1784654850.1402893,
+    "ast_hash": "ae64d11bcdd4b57ea63daca219e32073",
+    "semantic_hash": "ae64d11bcdd4b57ea63daca219e32073"
+  },
+  "app/engine/priority_domains.py": {
+    "mtime": 1784453624.6382773,
+    "ast_hash": "eb503bbaf52d94efe0dee5fa29e99f21",
+    "semantic_hash": "eb503bbaf52d94efe0dee5fa29e99f21"
+  },
+  "app/engine/semantic_similarity.py": {
+    "mtime": 1784740265.0791564,
+    "ast_hash": "7bf9acbb73e52062fe5e616f535297ea",
+    "semantic_hash": "7bf9acbb73e52062fe5e616f535297ea"
+  },
+  "app/engine/shingling.py": {
+    "mtime": 1785001987.3011088,
+    "ast_hash": "80b03b771d3914b79c24b73bd4202678",
+    "semantic_hash": "80b03b771d3914b79c24b73bd4202678"
+  },
+  "app/engine/web_scraper.py": {
+    "mtime": 1785044167.8508792,
+    "ast_hash": "c9d25a25eb8a45861d457708c765ed20",
+    "semantic_hash": "c9d25a25eb8a45861d457708c765ed20"
+  },
+  "app/frozen_corpus/15210103_MUHAMMAD_IHSAN_PERMANA_SKRIPSI.json": {
+    "mtime": 1785054626.365226,
+    "ast_hash": "4a2c2fccfe849d7918d8b63c0d6b1266",
+    "semantic_hash": "4a2c2fccfe849d7918d8b63c0d6b1266"
+  },
+  "app/frozen_corpus/15210233_TsauraHalwaQur_ani_2.json": {
+    "mtime": 1785054945.109393,
+    "ast_hash": "5ab0e0bbc56cefa1516bb84b0e98759d",
+    "semantic_hash": "5ab0e0bbc56cefa1516bb84b0e98759d"
+  },
+  "app/frozen_corpus/Hesti_skripsi_final_before_turnitin.json": {
+    "mtime": 1785055458.7998674,
+    "ast_hash": "435be999396caf24cf588e4d5d27dc4f",
+    "semantic_hash": "435be999396caf24cf588e4d5d27dc4f"
+  },
+  "app/frozen_corpus/Rafly_FIrmansyah_Skripsi_Fix.json": {
+    "mtime": 1785055870.4364052,
+    "ast_hash": "e4991675a006f5c667394a4a4376295a",
+    "semantic_hash": "e4991675a006f5c667394a4a4376295a"
+  },
+  "app/frozen_corpus/SKRIPSI_ANDYAN_AGUNG_MAULANA.json": {
+    "mtime": 1785056432.632749,
+    "ast_hash": "5edf12e0961a3bf1863ea0dd52e0e1c8",
+    "semantic_hash": "5edf12e0961a3bf1863ea0dd52e0e1c8"
+  },
+  "app/frozen_corpus/SKRIPSI_FIKRI_FIRDAUS_15220792.json": {
+    "mtime": 1785056947.9412563,
+    "ast_hash": "87c562f3e93763ac7426ad7d3b355e08",
+    "semantic_hash": "87c562f3e93763ac7426ad7d3b355e08"
+  },
+  "app/frozen_corpus/Skripsi_Laila_Romadona_FIX_before_parafr.json": {
+    "mtime": 1785057322.3488245,
+    "ast_hash": "f143490d76c214de70813fca6f3a6f03",
+    "semantic_hash": "f143490d76c214de70813fca6f3a6f03"
+  },
+  "app/frozen_corpus/Skripsi_Melani_15220760.json": {
+    "mtime": 1785057883.7183125,
+    "ast_hash": "16cf631bae47119a2661a11db1f28a70",
+    "semantic_hash": "16cf631bae47119a2661a11db1f28a70"
+  },
+  "app/frozen_corpus/new_Skripsi_Laila_Romadona_FIX_after_par.json": {
+    "mtime": 1785058337.0111394,
+    "ast_hash": "220384a282970f07bb9bea7abd7d155d",
+    "semantic_hash": "220384a282970f07bb9bea7abd7d155d"
+  },
+  "app/frozen_corpus/skripsi_1522078_dias_maulana.json": {
+    "mtime": 1785058734.0072842,
+    "ast_hash": "8f980f416a5efbf53f6dfa32a50f3138",
+    "semantic_hash": "8f980f416a5efbf53f6dfa32a50f3138"
+  },
+  "app/frozen_corpus/tesyar_skripsi.json": {
+    "mtime": 1785059045.247173,
+    "ast_hash": "17fe6ef48bb6d955747ba4244b760673",
+    "semantic_hash": "17fe6ef48bb6d955747ba4244b760673"
+  },
+  "app/frozen_corpus/web_0aacd6bb81ae524d.json": {
+    "mtime": 1784996605.3516421,
+    "ast_hash": "f1a3b6e96c733ae4eac9950cc851646a",
+    "semantic_hash": "f1a3b6e96c733ae4eac9950cc851646a"
+  },
+  "app/frozen_corpus/web_32ba27ce53eb6028.json": {
+    "mtime": 1784998302.3154252,
+    "ast_hash": "2aa12ab65b6fb79f57895768472e9dee",
+    "semantic_hash": "2aa12ab65b6fb79f57895768472e9dee"
+  },
+  "app/frozen_corpus/web_3bd2f2042185ead3.json": {
+    "mtime": 1784735541.69313,
+    "ast_hash": "34b126aaaf8f5aba2a393464e111d47e",
+    "semantic_hash": "34b126aaaf8f5aba2a393464e111d47e"
+  },
+  "app/frozen_corpus/web_46a443e60bf27391.json": {
+    "mtime": 1785043666.4022646,
+    "ast_hash": "29850c569c7c3a17414175feb4adc4da",
+    "semantic_hash": "29850c569c7c3a17414175feb4adc4da"
+  },
+  "app/frozen_corpus/web_6b1203f32043dd72.json": {
+    "mtime": 1784628775.9893599,
+    "ast_hash": "fb19d57ffb0f80b4803679abc65bf970",
+    "semantic_hash": "fb19d57ffb0f80b4803679abc65bf970"
+  },
+  "app/frozen_corpus/web_724d3f90670f6ac3.json": {
+    "mtime": 1784522182.8094137,
+    "ast_hash": "0c645380bcd1af09a2ee00dbc9cd4a39",
+    "semantic_hash": "0c645380bcd1af09a2ee00dbc9cd4a39"
+  },
+  "app/frozen_corpus/web_78cf96e1fc8bba19.json": {
+    "mtime": 1784522182.8296175,
+    "ast_hash": "3bd4db92e05ee19e2becccca3f55f1d3",
+    "semantic_hash": "3bd4db92e05ee19e2becccca3f55f1d3"
+  },
+  "app/frozen_corpus/web_946ee0a19fe021f7.json": {
+    "mtime": 1785000744.9290295,
+    "ast_hash": "232cb8747a43a6d5666187dd3d653230",
+    "semantic_hash": "232cb8747a43a6d5666187dd3d653230"
+  },
+  "app/frozen_corpus/web_97b5ea65290db87d.json": {
+    "mtime": 1784737127.538203,
+    "ast_hash": "9b0873bb4d94bd30be21b8a30c3982d2",
+    "semantic_hash": "9b0873bb4d94bd30be21b8a30c3982d2"
+  },
+  "app/frozen_corpus/web_9baaa81917037f14.json": {
+    "mtime": 1784653309.640389,
+    "ast_hash": "d45c46e6ac238290d2710c9dcad6eb5b",
+    "semantic_hash": "d45c46e6ac238290d2710c9dcad6eb5b"
+  },
+  "app/frozen_corpus/web_9d8b23710c1dd44e.json": {
+    "mtime": 1784642262.1800513,
+    "ast_hash": "0f938418d254c508dd4b95907ddd5569",
+    "semantic_hash": "0f938418d254c508dd4b95907ddd5569"
+  },
+  "app/frozen_corpus/web_b116569a1d6ac590.json": {
+    "mtime": 1784631206.4352717,
+    "ast_hash": "205bf9db847d214fce5d620e2aa906cc",
+    "semantic_hash": "205bf9db847d214fce5d620e2aa906cc"
+  },
+  "app/frozen_corpus/web_d39a90f3d0935671.json": {
+    "mtime": 1785002404.8871205,
+    "ast_hash": "7a956f5ad4fd8b731b0ab3290ce1dc80",
+    "semantic_hash": "7a956f5ad4fd8b731b0ab3290ce1dc80"
+  },
+  "app/frozen_corpus/web_eac9121e5aa8b0a2.json": {
+    "mtime": 1785041407.5056963,
+    "ast_hash": "52dcc2224462d9fddb2732329f157a11",
+    "semantic_hash": "52dcc2224462d9fddb2732329f157a11"
+  },
+  "app/run_test_groundtruth.py": {
+    "mtime": 1785048488.9286656,
+    "ast_hash": "1b954b473631d6ce053610a659df279f",
+    "semantic_hash": "1b954b473631d6ce053610a659df279f"
+  },
+  "app/server.py": {
+    "mtime": 1785052737.7292643,
+    "ast_hash": "f758f1f179b05df080e4cfecf5641815",
+    "semantic_hash": "f758f1f179b05df080e4cfecf5641815"
+  },
+  "app/turnitin_sources.json": {
+    "mtime": 1784453226.032737,
+    "ast_hash": "d3f2861d45b5b807ca84d36fc49080bd",
+    "semantic_hash": "d3f2861d45b5b807ca84d36fc49080bd"
+  },
+  "run.sh": {
+    "mtime": 1785052069.76286,
+    "ast_hash": "f75714e4250c92966c04010022dea23e",
+    "semantic_hash": "f75714e4250c92966c04010022dea23e"
+  }
+}

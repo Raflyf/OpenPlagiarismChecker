@@ -62,7 +62,7 @@ def _extract_visible_text(doc):
             visible_parts.append(" ")
     return "".join(visible_parts), hidden_word_count, any_dropped, hidden_spans
 
-def extract_text_from_pdf(filepath, exclude_quotes=True, exclude_biblio=True, return_hidden=False):
+def extract_text_from_pdf(filepath, exclude_quotes=True, exclude_biblio=True, return_hidden=False, fast_mode=False):
     """Extract text from PDF with robust error handling"""
     text = ""
     hidden_word_count = 0
@@ -72,7 +72,10 @@ def extract_text_from_pdf(filepath, exclude_quotes=True, exclude_biblio=True, re
         # pakai teks hasil span; jika tidak, pakai get_text() polos (verbatim) agar
         # dokumen bersih bit-identik -> skor tidak berubah. Robust: gagal -> get_text().
         try:
-            vis_text, hidden_word_count, any_dropped, hidden_spans = _extract_visible_text(doc)
+            if fast_mode:
+                vis_text, hidden_word_count, any_dropped, hidden_spans = "", 0, False, []
+            else:
+                vis_text, hidden_word_count, any_dropped, hidden_spans = _extract_visible_text(doc)
         except Exception:
             vis_text, hidden_word_count, any_dropped, hidden_spans = "", 0, False, []
         # Teks mentah (semua span, termasuk hidden) untuk skor "fooled"
@@ -215,7 +218,10 @@ def clean_text(text, exclude_quotes=True, exclude_biblio=True):
 
     # [3] Exclude Quotes
     if exclude_quotes:
-        text = re.sub(r'["""].*?["""]', '', text)
+        # Hapus kutipan dengan straight quotes (maks 500 karakter agar tidak menghapus 1 bab jika ada quote yg tidak tertutup)
+        text = re.sub(r'"[^"]{1,500}"', '', text)
+        # Hapus kutipan dengan smart quotes
+        text = re.sub(r'“[^”]{1,500}”', '', text)
 
     return text
 
