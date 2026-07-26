@@ -30,32 +30,42 @@ if "%PYTHON_CMD%"=="" (
             winget --version > NUL 2>&1
             if not errorlevel 1 (
                 echo [winget] Mengunduh Python 3.11 via Windows Package Manager...
-                winget install -e --id Python.Python.3.11 --accept-source-agreements --accept-package-agreements --scope machine --override "/passive InstallAllUsers=1 PrependPath=1"
+                winget install -e --id Python.Python.3.11 --accept-source-agreements --accept-package-agreements --override "/passive PrependPath=1"
             ) else (
                 echo [PowerShell] Mengunduh installer resmi Python 3.11...
                 powershell -Command "Invoke-WebRequest -Uri 'https://www.python.org/ftp/python/3.11.9/python-3.11.9-amd64.exe' -OutFile 'python_installer.exe'"
                 echo [Installer] Menginstall Python 3.11 (Silent Mode)...
-                start /wait python_installer.exe /passive InstallAllUsers=1 PrependPath=1
+                start /wait python_installer.exe /passive PrependPath=1
                 del python_installer.exe > NUL 2>&1
             )
-            
-            set "PATH=%SystemDrive%\Program Files\Python311;%SystemDrive%\Program Files\Python311\Scripts;%PATH%"
             echo [INFO] Instalasi Python 3.11 selesai.
             echo.
         )
     )
+
+    REM Cari path executable Python secara presisi di komputer bersih
+    set "SYS_PYTHON=python"
+    if exist "%LocalAppData%\Programs\Python\Python311\python.exe" (
+        set "SYS_PYTHON=%LocalAppData%\Programs\Python\Python311\python.exe"
+    ) else if exist "%LocalAppData%\Programs\Python\Python312\python.exe" (
+        set "SYS_PYTHON=%LocalAppData%\Programs\Python\Python312\python.exe"
+    ) else if exist "%ProgramFiles%\Python311\python.exe" (
+        set "SYS_PYTHON=%ProgramFiles%\Python311\python.exe"
+    ) else if exist "%ProgramFiles%\Python312\python.exe" (
+        set "SYS_PYTHON=%ProgramFiles%\Python312\python.exe"
+    )
     
     echo [1/3] Membuat Virtual Environment (.venv)...
-    python -m venv .venv 2>NUL
+    "!SYS_PYTHON!" -m venv .venv 2>NUL
     if errorlevel 1 (
         py -3.11 -m venv .venv 2>NUL
         if errorlevel 1 (
-            "%SystemDrive%\Program Files\Python311\python.exe" -m venv .venv
+            python -m venv .venv
         )
     )
     
     if not exist ".venv\Scripts\python.exe" (
-        echo [ERROR] Gagal membuat virtual environment! Silakan jalankan ulang run.bat sebagai Administrator.
+        echo [ERROR] Gagal membuat virtual environment! Silakan jalankan ulang run.bat.
         pause
         exit /b 1
     )
