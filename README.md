@@ -103,46 +103,60 @@ Web localhost memakai **metodologi identik** dengan runner validasi (`run_test_g
 - Daftar PRIMARY SOURCES dengan persentase kontribusi
 - Download sebagai PDF
 
-## Cara Penggunaan
+## Cara Penggunaan (1-Click Run)
 
-### Prasyarat
+### Cara Paling Mudah (1-Click Run) — Tanpa Setup Manual
 
-- Python 3.10+
-- GPU opsional (NVIDIA CUDA untuk mempercepat semantic check)
+Cukup unduh / clone repositori ini, lalu jalankan script 1-click sesuai sistem operasi Anda:
 
-### Instalasi
+- **Windows:** Klik ganda file **`run.bat`**
+- **Linux / macOS:** Buka terminal dan jalankan **`./run.sh`**
 
-```bash
-cd plagiarism_checker
-pip install -r requirements.txt
+**Apa yang terjadi secara otomatis saat `run.bat` diklik:**
+1. **Auto-Detect / Install Python:** Script mengecek instalasi Python di komputer Anda. Jika belum ada, script akan mengunduh dan menginstall **Python 3.11 secara otomatis (Silent Mode)** via Windows Package Manager (`winget`) atau PowerShell.
+2. **Auto-Create Venv:** Membuat Virtual Environment (`.venv`) lokal.
+3. **Auto-Install Dependensi:** Mengunduh seluruh pustaka Python (`requirements.txt`) menggunakan versi binary *pre-compiled wheels* resmi.
+4. **Auto-Copy Config:** Menyalin `.env.example` ke `.env` secara otomatis.
+5. **Auto-Launch App & Browser:** Menjalankan server aplikasi dan **otomatis membuka web browser ke `http://localhost:5001`** dalam 3 detik.
 
-# Opsional: install torch CUDA untuk GPU (RTX 3050+ recommended)
-pip install torch --index-url https://download.pytorch.org/whl/cu124
-```
+---
 
-### Konfigurasi API Key
+### Cara Manual (Untuk Developer)
 
-Salin `.env.example` ke `.env` dan isi key yang dipunya (semua opsional — tanpa key pun sistem tetap jalan penuh via OneSearch + Neliti + OpenAlex + EuropePMC + Crossref + DuckDuckGo):
+1. **Clone Repositori:**
+   ```bash
+   git clone https://github.com/Raflyf/free-turnitin-plagiarism-clone.git
+   cd free-turnitin-plagiarism-clone
+   ```
 
-```env
-# Semantic Scholar (gratis, daftar di semanticscholar.org/product/api)
-S2_API_KEYS=key1,key2,key3
+2. **Buat Venv & Install Dependensi:**
+   ```bash
+   python -m venv .venv
+   
+   # Windows:
+   .venv\Scripts\activate
+   # Linux/macOS:
+   source .venv/bin/activate
 
-# Cohere (gratis, daftar di dashboard.cohere.com)
-COHERE_KEYS=key1,key2
+   pip install -r requirements.txt
+   ```
 
-# ScraperAPI (gratis 5000 req/bulan, daftar di scraperapi.com)
-SCRAPERAPI_KEY=xxx
-```
+3. **Konfigurasi API Key (Opsional):**
+   Salin `.env.example` ke `.env` jika memiliki API key tambahan:
+   ```env
+   # Semantic Scholar (gratis, daftar di semanticscholar.org/product/api)
+   S2_API_KEYS=key1,key2
+   
+   # Cohere (gratis, daftar di dashboard.cohere.com)
+   COHERE_KEYS=key1,key2
+   ```
 
-### Jalankan Web Server
-
-```bash
-cd plagiarism_checker/app
-python server.py
-```
-
-Buka browser: `http://localhost:5001` (atau port yang tampil di terminal).
+4. **Jalankan Web Server:**
+   ```bash
+   cd app
+   python server.py
+   ```
+   Buka browser di: `http://localhost:5001`
 
 ### Fitur & Filter di Web UI
 
