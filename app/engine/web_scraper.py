@@ -1119,7 +1119,10 @@ def get_candidate_urls(sentences, max_probes=100, progress_cb=None):
                 total_found = sum(active.values())
                 print(f"[API] Probe {probes_done}/{len(probes)} -- {total_found} sumber ditemukan | {', '.join(parts)}")
                 
-    print(f"[API] Berhasil menarik {len(preloaded_corpus)} abstrak jurnal dan {len(urls)} link web publik.")
+    print(f"\n[API] RANGKUMAN PENARIKAN SUMBER JURNAL (Total: {len(preloaded_corpus)} abstrak API + {len(urls)} web links):")
+    active = {k: v for k, v in total_stats.items() if v > 0}
+    for api_name, count in sorted(active.items(), key=lambda x: -x[1]):
+        print(f"  └─ {api_name:<18}: {count} sumber")
     return list(urls), preloaded_corpus
 
 def scrape_url(url):
