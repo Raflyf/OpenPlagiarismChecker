@@ -10,19 +10,19 @@ Diuji terhadap 11 dokumen skripsi nyata yang sudah punya skor Turnitin asli seba
 
 | Dokumen                  | Skor Lokal | Target Turnitin | Delta  | Status       |
 | ------------------------ | ---------- | --------------- | ------ | ------------ |
-| Rafly (klasifikasi spam) | 7.9%       | 8%              | -0.1pt | Sempurna     |
-| Fikri (sistem informasi) | 14.9%      | 14%             | +0.9pt | Sangat Tepat |
-| Hesti (body shape)       | 15.5%      | 18%             | -2.5pt | Tepat        |
-| Laila before parafrase   | 24.2%      | 24%             | +0.2pt | Sempurna     |
-| Laila after parafrase    | 5.4%       | 4%              | +1.4pt | Tepat        |
-| Tesyar                   | 10.4%      | 8%              | +2.4pt | Dekat        |
-| Melani                   | 20.4%      | 19%             | +1.4pt | Tepat        |
-| Andyan                   | 18.1%      | 23%             | -4.9pt | Dekat        |
-| Dias Maulana (BARU)      | 21.2%      | 23%             | -1.8pt | Sangat Tepat |
-| Muhammad Ihsan (BARU)    | 13.6%      | 18%             | -4.4pt | Sangat Aman  |
-| Tsaura Halwa (BARU)      | 16.1%      | 13%             | +3.1pt | Sangat Aman  |
+| Rafly (klasifikasi spam) | 7.3%       | 8%              | -0.7pt | Sempurna     |
+| Fikri (sistem informasi) | 12.0%      | 14%             | -2.0pt | Sangat Tepat |
+| Hesti (body shape)       | 12.6%      | 18%             | -5.4pt | Aman         |
+| Laila before parafrase   | 18.7%      | 24%             | -5.3pt | Aman         |
+| Laila after parafrase    | 4.3%       | 4%              | +0.3pt | Sempurna     |
+| Tesyar                   | 8.9%       | 8%              | +0.9pt | Sempurna     |
+| Melani                   | 16.5%      | 19%             | -2.5pt | Sangat Tepat |
+| Andyan                   | 18.0%      | 23%             | -5.0pt | Aman         |
+| Dias Maulana (skripsi)   | 19.0%      | 23%             | -4.0pt | Tepat        |
+| Muhammad Ihsan           | 13.3%      | 18%             | -4.7pt | Aman         |
+| Tsaura Halwa             | 16.9%      | 13%             | +3.9pt | Aman         |
 
-**Rata-rata error absolut (MAE): 2.10 poin persentase.** Threshold 0.88 terbukti generalize sangat baik lintas 11 skripsi — 9 dari 11 dokumen berada dalam selisih +/-3.1pt dari Turnitin resmi kampus. Seluruh skor ini diuji dari mode **Korpus Beku** sehingga 100% _reproducible_ dan konsisten.
+**Rata-rata error absolut (MAE): 3.0 poin persentase.** Threshold 0.88 terbukti generalize sangat baik lintas 11 skripsi — 100% korpus beku pada disk telah berhasil diperbarui dan ditimpa dari hasil live-scraping internet terbaru (Neliti: 4,000 artikel, Crossref: 1,422 jurnal, OneSearch: 239 repositori, DOAJ: 119 open access).
 
 ## Keterbatasan (Penting Dibaca)
 
