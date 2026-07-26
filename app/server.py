@@ -104,7 +104,9 @@ def process_document(file_id, filepath, original_filename, exclude_quotes=True, 
                 corpus = None
 
         if corpus is None:
-            urls, preloaded_corpus = get_candidate_urls(sentences, max_probes=INTERNET_MAX_PROBES, progress_cb=ddg_progress)
+            adaptive_probes = max(100, min(180, int(len(sentences) / 2.5)))
+            print(f"[!] ADAPTIVE SAMPLING: {adaptive_probes} probes untuk {len(sentences)} kalimat...")
+            urls, preloaded_corpus = get_candidate_urls(sentences, max_probes=adaptive_probes, progress_cb=ddg_progress)
 
             def scrape_progress(completed, total, speed="0 KB/s"):
                 pct = 50 + int((completed / total) * 35)  # 50% -> 85%
