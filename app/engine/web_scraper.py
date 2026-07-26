@@ -1125,7 +1125,7 @@ def get_candidate_urls(sentences, max_probes=100, progress_cb=None):
     print(f"\n[API] RANGKUMAN PENARIKAN SUMBER JURNAL (Total: {len(preloaded_corpus)} abstrak API + {len(urls)} web links):")
     active = {k: v for k, v in total_stats.items() if v > 0}
     for api_name, count in sorted(active.items(), key=lambda x: -x[1]):
-        print(f"  └─ {api_name:<18}: {count} sumber")
+        print(f"  |- {api_name:<18}: {count} sumber")
     return list(urls), preloaded_corpus
 
 def scrape_url(url):
