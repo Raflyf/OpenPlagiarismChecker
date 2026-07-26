@@ -20,11 +20,19 @@ _BANK_JSON_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..",
 _BANK_DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "corpus_bank", "bank.db")
 _bank_lock = _threading.Lock()  # lindungi mutasi DB dari race antar-thread
 
+def _get_bank_conn():
+    """Helper untuk membuka koneksi SQLite3 bank.db dengan PRAGMA WAL & cache teroptimasi."""
+    conn = _sqlite3.connect(_BANK_DB_PATH, timeout=10.0)
+    conn.execute("PRAGMA journal_mode=WAL;")
+    conn.execute("PRAGMA synchronous=NORMAL;")
+    conn.execute("PRAGMA cache_size=-64000;")
+    return conn
+
 def init_bank_db():
     """Inisialisasi tabel SQLite3 dan lakukan auto-migrasi dari bank.json jika ada."""
     os.makedirs(os.path.dirname(_BANK_DB_PATH), exist_ok=True)
     with _bank_lock:
-        conn = _sqlite3.connect(_BANK_DB_PATH)
+        conn = _get_bank_conn()
         cur = conn.cursor()
         cur.execute("CREATE TABLE IF NOT EXISTS corpus (url TEXT PRIMARY KEY, text TEXT)")
         conn.commit()
@@ -48,7 +56,7 @@ def init_bank_db():
 def get_bank_urls():
     """Mengembalikan set URL yang tersimpan di bank.db (hemat RAM, ~1-2MB)."""
     init_bank_db()
-    conn = _sqlite3.connect(_BANK_DB_PATH)
+    conn = _get_bank_conn()
     cur = conn.cursor()
     cur.execute("SELECT url FROM corpus")
     urls = set(row[0] for row in cur.fetchall())
@@ -60,7 +68,7 @@ def get_bank_texts(target_urls):
     if not target_urls:
         return {}
     init_bank_db()
-    conn = _sqlite3.connect(_BANK_DB_PATH)
+    conn = _get_bank_conn()
     cur = conn.cursor()
     result = {}
     target_list = list(target_urls)
@@ -76,7 +84,7 @@ def get_bank_texts(target_urls):
 def load_corpus_bank():
     """Load seluruh isi bank.db sebagai dict (untuk backward compatibility Pemanggil)."""
     init_bank_db()
-    conn = _sqlite3.connect(_BANK_DB_PATH)
+    conn = _get_bank_conn()
     cur = conn.cursor()
     cur.execute("SELECT url, text FROM corpus")
     data = {row[0]: row[1] for row in cur.fetchall()}
@@ -90,7 +98,7 @@ def save_to_corpus_bank(new_corpus):
     init_bank_db()
     with _bank_lock:
         try:
-            conn = _sqlite3.connect(_BANK_DB_PATH)
+            conn = _get_bank_conn()
             cur = conn.cursor()
             items = [(u, t) for u, t in new_corpus.items() if isinstance(t, str) and len(t) > 150]
             cur.executemany("INSERT OR IGNORE INTO corpus (url, text) VALUES (?, ?)", items)
