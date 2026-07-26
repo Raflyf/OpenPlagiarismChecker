@@ -691,6 +691,31 @@ def fetch_neliti(probe):
         pass
     return urls_found, texts_found
 
+def fetch_rin_brin(probe):
+    """Mencari riset & dataset nasional di RIN BRIN (Repositori Ilmiah Nasional — 300.000+ Data)."""
+    urls_found = []
+    texts_found = []
+    try:
+        short_probe = " ".join(probe.split()[:8])
+        url = "https://rin.brin.go.id/api/v1/search"
+        params = {"q": short_probe, "per_page": 5}
+        headers = {"User-Agent": "TurnitinClone/4.1 (mailto:skripsi_turnitin_local@university.ac.id)"}
+        res = requests.get(url, params=params, headers=headers, timeout=2.5)
+        if res.status_code == 200:
+            data = res.json()
+            items = data.get("data", {}).get("items", [])
+            for item in items:
+                title = item.get("name", "")
+                snippet = item.get("description", "")
+                p_url = item.get("url", "")
+                combined = f"{title}. {snippet}"
+                if p_url and len(combined) > 50:
+                    urls_found.append(p_url)
+                    texts_found.append(combined)
+    except Exception:
+        pass
+    return urls_found, texts_found
+
 # Session Circuit-Breaker: jika API eksternal RTO 2 kali, matikan untuk sisa probe run ini
 _FAILED_APIS = set()
 _FAILED_APIS_LOCK = threading.Lock()
@@ -714,6 +739,7 @@ def fetch_probe_multi(probe):
     # 1. API Akademik Indonesia & Internasional Prioritas
     u_ios, t_ios = _call_api_safe("IOS", fetch_onesearch_id, probe)
     u_neliti, t_neliti = _call_api_safe("Neliti", fetch_neliti, probe)
+    u_brin, t_brin = _call_api_safe("BRIN", fetch_rin_brin, probe)
     u_ss, t_ss = _call_api_safe("SemanticScholar", fetch_semantic_scholar, probe)
     u_cr, t_cr = _call_api_safe("Crossref", fetch_crossref, probe)
     u_oa, t_oa = _call_api_safe("OpenAlex", fetch_openalex, probe)
