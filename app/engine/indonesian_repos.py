@@ -99,7 +99,7 @@ def search_repository_direct(repo_url, query, max_results=5):
         # "Max retries exceeded", "SSLError". Cek case-insensitive agar repo mati
         # benar-benar masuk blacklist (tidak di-query ulang tiap probe & memblokir pool).
         err = str(e).lower()
-        if any(k in err for k in ("timed out", "timeout", "max retries", "sslerror",
+        if "bsi.ac.id" not in repo_url.lower() and any(k in err for k in ("timed out", "timeout", "max retries", "sslerror",
                                    "connection", "ssl:")):
             # Cetak sekali saja per host: beberapa worker paralel bisa gagal
             # bersamaan sebelum host masuk set (dulu pesan sama tercetak 4x).
@@ -107,14 +107,15 @@ def search_repository_direct(repo_url, query, max_results=5):
                 print(f"[!] {repo_url} mati/timeout. Menambahkan ke Blacklist...")
             DEAD_REPOSITORIES.add(repo_url)
         else:
-            print(f"[!] Error searching {repo_url}: {e}")
+            print(f"[!] Warning searching {repo_url}: {e}")
     
     return urls_found, texts_found
 
 def detect_platform(repo_url):
     """Deteksi platform repository dari URL dan HTML"""
+    hdr = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'}
     try:
-        res = requests.get(repo_url, timeout=5, verify=False)
+        res = requests.get(repo_url, timeout=10, verify=False, headers=hdr)
         html = res.text.lower()
 
         # UBSI custom platform (BSI, Nusamandiri) - endpoint /repo/cari
@@ -128,7 +129,7 @@ def detect_platform(repo_url):
             return "ojs"
         else:
             return "unknown"
-    except:
+    except Exception:
         # Deteksi dari URL saja jika request gagal
         url_lower = repo_url.lower()
         if "bsi.ac.id" in url_lower or "nusamandiri" in url_lower:
