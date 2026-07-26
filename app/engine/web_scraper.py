@@ -20,19 +20,11 @@ _BANK_JSON_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..",
 _BANK_DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "corpus_bank", "bank.db")
 _bank_lock = _threading.Lock()  # lindungi mutasi DB dari race antar-thread
 
-def _get_bank_conn():
-    """Helper untuk membuka koneksi SQLite3 bank.db dengan PRAGMA WAL & cache teroptimasi."""
-    conn = _sqlite3.connect(_BANK_DB_PATH, timeout=10.0)
-    conn.execute("PRAGMA journal_mode=WAL;")
-    conn.execute("PRAGMA synchronous=NORMAL;")
-    conn.execute("PRAGMA cache_size=-64000;")
-    return conn
-
 def init_bank_db():
     """Inisialisasi tabel SQLite3 dan lakukan auto-migrasi dari bank.json jika ada."""
     os.makedirs(os.path.dirname(_BANK_DB_PATH), exist_ok=True)
     with _bank_lock:
-        conn = _get_bank_conn()
+        conn = _sqlite3.connect(_BANK_DB_PATH)
         cur = conn.cursor()
         cur.execute("CREATE TABLE IF NOT EXISTS corpus (url TEXT PRIMARY KEY, text TEXT)")
         conn.commit()
@@ -56,7 +48,7 @@ def init_bank_db():
 def get_bank_urls():
     """Mengembalikan set URL yang tersimpan di bank.db (hemat RAM, ~1-2MB)."""
     init_bank_db()
-    conn = _get_bank_conn()
+    conn = _sqlite3.connect(_BANK_DB_PATH)
     cur = conn.cursor()
     cur.execute("SELECT url FROM corpus")
     urls = set(row[0] for row in cur.fetchall())
@@ -68,7 +60,7 @@ def get_bank_texts(target_urls):
     if not target_urls:
         return {}
     init_bank_db()
-    conn = _get_bank_conn()
+    conn = _sqlite3.connect(_BANK_DB_PATH)
     cur = conn.cursor()
     result = {}
     target_list = list(target_urls)
@@ -84,7 +76,7 @@ def get_bank_texts(target_urls):
 def load_corpus_bank():
     """Load seluruh isi bank.db sebagai dict (untuk backward compatibility Pemanggil)."""
     init_bank_db()
-    conn = _get_bank_conn()
+    conn = _sqlite3.connect(_BANK_DB_PATH)
     cur = conn.cursor()
     cur.execute("SELECT url, text FROM corpus")
     data = {row[0]: row[1] for row in cur.fetchall()}
@@ -98,7 +90,7 @@ def save_to_corpus_bank(new_corpus):
     init_bank_db()
     with _bank_lock:
         try:
-            conn = _get_bank_conn()
+            conn = _sqlite3.connect(_BANK_DB_PATH)
             cur = conn.cursor()
             items = [(u, t) for u, t in new_corpus.items() if isinstance(t, str) and len(t) > 150]
             cur.executemany("INSERT OR IGNORE INTO corpus (url, text) VALUES (?, ?)", items)
@@ -644,67 +636,26 @@ def fetch_europe_pmc(probe):
 def fetch_onesearch_id(probe):
     """Mencari ke Indonesia OneSearch / IOS Perpusnas RI (Indeks 1.200+ Repositori & Jurnal Kampus se-Indonesia)."""
     urls_found = []
-    try:
-        short_probe = " ".join(probe.split()[:8])
-        url = "https://onesearch.id/Search/Results"
-        params = {"lookfor": short_probe}
-        headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
-        res = requests.get(url, params=params, headers=headers, timeout=3.0)
-        if res.status_code == 200:
-            from bs4 import BeautifulSoup
-            soup = BeautifulSoup(res.text, 'html.parser')
-            for a_tag in soup.select('a.title'):
-                if 'href' in a_tag.attrs:
-                    p_url = a_tag['href']
-                    if not p_url.startswith('http'):
-                        p_url = "https://onesearch.id" + p_url
-                    urls_found.append(p_url)
-    except Exception:
-        pass
-    return urls_found, []
-
-def fetch_neliti(probe):
-    """Mencari paper di Neliti (Reposisori Riset Terbesar Indonesia — 500.000+ Jurnal & Skripsi)."""
-    urls_found = []
-    try:
-        short_probe = " ".join(probe.split()[:8])
-        url = f"https://www.neliti.com/id/search?q={requests.utils.quote(short_probe)}"
-        headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
-        res = requests.get(url, headers=headers, timeout=3.0)
-        if res.status_code == 200:
-            from bs4 import BeautifulSoup
-            soup = BeautifulSoup(res.text, 'html.parser')
-            seen = set()
-            for a_tag in soup.find_all('a', href=True):
-                href = a_tag['href']
-                if '/publications/' in href or '/id/publications/' in href:
-                    if not href.startswith('http'):
-                        href = "https://www.neliti.com" + href
-                    if href not in seen:
-                        seen.add(href)
-                        urls_found.append(href)
-    except Exception:
-        pass
-    return urls_found, []
-
-def fetch_rin_brin(probe):
-    """Mencari riset & dataset nasional di RIN BRIN (Repositori Ilmiah Nasional — 300.000+ Data)."""
-    urls_found = []
     texts_found = []
     try:
         short_probe = " ".join(probe.split()[:8])
-        url = "https://rin.brin.go.id/api/search"
-        params = {"q": short_probe, "per_page": 5}
-        headers = {"User-Agent": "TurnitinClone/4.1 (mailto:skripsi_turnitin_local@university.ac.id)"}
-        res = requests.get(url, params=params, headers=headers, timeout=2.5)
+        url = "https://onesearch.id/api/search"
+        params = {
+            "q": short_probe,
+            "type": "all",
+            "limit": 5
+        }
+        res = requests.get(url, params=params, timeout=2.5)
         if res.status_code == 200:
             data = res.json()
-            items = data.get("data", {}).get("items", [])
-            for item in items:
-                title = item.get("name", "")
-                snippet = item.get("description", "")
-                p_url = item.get("url", "")
-                combined = f"{title}. {snippet}"
+            docs = data.get("data", []) or data.get("docs", [])
+            for doc in docs:
+                title = doc.get("title", "")
+                abstract = doc.get("description", "") or doc.get("abstract", "")
+                p_url = doc.get("url", "") or doc.get("link", [""])[0] if isinstance(doc.get("link"), list) else doc.get("link", "")
+                if not p_url and doc.get("id"):
+                    p_url = f"https://onesearch.id/Record/{doc.get('id')}"
+                combined = f"{title}. {abstract}"
                 if p_url and len(combined) > 50:
                     urls_found.append(p_url)
                     texts_found.append(combined)
@@ -712,10 +663,56 @@ def fetch_rin_brin(probe):
         pass
     return urls_found, texts_found
 
-# Session Circuit-Breaker: jika API eksternal gagal 3 kali berturut-turut, matikan untuk sisa probe run ini
+def fetch_neliti(probe):
+    """Mencari paper di Neliti (Reposisori Riset Terbesar Indonesia — 500.000+ Jurnal & Skripsi)."""
+    urls_found = []
+    texts_found = []
+    try:
+        short_probe = " ".join(probe.split()[:8])
+        url = f"https://www.neliti.com/id/search?q={requests.utils.quote(short_probe)}"
+        headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
+        res = requests.get(url, headers=headers, timeout=2.5)
+        if res.status_code == 200:
+            from bs4 import BeautifulSoup
+            soup = BeautifulSoup(res.text, 'html.parser')
+            for card in soup.find_all('div', class_='card-publication-body'):
+                a_tag = card.find('a', href=True)
+                if a_tag:
+                    p_url = a_tag['href']
+                    if not p_url.startswith('http'):
+                        p_url = "https://www.neliti.com" + p_url
+                    title = a_tag.get_text(strip=True)
+                    snippet = card.get_text(separator=' ', strip=True)
+                    combined = f"{title}. {snippet}"
+                    if len(combined) > 50:
+                        urls_found.append(p_url)
+                        texts_found.append(combined)
+    except Exception:
+        pass
+    return urls_found, texts_found
+
 _FAILED_APIS = set()
-_FAILED_API_COUNTS = {}
 _FAILED_APIS_LOCK = threading.Lock()
+
+_GOOGLE_NATIVE_BUDGET = 5
+_GOOGLE_NATIVE_LOCK = threading.Lock()
+
+def fetch_google_search_native(probe):
+    """Mencari menggunakan googlesearch-python (scraping HTML Google Search langsung).
+    Hanya dijalankan untuk 5 kalimat terpanjang (Top 5) agar terhindar dari IP Ban (Error 429)."""
+    urls_found = []
+    try:
+        from googlesearch import search
+        # Hindari query terlalu panjang yang bisa ditolak Google
+        short_probe = " ".join(probe.split()[:15])
+        query = f'"{short_probe}"'
+        print(f"[Google Search] Probe: {short_probe[:50]}...")
+        # advanced=False mempercepat eksekusi (hanya butuh URL)
+        for url in search(query, num_results=3, sleep_interval=1.5, advanced=False):
+            urls_found.append(url)
+    except Exception as e:
+        pass
+    return urls_found, []
 
 def _call_api_safe(api_name, fetch_func, probe):
     with _FAILED_APIS_LOCK:
@@ -723,16 +720,10 @@ def _call_api_safe(api_name, fetch_func, probe):
             return [], []
     try:
         urls, texts = fetch_func(probe)
-        if urls or texts:
-            with _FAILED_APIS_LOCK:
-                _FAILED_API_COUNTS[api_name] = 0
         return urls, texts
     except Exception:
         with _FAILED_APIS_LOCK:
-            _FAILED_API_COUNTS[api_name] = _FAILED_API_COUNTS.get(api_name, 0) + 1
-            if _FAILED_API_COUNTS[api_name] >= 3:
-                _FAILED_APIS.add(api_name)
-        return [], []
+            _FAILED_APIS.add(api_name)
         return [], []
 
 def fetch_probe_multi(probe):
@@ -742,7 +733,6 @@ def fetch_probe_multi(probe):
     # 1. API Akademik Indonesia & Internasional Prioritas
     u_ios, t_ios = _call_api_safe("IOS", fetch_onesearch_id, probe)
     u_neliti, t_neliti = _call_api_safe("Neliti", fetch_neliti, probe)
-    u_brin, t_brin = _call_api_safe("BRIN", fetch_rin_brin, probe)
     u_ss, t_ss = _call_api_safe("SemanticScholar", fetch_semantic_scholar, probe)
     u_cr, t_cr = _call_api_safe("Crossref", fetch_crossref, probe)
     u_oa, t_oa = _call_api_safe("OpenAlex", fetch_openalex, probe)
@@ -760,6 +750,17 @@ def fetch_probe_multi(probe):
     
     # 3. Try DuckDuckGo
     u_dd, _ = fetch_ddgs(probe)
+    
+    # 3b. Try Google Search Native (Top 5 only)
+    u_gsn, t_gsn = [], []
+    global _GOOGLE_NATIVE_BUDGET
+    _claim_google = False
+    with _GOOGLE_NATIVE_LOCK:
+        if _GOOGLE_NATIVE_BUDGET > 0:
+            _GOOGLE_NATIVE_BUDGET -= 1
+            _claim_google = True
+    if _claim_google:
+        u_gsn, t_gsn = fetch_google_search_native(probe)
     
     # 4. Direct search Indonesian repositories (no API limits, TAPI lambat: BSI ~15s/req).
     # Dibatasi global agar tidak jalan 75x (=375 request kampus). Hanya probe paling awal
@@ -804,6 +805,7 @@ def fetch_probe_multi(probe):
         "GoogleWeb": len(u_gw),
         "Garuda": len(u_gr),
         "DuckDuckGo": len(u_dd),
+        "GoogleNative": len(u_gsn),
         "IndoRepos": len(u_repo),
         "Fallback": len(u_fallback),
     }
@@ -819,9 +821,10 @@ def fetch_probe_multi(probe):
     for u, t in zip(u_doaj, t_doaj): preloaded[u] = t
     for u, t in zip(u_arxiv, t_arxiv): preloaded[u] = t
     for u, t in zip(u_core, t_core): preloaded[u] = t
+    for u, t in zip(u_gsn, t_gsn): preloaded[u] = t
     
     # OpenAlex dan Fallback CSE sering punya snippet/teks yang layak
-    normal_urls = u_gs + u_gw + u_gr + u_dd
+    normal_urls = u_gs + u_gw + u_gr + u_dd + u_gsn
     
     for u, t in zip(u_oa, t_oa):
         if t and len(t) > 50:
@@ -851,8 +854,11 @@ def get_candidate_urls(sentences, max_probes=100, progress_cb=None):
     # Reset budget penyisiran repo Indonesia untuk run ini (probe Tier-1 didahulukan).
     # Dikunci agar konsisten dgn decrement ber-lock di fetch_probe_multi.
     global _INDO_REPO_BUDGET
+    global _GOOGLE_NATIVE_BUDGET
     with _INDO_REPO_LOCK:
         _INDO_REPO_BUDGET = 15
+    with _GOOGLE_NATIVE_LOCK:
+        _GOOGLE_NATIVE_BUDGET = 5
 
     valid_sentences = [s for s in sentences if len(s.split()) >= 8]
     if len(valid_sentences) <= max_probes:
@@ -1122,10 +1128,7 @@ def get_candidate_urls(sentences, max_probes=100, progress_cb=None):
                 total_found = sum(active.values())
                 print(f"[API] Probe {probes_done}/{len(probes)} -- {total_found} sumber ditemukan | {', '.join(parts)}")
                 
-    print(f"\n[API] RANGKUMAN PENARIKAN SUMBER JURNAL (Total: {len(preloaded_corpus)} abstrak API + {len(urls)} web links):")
-    active = {k: v for k, v in total_stats.items() if v > 0}
-    for api_name, count in sorted(active.items(), key=lambda x: -x[1]):
-        print(f"  |- {api_name:<18}: {count} sumber")
+    print(f"[API] Berhasil menarik {len(preloaded_corpus)} abstrak jurnal dan {len(urls)} link web publik.")
     return list(urls), preloaded_corpus
 
 def scrape_url(url):
@@ -1147,11 +1150,11 @@ def scrape_url(url):
         abstract_key = os.environ.get("ABSTRACT_KEY", "")
         if abstract_key:
             proxy_url = f"https://scrape.abstractapi.com/v1/?api_key={abstract_key}&url={encoded_url}"
-            res = requests.get(proxy_url, timeout=4)
+            res = requests.get(proxy_url, timeout=8)
             if res.status_code != 200:
-                res = requests.get(url, timeout=4, verify=False, headers=headers)
+                res = requests.get(url, timeout=8, verify=False, headers=headers)
         else:
-            res = requests.get(url, timeout=4, verify=False, headers=headers)
+            res = requests.get(url, timeout=8, verify=False, headers=headers)
             
         if res.status_code == 200:
             total_bytes += len(res.content)
@@ -1211,11 +1214,9 @@ def scrape_all_candidates(urls, preloaded_corpus, progress_cb=None):
     import time
     start_time = time.time()
     total_downloaded_bytes = 0
-    # max_workers=8: 40 koneksi HTTPS serentak dari 1 IP memicu rate-limit server,
-    # SSL handshake gagal, dan connection-pool jenuh (banyak sumber relevan gagal
-    # download meski solo-nya sukses). 8 worker jauh lebih andal walau sedikit lambat.
+    # max_workers=15: High concurrency to speed up scraping without drastically modifying timeouts
     failed_urls = []
-    with concurrent.futures.ThreadPoolExecutor(max_workers=16) as executor:
+    with concurrent.futures.ThreadPoolExecutor(max_workers=15) as executor:
         futures = {executor.submit(scrape_url, u): u for u in urls}
         total = len(futures)
         for i, future in enumerate(concurrent.futures.as_completed(futures)):
