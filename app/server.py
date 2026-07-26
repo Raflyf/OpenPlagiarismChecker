@@ -183,6 +183,14 @@ def process_document(file_id, filepath, original_filename, exclude_quotes=True, 
                 'message': str(e)
             }
 
+@app.after_request
+def add_security_headers(response):
+    response.headers['X-Content-Type-Options'] = 'nosniff'
+    response.headers['X-Frame-Options'] = 'SAMEORIGIN'
+    response.headers['X-XSS-Protection'] = '1; mode=block'
+    response.headers['Referrer-Policy'] = 'strict-origin-when-cross-origin'
+    return response
+
 @app.route('/')
 def index():
     return render_template('index.html')
