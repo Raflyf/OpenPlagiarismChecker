@@ -644,60 +644,48 @@ def fetch_europe_pmc(probe):
 def fetch_onesearch_id(probe):
     """Mencari ke Indonesia OneSearch / IOS Perpusnas RI (Indeks 1.200+ Repositori & Jurnal Kampus se-Indonesia)."""
     urls_found = []
-    texts_found = []
     try:
         short_probe = " ".join(probe.split()[:8])
-        url = "https://onesearch.id/api/search"
-        params = {
-            "q": short_probe,
-            "type": "all",
-            "limit": 5
-        }
-        res = requests.get(url, params=params, timeout=2.5)
+        url = "https://onesearch.id/Search/Results"
+        params = {"lookfor": short_probe}
+        headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
+        res = requests.get(url, params=params, headers=headers, timeout=3.0)
         if res.status_code == 200:
-            data = res.json()
-            docs = data.get("data", []) or data.get("docs", [])
-            for doc in docs:
-                title = doc.get("title", "")
-                abstract = doc.get("description", "") or doc.get("abstract", "")
-                p_url = doc.get("url", "") or doc.get("link", [""])[0] if isinstance(doc.get("link"), list) else doc.get("link", "")
-                if not p_url and doc.get("id"):
-                    p_url = f"https://onesearch.id/Record/{doc.get('id')}"
-                combined = f"{title}. {abstract}"
-                if p_url and len(combined) > 50:
+            from bs4 import BeautifulSoup
+            soup = BeautifulSoup(res.text, 'html.parser')
+            for a_tag in soup.select('a.title'):
+                if 'href' in a_tag.attrs:
+                    p_url = a_tag['href']
+                    if not p_url.startswith('http'):
+                        p_url = "https://onesearch.id" + p_url
                     urls_found.append(p_url)
-                    texts_found.append(combined)
     except Exception:
         pass
-    return urls_found, texts_found
+    return urls_found, []
 
 def fetch_neliti(probe):
     """Mencari paper di Neliti (Reposisori Riset Terbesar Indonesia — 500.000+ Jurnal & Skripsi)."""
     urls_found = []
-    texts_found = []
     try:
         short_probe = " ".join(probe.split()[:8])
         url = f"https://www.neliti.com/id/search?q={requests.utils.quote(short_probe)}"
-        headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
-        res = requests.get(url, headers=headers, timeout=2.5)
+        headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
+        res = requests.get(url, headers=headers, timeout=3.0)
         if res.status_code == 200:
             from bs4 import BeautifulSoup
             soup = BeautifulSoup(res.text, 'html.parser')
-            for card in soup.find_all('div', class_='card-publication-body'):
-                a_tag = card.find('a', href=True)
-                if a_tag:
-                    p_url = a_tag['href']
-                    if not p_url.startswith('http'):
-                        p_url = "https://www.neliti.com" + p_url
-                    title = a_tag.get_text(strip=True)
-                    snippet = card.get_text(separator=' ', strip=True)
-                    combined = f"{title}. {snippet}"
-                    if len(combined) > 50:
-                        urls_found.append(p_url)
-                        texts_found.append(combined)
+            seen = set()
+            for a_tag in soup.find_all('a', href=True):
+                href = a_tag['href']
+                if '/publications/' in href or '/id/publications/' in href:
+                    if not href.startswith('http'):
+                        href = "https://www.neliti.com" + href
+                    if href not in seen:
+                        seen.add(href)
+                        urls_found.append(href)
     except Exception:
         pass
-    return urls_found, texts_found
+    return urls_found, []
 
 def fetch_rin_brin(probe):
     """Mencari riset & dataset nasional di RIN BRIN (Repositori Ilmiah Nasional — 300.000+ Data)."""
@@ -705,7 +693,7 @@ def fetch_rin_brin(probe):
     texts_found = []
     try:
         short_probe = " ".join(probe.split()[:8])
-        url = "https://rin.brin.go.id/api/v1/search"
+        url = "https://rin.brin.go.id/api/search"
         params = {"q": short_probe, "per_page": 5}
         headers = {"User-Agent": "TurnitinClone/4.1 (mailto:skripsi_turnitin_local@university.ac.id)"}
         res = requests.get(url, params=params, headers=headers, timeout=2.5)
@@ -724,8 +712,9 @@ def fetch_rin_brin(probe):
         pass
     return urls_found, texts_found
 
-# Session Circuit-Breaker: jika API eksternal RTO 2 kali, matikan untuk sisa probe run ini
+# Session Circuit-Breaker: jika API eksternal gagal 3 kali berturut-turut, matikan untuk sisa probe run ini
 _FAILED_APIS = set()
+_FAILED_API_COUNTS = {}
 _FAILED_APIS_LOCK = threading.Lock()
 
 def _call_api_safe(api_name, fetch_func, probe):
@@ -734,10 +723,16 @@ def _call_api_safe(api_name, fetch_func, probe):
             return [], []
     try:
         urls, texts = fetch_func(probe)
+        if urls or texts:
+            with _FAILED_APIS_LOCK:
+                _FAILED_API_COUNTS[api_name] = 0
         return urls, texts
     except Exception:
         with _FAILED_APIS_LOCK:
-            _FAILED_APIS.add(api_name)
+            _FAILED_API_COUNTS[api_name] = _FAILED_API_COUNTS.get(api_name, 0) + 1
+            if _FAILED_API_COUNTS[api_name] >= 3:
+                _FAILED_APIS.add(api_name)
+        return [], []
         return [], []
 
 def fetch_probe_multi(probe):
