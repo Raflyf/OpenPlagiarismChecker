@@ -30,8 +30,8 @@ def get_cache_key(query):
     """Generate cache key dari query"""
     return hashlib.md5(query.encode('utf-8')).hexdigest()
 
-def get_cached_results(query, max_age_hours=24):
-    """Ambil hasil dari SQLite3 cache jika masih fresh (<24 jam)"""
+def get_cached_results(query, max_age_hours=2160):
+    """Ambil hasil dari SQLite3 cache jika masih fresh (default: 90 hari / 2160 jam)"""
     try:
         q_hash = get_cache_key(query)
         cutoff = time.time() - (max_age_hours * 3600)
