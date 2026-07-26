@@ -13,38 +13,53 @@ import json
 import os
 from pathlib import Path
 
-# Cache directory
-CACHE_DIR = Path(__file__).parent / '.search_cache'
-CACHE_DIR.mkdir(exist_ok=True)
+import sqlite3
+import threading
 
-# Google CSE: silent-skip jika key kosong. Kode CSE tetap ada untuk yang punya key.
+_CACHE_DB_PATH = Path(__file__).parent / '.search_cache.db'
+_cache_lock = threading.Lock()
+
+def _get_cache_conn():
+    conn = sqlite3.connect(_CACHE_DB_PATH, timeout=5.0)
+    conn.execute("PRAGMA journal_mode=WAL;")
+    conn.execute("PRAGMA synchronous=NORMAL;")
+    conn.execute("CREATE TABLE IF NOT EXISTS cache (query_hash TEXT PRIMARY KEY, data TEXT, timestamp REAL)")
+    return conn
 
 def get_cache_key(query):
     """Generate cache key dari query"""
-    return hashlib.md5(query.encode()).hexdigest()
+    return hashlib.md5(query.encode('utf-8')).hexdigest()
 
 def get_cached_results(query, max_age_hours=24):
-    """Ambil hasil dari cache jika masih fresh"""
-    cache_file = CACHE_DIR / f"{get_cache_key(query)}.json"
-    if cache_file.exists():
-        age_hours = (time.time() - cache_file.stat().st_mtime) / 3600
-        if age_hours < max_age_hours:
-            try:
-                with open(cache_file, 'r', encoding='utf-8') as f:
-                    data = json.load(f)
-                    # (log cache-hit per-query dibuang; dulu tercetak ~100x per dokumen)
-                    return data['urls'], data['texts']
-            except:
-                pass
+    """Ambil hasil dari SQLite3 cache jika masih fresh (<24 jam)"""
+    try:
+        q_hash = get_cache_key(query)
+        cutoff = time.time() - (max_age_hours * 3600)
+        with _cache_lock:
+            conn = _get_cache_conn()
+            cur = conn.cursor()
+            cur.execute("SELECT data FROM cache WHERE query_hash = ? AND timestamp > ?", (q_hash, cutoff))
+            row = cur.fetchone()
+            conn.close()
+            if row:
+                data = json.loads(row[0])
+                return data.get('urls', []), data.get('texts', [])
+    except Exception:
+        pass
     return None, None
 
 def save_to_cache(query, urls, texts):
-    """Simpan hasil ke cache"""
-    cache_file = CACHE_DIR / f"{get_cache_key(query)}.json"
+    """Simpan hasil ke SQLite3 cache (atomik, thread-safe, single-file)"""
     try:
-        with open(cache_file, 'w', encoding='utf-8') as f:
-            json.dump({'urls': urls, 'texts': texts}, f)
-    except:
+        q_hash = get_cache_key(query)
+        data_str = json.dumps({'urls': urls, 'texts': texts}, ensure_ascii=False)
+        with _cache_lock:
+            conn = _get_cache_conn()
+            conn.execute("INSERT OR REPLACE INTO cache (query_hash, data, timestamp) VALUES (?, ?, ?)",
+                         (q_hash, data_str, time.time()))
+            conn.commit()
+            conn.close()
+    except Exception:
         pass
 
 def search_google_custom(query, api_key, cx_id, max_results=10):
