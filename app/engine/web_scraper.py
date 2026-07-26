@@ -39,8 +39,8 @@ def init_bank_db():
                 cur.executemany("INSERT OR IGNORE INTO corpus (url, text) VALUES (?, ?)", items)
                 conn.commit()
                 print(f"[Bank] Berhasil migrasi {len(items)} sumber ke bank.db SQLite.")
-                # Rename bank.json agar migrasi hanya berjalan 1x
-                os.rename(_BANK_JSON_PATH, _BANK_JSON_PATH + ".bak")
+                # Ubah nama bank.json agar tidak dibaca lagi (gunakan os.replace agar menimpa jika .bak sudah ada)
+                os.replace(_BANK_JSON_PATH, _BANK_JSON_PATH + ".bak")
             except Exception as e:
                 print(f"[Bank] Warning migrasi: {e}")
         conn.close()
@@ -219,7 +219,7 @@ def fetch_semantic_scholar(probe):
         }
         s2_key = _next_s2_key()
         s2_headers = {"x-api-key": s2_key} if s2_key else {}
-        res = requests.get(url, params=params, headers=s2_headers, timeout=2.5)
+        res = requests.get(url, params=params, headers=s2_headers, timeout=8)
         if res.status_code == 200:
             data = res.json()
             for paper in data.get('data', []):
@@ -252,7 +252,7 @@ def fetch_crossref(probe):
             "rows": 15,
             "mailto": "research_turnitin_local@university.edu"
         }
-        res = requests.get(url, params=params, timeout=2.5)
+        res = requests.get(url, params=params, timeout=8)
         if res.status_code == 200:
             data = res.json()
             for item in data.get('message', {}).get('items', []):
@@ -287,7 +287,7 @@ def fetch_openalex(probe):
             "select": "id,title,open_access,primary_location,abstract_inverted_index",
             "mailto": "research_turnitin_local@university.edu"
         }
-        res = requests.get("https://api.openalex.org/works", params=params, timeout=2.5)
+        res = requests.get("https://api.openalex.org/works", params=params, timeout=8)
         if res.status_code == 200:
             data = res.json()
             for work in data.get("results", []):
@@ -333,7 +333,7 @@ def fetch_google_scholar(probe):
             "premium_proxy": "true",
             "country_code": "id"
         }
-        res = requests.get(api_url, params=params, timeout=15)
+        res = requests.get(api_url, params=params, timeout=20)
         if res.status_code == 200:
             html = res.text
             from bs4 import BeautifulSoup
@@ -378,7 +378,7 @@ def fetch_google_web(probe):
             "premium_proxy": "true",
             "country_code": "id"
         }
-        res = requests.get(api_url, params=params, timeout=15)
+        res = requests.get(api_url, params=params, timeout=20)
         if res.status_code == 200:
             html = res.text
             from bs4 import BeautifulSoup
@@ -416,7 +416,7 @@ def fetch_garuda(probe):
             "url": target_url,
             "render": "false"
         }
-        res = requests.get(api_url, params=params, timeout=15)
+        res = requests.get(api_url, params=params, timeout=20)
         if res.status_code == 200:
             html = res.text
             from bs4 import BeautifulSoup
@@ -504,7 +504,7 @@ def fetch_doaj(probe):
         words = probe.split()
         short_probe = " ".join(words[:6])
         url = "https://doaj.org/api/search/articles/" + requests.utils.quote(short_probe)
-        res = requests.get(url, params={"pageSize": 5}, timeout=2.5)
+        res = requests.get(url, params={"pageSize": 5}, timeout=8)
         if res.status_code == 200:
             data = res.json()
             results = data.get('results', [])
@@ -545,7 +545,7 @@ def fetch_arxiv(probe):
             "start": 0,
             "max_results": 3
         }
-        res = requests.get(search_url, params=params, timeout=2.5)
+        res = requests.get(search_url, params=params, timeout=8)
         if res.status_code == 200:
             entries = _re.findall(r'<entry>(.*?)</entry>', res.text, _re.S)
             for entry in entries:
@@ -645,7 +645,7 @@ def fetch_onesearch_id(probe):
             "type": "all",
             "limit": 5
         }
-        res = requests.get(url, params=params, timeout=2.5)
+        res = requests.get(url, params=params, timeout=8)
         if res.status_code == 200:
             data = res.json()
             docs = data.get("data", []) or data.get("docs", [])
@@ -671,7 +671,7 @@ def fetch_neliti(probe):
         short_probe = " ".join(probe.split()[:8])
         url = f"https://www.neliti.com/id/search?q={requests.utils.quote(short_probe)}"
         headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
-        res = requests.get(url, headers=headers, timeout=2.5)
+        res = requests.get(url, headers=headers, timeout=8)
         if res.status_code == 200:
             from bs4 import BeautifulSoup
             soup = BeautifulSoup(res.text, 'html.parser')
@@ -1263,3 +1263,4 @@ def scrape_all_candidates(urls, preloaded_corpus, progress_cb=None):
     # Simpan sumber baru ke bank lokal (makin kaya seiring waktu)
     save_to_corpus_bank(corpus)
     return corpus
+

@@ -4,9 +4,26 @@ Strategi: Akses langsung ke portal OJS (Open Journal Systems) yang digunakan may
 """
 import requests
 import re
+import urllib.parse
 from bs4 import BeautifulSoup
 from concurrent.futures import ThreadPoolExecutor
 import time
+import httpx
+import os
+
+def safe_get(url, params=None, timeout=10, headers=None, verify=False):
+    """Gunakan HTTPX dengan HTTP/2 untuk mem-bypass WAF/Firewall kampus"""
+    if headers is None:
+        headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'}
+    try:
+        with httpx.Client(http2=True, verify=verify) as client:
+            return client.get(url, params=params, timeout=timeout, headers=headers)
+    except Exception as e:
+        class DummyResponse:
+            status_code = 500
+            text = ""
+            content = b""
+        return DummyResponse()
 
 # Database repository kampus Indonesia yang bisa diakses publik
 INDONESIAN_REPOSITORIES = [
@@ -78,18 +95,24 @@ def search_repository_direct(repo_url, query, max_results=5):
     urls_found = []
     texts_found = []
     
+    hdr = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'}
+    if "bsi.ac.id" in repo_url.lower():
+        bsi_cookie = os.environ.get("BSI_COOKIE", "")
+        if bsi_cookie:
+            hdr["Cookie"] = bsi_cookie
+    
     try:
         # Deteksi platform repository
         platform = detect_platform(repo_url)
 
         if platform == "ubsi":
-            urls_found, texts_found = search_ubsi(repo_url, query, max_results)
+            urls_found, texts_found = search_ubsi(repo_url, query, max_results, hdr)
         elif platform == "eprints":
-            urls_found, texts_found = search_eprints(repo_url, query, max_results)
+            urls_found, texts_found = search_eprints(repo_url, query, max_results, hdr)
         elif platform == "dspace":
-            urls_found, texts_found = search_dspace(repo_url, query, max_results)
+            urls_found, texts_found = search_dspace(repo_url, query, max_results, hdr)
         elif platform == "ojs":
-            urls_found, texts_found = search_ojs(repo_url, query, max_results)
+            urls_found, texts_found = search_ojs(repo_url, query, max_results, hdr)
         else:
             # Fallback: Google site search
             urls_found = google_site_search_fallback(repo_url, query, max_results)
@@ -114,8 +137,9 @@ def search_repository_direct(repo_url, query, max_results=5):
 def detect_platform(repo_url):
     """Deteksi platform repository dari URL dan HTML"""
     hdr = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'}
+    
     try:
-        res = requests.get(repo_url, timeout=10, verify=False, headers=hdr)
+        res = safe_get(repo_url, timeout=10, verify=False, headers=hdr)
         html = res.text.lower()
 
         # UBSI custom platform (BSI, Nusamandiri) - endpoint /repo/cari
@@ -142,7 +166,7 @@ def detect_platform(repo_url):
             return "ojs"
         return "unknown"
 
-def search_ubsi(repo_url, query, max_results=5):
+def search_ubsi(repo_url, query, max_results=5, hdr=None):
     """
     Search UBSI custom platform (repository.bsi.ac.id, repository.nusamandiri.ac.id).
     Endpoint: /repo/cari?q=QUERY. Hasil berupa link /repo/{id}/{slug}.
@@ -150,14 +174,15 @@ def search_ubsi(repo_url, query, max_results=5):
     """
     urls_found = []
     texts_found = []
-    hdr = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'}
+    if hdr is None: hdr = {'User-Agent': 'Mozilla/5.0'}
 
     # Perpendek query agar tidak terlalu spesifik (phrase match ketat = 0 hasil)
     short_q = " ".join(query.split()[:6])
     search_url = f"{repo_url}/repo/cari"
     try:
-        res = requests.get(search_url, params={"q": short_q}, timeout=15, verify=False, headers=hdr)
-    except Exception:
+        res = safe_get(search_url, params={"q": short_q}, timeout=15, verify=False, headers=hdr)
+    except Exception as e:
+        print(f"[!] Warning searching {repo_url}: {e}")
         return urls_found, texts_found
     if res.status_code != 200:
         return urls_found, texts_found
@@ -182,7 +207,7 @@ def search_ubsi(repo_url, query, max_results=5):
         best_url = full
         best_text = title
         try:
-            dr = requests.get(full, timeout=10, verify=False, headers=hdr)
+            dr = safe_get(full, timeout=10, verify=False, headers=hdr)
             if dr.status_code == 200:
                 dsoup = BeautifulSoup(dr.text, 'html.parser')
 
@@ -202,9 +227,10 @@ def search_ubsi(repo_url, query, max_results=5):
                         break
 
                 if pdf_url:
+                    best_text = title
                     try:
                         import fitz
-                        pr = requests.get(pdf_url, timeout=20, verify=False, headers=hdr)
+                        pr = safe_get(pdf_url, timeout=20, verify=False, headers=hdr)
                         if pr.status_code == 200 and pr.content[:4] == b'%PDF':
                             doc = fitz.open(stream=pr.content, filetype="pdf")
                             pdf_text = ""
@@ -227,7 +253,7 @@ def search_ubsi(repo_url, query, max_results=5):
 
     return urls_found, texts_found
 
-def search_eprints(repo_url, query, max_results=5):
+def search_eprints(repo_url, query, max_results=5, hdr=None):
     """Search EPrints repository (format: eprints.*.ac.id)"""
     urls_found = []
     texts_found = []
@@ -235,36 +261,38 @@ def search_eprints(repo_url, query, max_results=5):
     # EPrints advanced search URL
     search_url = f"{repo_url}/cgi/search/simple"
     params = {
-        "q": query,
-        "_order": "bytitle",
+        "exp": query,
         "t": "fulltext"
     }
     
-    res = requests.get(search_url, params=params, timeout=10, verify=False)
-    if res.status_code == 200:
-        soup = BeautifulSoup(res.text, 'html.parser')
-        
-        # EPrints result links biasanya di <cite> atau <div class="ep_search_result">
-        results = soup.find_all(['cite', 'div'], limit=max_results*2)
-        
-        for result in results[:max_results]:
-            # Ekstrak link
-            link = result.find('a', href=True)
-            if link:
-                url = link['href']
-                if not url.startswith('http'):
-                    url = repo_url + url
-                
-                # Ekstrak abstract/snippet
-                abstract = result.get_text(strip=True)
-                
-                if len(abstract) > 50:
-                    urls_found.append(url)
-                    texts_found.append(abstract[:500])
+    try:
+        res = safe_get(search_url, params=params, timeout=10, verify=False, headers=hdr)
+        if res.status_code == 200:
+            soup = BeautifulSoup(res.text, 'html.parser')
+            
+            # EPrints result links biasanya di <cite> atau <div class="ep_search_result">
+            results = soup.find_all(['cite', 'div'], limit=max_results*2)
+            
+            for result in results[:max_results]:
+                # Ekstrak link
+                link = result.find('a', href=True)
+                if link:
+                    url = link['href']
+                    if not url.startswith('http'):
+                        url = repo_url + url
+                    
+                    # Ekstrak abstract/snippet
+                    abstract = result.get_text(strip=True)
+                    
+                    if len(abstract) > 50:
+                        urls_found.append(url)
+                        texts_found.append(abstract[:500])
+    except Exception:
+        pass
                         
     return urls_found, texts_found
 
-def search_dspace(repo_url, query, max_results=5):
+def search_dspace(repo_url, query, max_results=5, hdr=None):
     """Search DSpace repository (format: repository.*.ac.id)"""
     urls_found = []
     texts_found = []
@@ -273,33 +301,35 @@ def search_dspace(repo_url, query, max_results=5):
     search_url = f"{repo_url}/simple-search"
     params = {
         "query": query,
-        "sort_by": "score",
         "order": "desc"
     }
     
-    res = requests.get(search_url, params=params, timeout=10, verify=False)
-    if res.status_code == 200:
-        soup = BeautifulSoup(res.text, 'html.parser')
-        
-        # DSpace results biasanya di <div class="artifact-title"> atau <td class="metadataFieldValue">
-        results = soup.find_all(['div', 'td'], class_=re.compile(r'artifact|metadata'), limit=max_results*2)
-        
-        for result in results[:max_results]:
-            link = result.find('a', href=True)
-            if link:
-                url = link['href']
-                if not url.startswith('http'):
-                    url = repo_url + url
-                
-                abstract = result.get_text(strip=True)
-                
-                if len(abstract) > 50:
-                    urls_found.append(url)
-                    texts_found.append(abstract[:500])
+    try:
+        res = safe_get(search_url, params=params, timeout=10, verify=False, headers=hdr)
+        if res.status_code == 200:
+            soup = BeautifulSoup(res.text, 'html.parser')
+            
+            # DSpace results biasanya di <div class="artifact-title"> atau <td class="metadataFieldValue">
+            results = soup.find_all(['div', 'td'], class_=re.compile(r'artifact|metadata'), limit=max_results*2)
+            
+            for result in results[:max_results]:
+                link = result.find('a', href=True)
+                if link:
+                    url = link['href']
+                    if not url.startswith('http'):
+                        url = repo_url + url
+                    
+                    abstract = result.get_text(strip=True)
+                    
+                    if len(abstract) > 50:
+                        urls_found.append(url)
+                        texts_found.append(abstract[:500])
+    except Exception:
+        pass
                         
     return urls_found, texts_found
 
-def search_ojs(repo_url, query, max_results=5):
+def search_ojs(repo_url, query, max_results=5, hdr=None):
     """Search OJS (Open Journal Systems) - platform jurnal Indonesia"""
     urls_found = []
     texts_found = []
@@ -310,7 +340,7 @@ def search_ojs(repo_url, query, max_results=5):
             search_url = repo_url + pattern
             params = {"query": query}
             
-            res = requests.get(search_url, params=params, timeout=10, verify=False)
+            res = safe_get(search_url, params=params, timeout=10, verify=False, headers=hdr)
             if res.status_code == 200:
                 soup = BeautifulSoup(res.text, 'html.parser')
                 
@@ -333,8 +363,6 @@ def search_ojs(repo_url, query, max_results=5):
                 if urls_found:
                     break  # Found results, no need to try other patterns
                     
-        except requests.exceptions.Timeout:
-            raise # Lemparkan Timeout agar masuk blacklist
         except Exception:
             continue
             
