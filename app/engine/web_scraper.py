@@ -1099,8 +1099,7 @@ def get_candidate_urls(sentences, max_probes=100, progress_cb=None):
         futures = [executor.submit(fetch_probe_multi, p) for p in probes]
         for i, future in enumerate(concurrent.futures.as_completed(futures)):
             if progress_cb:
-                # Tambahkan offset progres dari Perplexity (100 kalimat)
-                progress_cb(min(100, len(probes)) + i + 1, min(100, len(probes)) + len(probes))
+                progress_cb(i + 1, len(probes))
             try:
                 preloaded, ddg_urls, stats = future.result()
                 
@@ -1143,9 +1142,14 @@ def scrape_url(url):
                       "(KHTML, like Gecko) Chrome/120.0 Safari/537.36",
         "Accept-Language": "id-ID,id;q=0.9,en;q=0.8",
     }
+    import os
+    if "bsi.ac.id" in url.lower():
+        bsi_cookie = os.environ.get("BSI_COOKIE", "")
+        if bsi_cookie:
+            headers["Cookie"] = bsi_cookie
+
     try:
         import urllib.parse
-        import os
         encoded_url = urllib.parse.quote(url)
         abstract_key = os.environ.get("ABSTRACT_KEY", "")
         if abstract_key:
