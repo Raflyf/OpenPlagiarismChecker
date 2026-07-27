@@ -61,7 +61,7 @@ for name, fname, target in discover_docs():
             corpus = json.load(f)
         print(f"[{name}] KORPUS BEKU dimuat: {len(corpus)} sumber ({os.path.basename(frozen_path)})", flush=True)
     else:
-        adaptive_probes = max(100, min(180, int(len(sentences) / 2.5)))
+        adaptive_probes = max(100, min(150, int(len(sentences) / 2.5)))
         print(f"[{name}] ADAPTIVE SAMPLING: {adaptive_probes} probes untuk {len(sentences)} kalimat", flush=True)
         urls, preloaded = get_candidate_urls(sentences, max_probes=adaptive_probes)
         print(f"[{name}] preloaded={len(preloaded)} scrape-urls={len(urls)}", flush=True)

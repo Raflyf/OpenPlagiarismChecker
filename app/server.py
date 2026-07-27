@@ -172,7 +172,7 @@ def process_document(file_id, filepath, original_filename, exclude_quotes=True, 
                 corpus = None
 
         if corpus is None:
-            adaptive_probes = max(180, min(200, int(len(sentences) / 1.5)))
+            adaptive_probes = max(100, min(150, int(len(sentences) / 1.5)))
             print(f"[!] ADAPTIVE SAMPLING: {adaptive_probes} probes untuk {len(sentences)} kalimat...")
             urls, preloaded_corpus = get_candidate_urls(sentences, max_probes=adaptive_probes, progress_cb=ddg_progress)
 
