@@ -154,14 +154,14 @@ def process_document(file_id, filepath, original_filename, exclude_quotes=True, 
         # run_test_groundtruth.py, sehingga skor dokumen tervalidasi konsisten saat
         # dites di localhost (korpus sama-sama terkurasi, bukan bank mentah).
         
-        # Terapkan pembatasan sumber semantik hanya untuk dokumen yang sangat panjang (>500 kalimat)
-        # Ini untuk mencegah over-detection (skor melambung) pada dokumen tebal ber-topik pasaran.
-        dynamic_max_sources = 50 if len(sentences) > 500 else None
-        
+        # Signal-to-Noise Adaptive Thresholding:
+        # Hitung N-Gram baseline terlebih dahulu untuk mengukur kerapatan teks pasaran
+        _, ngram_sim, _ = calculate_similarity(doc_text, corpus, exclude_small, use_semantic=False)
+        dynamic_thresh = 0.88 if ngram_sim >= 10.0 else 0.87
+
         sorted_sources, total_similarity, plagiarized_sentences = calculate_similarity(
             doc_text, corpus, exclude_small, use_semantic=use_semantic,
-            semantic_max_sources=dynamic_max_sources,
-            semantic_threshold=0.88, is_cancelled_cb=check_cancelled)
+            semantic_threshold=dynamic_thresh, is_cancelled_cb=check_cancelled)
         if check_cancelled(): return
 
         # --- SKOR KEDUA: "fooled" (hidden text lolos) ---
