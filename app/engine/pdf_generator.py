@@ -117,23 +117,39 @@ def generate_report_pdf(original_pdf_path, output_pdf_path, data):
                         highlighted_rects.append(inst.rect)
                         
                         annot = page.add_highlight_annot(inst)
-                    annot.set_colors(stroke=color)
-                    annot.set_opacity(0.3)
-                    annot.update()
-                    if not first_rect:
-                        first_rect = inst.rect
+                        annot.set_colors(stroke=color)
+                        annot.set_opacity(0.3)
+                        annot.update()
+                        if not first_rect:
+                            first_rect = inst.rect
                 if first_rect:
                     found_any = True
                 
-            # Jika terpotong parah antar-halaman, gunakan non-overlapping stepping window!
-            if not found_any and len(words) >= 5:
-                # Gunakan step=5 agar tidak ada kotak warna yang saling menindih
-                for i in range(0, len(words), 5):
-                    chunk = " ".join(words[i:i+5])
-                    # Jika sisa < 5 kata, ambil 5 kata terakhir untuk memastikan konteks pencarian spesifik
-                    if len(chunk.split()) < 5 and len(words) >= 5:
-                        chunk = " ".join(words[-5:])
-                        
+                # Jika terpotong parah antar-halaman, gunakan non-overlapping stepping window!
+                if not found_any and len(words) >= 5:
+                    # Gunakan step=5 agar tidak ada kotak warna yang saling menindih
+                    for i in range(0, len(words), 5):
+                        chunk = " ".join(words[i:i+5])
+                        # Jika sisa < 5 kata, ambil 5 kata terakhir untuk memastikan konteks pencarian spesifik
+                        if len(chunk.split()) < 5 and len(words) >= 5:
+                            chunk = " ".join(words[-5:])
+                            
+                        insts = page.search_for(chunk, quads=True)
+                        for inst in insts:
+                            if is_overlapping(inst.rect):
+                                blocked_overlaps_count += 1
+                                continue
+                            highlighted_rects.append(inst.rect)
+                            
+                            annot = page.add_highlight_annot(inst)
+                            annot.set_colors(stroke=color)
+                            annot.set_opacity(0.3)
+                            annot.update()
+                            if not first_rect:
+                                first_rect = inst.rect
+                                
+                elif not found_any and len(words) >= 2:
+                    chunk = " ".join(words)
                     insts = page.search_for(chunk, quads=True)
                     for inst in insts:
                         if is_overlapping(inst.rect):
@@ -148,24 +164,8 @@ def generate_report_pdf(original_pdf_path, output_pdf_path, data):
                         if not first_rect:
                             first_rect = inst.rect
                             
-            elif not found_any and len(words) >= 2:
-                chunk = " ".join(words)
-                insts = page.search_for(chunk, quads=True)
-                for inst in insts:
-                    if is_overlapping(inst.rect):
-                        blocked_overlaps_count += 1
-                        continue
-                    highlighted_rects.append(inst.rect)
-                    
-                    annot = page.add_highlight_annot(inst)
-                    annot.set_colors(stroke=color)
-                    annot.set_opacity(0.3)
-                    annot.update()
-                    if not first_rect:
-                        first_rect = inst.rect
-                        
-            if first_rect:
-                draw_badge(page, first_rect, source_id, color)
+                if first_rect:
+                    draw_badge(page, first_rect, source_id, color)
                 
         if blocked_overlaps_count > 0:
             print(f"[Anti-Overlap] Blokir {blocked_overlaps_count} penumpukan warna di Halaman {page_num + 1}")
