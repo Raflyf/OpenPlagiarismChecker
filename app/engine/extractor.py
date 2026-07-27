@@ -114,7 +114,7 @@ def extract_text_from_pdf(filepath, exclude_quotes=True, exclude_biblio=True, re
 
     return cleaned_text, manipulation_warnings
 
-def extract_text_from_docx(docx_path, exclude_quotes=True, exclude_biblio=True):
+def extract_text_from_docx(docx_path, exclude_quotes=True, exclude_biblio=True, return_hidden=False):
     """Extract text from .docx (Word). Dipakai untuk dokumen sumber asli (bukan PDF hasil Turnitin)."""
     from docx import Document
     doc = Document(docx_path)
@@ -130,20 +130,25 @@ def extract_text_from_docx(docx_path, exclude_quotes=True, exclude_biblio=True):
 
     manipulation_warnings = detect_manipulation(text)
     cleaned_text = clean_text(text, exclude_quotes, exclude_biblio)
-    cleaned_text = re.sub(r'[​-‍﻿]', '', cleaned_text)
+    cleaned_text = re.sub(r'[\u200B-\u200D\uFEFF]', '', cleaned_text)
     cyrillic_to_latin = str.maketrans('асеорхуАСЕОРХУ', 'aceopxyACEOPXY')
     cleaned_text = cleaned_text.translate(cyrillic_to_latin)
+    
+    if return_hidden:
+        return cleaned_text, manipulation_warnings, cleaned_text, []
     return cleaned_text, manipulation_warnings
 
 
-def extract_text_auto(filepath, exclude_quotes=True, exclude_biblio=True):
+def extract_text_auto(filepath, exclude_quotes=True, exclude_biblio=True, return_hidden=False, fast_mode=False):
     """Deteksi ekstensi lalu ekstrak (.pdf/.docx/.txt). Satu pintu untuk semua format."""
     low = filepath.lower()
-    if low.endswith(".docx"):
-        return extract_text_from_docx(filepath, exclude_quotes, exclude_biblio)
+    if low.endswith(".docx") or low.endswith(".doc"):
+        return extract_text_from_docx(filepath, exclude_quotes, exclude_biblio, return_hidden=return_hidden)
     if low.endswith(".txt"):
-        return extract_text_from_txt(filepath), []
-    return extract_text_from_pdf(filepath, exclude_quotes, exclude_biblio)
+        res = extract_text_from_txt(filepath)
+        if return_hidden: return res, [], res, []
+        return res, []
+    return extract_text_from_pdf(filepath, exclude_quotes, exclude_biblio, return_hidden=return_hidden, fast_mode=fast_mode)
 
 
 def extract_text_from_txt(txt_path):
