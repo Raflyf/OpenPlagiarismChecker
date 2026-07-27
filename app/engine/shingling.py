@@ -363,12 +363,14 @@ def calculate_similarity(doc_text, corpus, exclude_small=False, use_semantic=Fal
             # di corpus (perilaku groundtruth). Bila semantic_max_sources diisi (alur web
             # bank-first), batasi ke N sumber ber-overlap N-Gram teratas -> semantic tak
             # perlu meng-encode ulang belasan ribu sumber, jadi tetap dalam anggaran waktu.
+            # POINT 3: Syarat Ganda untuk Semantic (Hanya evaluasi sumber yang terbukti punya overlap N-Gram > 0)
+            candidate_urls = [s['url'] for s in sorted_sources if s.get('percentage', 0) > 0.0]
+            
             if semantic_max_sources is not None:
-                candidate_urls = [s['url'] for s in sorted_sources[:semantic_max_sources]]
-                semantic_corpus = {u: corpus[u] for u in candidate_urls if u in corpus}
-                print(f"[!] Semantic dibatasi ke top-{len(semantic_corpus)} sumber ber-overlap (dari {len(corpus)} total)")
-            else:
-                semantic_corpus = corpus
+                candidate_urls = candidate_urls[:semantic_max_sources]
+                
+            semantic_corpus = {u: corpus[u] for u in candidate_urls if u in corpus}
+            print(f"[!] Semantic dibatasi ke {len(semantic_corpus)} sumber ber-overlap N-Gram (dari {len(corpus)} total)")
 
             # Siapkan corpus dalam format yang diperlukan semantic_similarity
             corpus_by_sentence = {}
