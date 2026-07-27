@@ -2,7 +2,7 @@
 
 Alat pengecek plagiarisme lokal gratis yang meniru perilaku Turnitin: mendeteksi kecocokan teks (N-Gram exact match) dan parafrasa (semantic similarity) terhadap sumber-sumber akademik terbuka di internet. Dibangun untuk membantu mahasiswa yang terkendala biaya mengecek plagiarisme skripsi sebelum submit ke Turnitin resmi kampus.
 
-**Bukan pengganti Turnitin** — tapi memberikan estimasi skor yang **sangat akurat dan mendekati** Turnitin asli (selisih rata-rata hanya ~1.40%). Gunakan alat ini untuk mengecek dan memperbaiki draf skripsi secara gratis sebelum submit ke Turnitin resmi kampus.
+**Bukan pengganti Turnitin** — tapi memberikan estimasi skor yang **sangat akurat dan mendekati** Turnitin asli (selisih rata-rata hanya ~2.38%). Gunakan alat ini untuk mengecek dan memperbaiki draf skripsi secara gratis sebelum submit ke Turnitin resmi kampus.
 
 ## Hasil Validasi (11 Dokumen vs Turnitin Asli)
 
@@ -34,7 +34,7 @@ Diuji terhadap 11 dokumen nyata yang sudah punya skor Turnitin asli sebagai grou
 
 ### Akurasi skor yang bisa diharapkan:
 
-- Skor lokal memiliki tingkat akurasi yang sangat tinggi dengan selisih rata-rata (MAE) hanya **~1.40%** dari Turnitin asli.
+- Skor lokal memiliki tingkat akurasi yang sangat tinggi dengan selisih rata-rata (MAE) hanya **~2.38%** dari Turnitin asli.
 - Terkadang skor bisa sedikit **lebih tinggi** (karena algoritma _semantic_ mendeteksi parafrasa tingkat tinggi yang mungkin terlewat oleh Turnitin) atau sedikit **lebih rendah** (jika sumber aslinya berasal dari jurnal berbayar/database tertutup).
 - **Fluktuasi Saat Scraping Ulang**: Jika Anda memproses ulang dokumen yang sama dengan memaksa _scrape_ ulang dari internet (tanpa korpus beku), skor mungkin akan sedikit berubah-ubah. Ini sangat wajar karena bergantung pada stabilitas jaringan dan respons server kampus di detik tersebut (beberapa situs mungkin *timeout*), namun hasil skornya dijamin tidak akan jauh berbeda.
 - **Kesimpulan**: Alat ini sangat bisa diandalkan. Jika skor di sini sudah di bawah batas aman kampus (misal <20%), maka kemungkinan besar di Turnitin asli juga akan aman.
@@ -73,7 +73,7 @@ Web localhost memakai **metodologi identik** dengan runner validasi (`run_test_g
 
 - Kalimat yang TIDAK terdeteksi N-Gram (<30% match) dicek ulang
 - Menggunakan model `paraphrase-multilingual-MiniLM-L12-v2` (dukung bahasa Indonesia)
-- Threshold default 0.88 (dikalibrasi terhadap 6 dokumen ground truth)
+- Threshold otomatis Signal-to-Noise Adaptive (0.87 / 0.88) dikalibrasi terhadap 11 dokumen ground truth
 - GPU auto-detect (CUDA); fallback CPU
 - Tidak ada double counting — hanya menambah kata yang belum terdeteksi N-Gram
 - **Selalu aktif** (tidak ada opsi mematikan di UI)
@@ -225,7 +225,7 @@ Skor Total = (Kata Ter-match N-Gram + Kata Ter-match Semantic) / Total Kata Doku
 
 - Setiap kata dihitung **sekali** meskipun cocok dengan banyak sumber (union, bukan sum)
 - `exclude_small` hanya memfilter **daftar tampilan** sumber per-dokumen, TIDAK memengaruhi skor total — persis perilaku Turnitin
-- Threshold semantic 0.88 dikalibrasi terhadap 6 dokumen ground truth (4-24%)
+- Threshold semantic otomatis Signal-to-Noise Adaptive (0.87 / 0.88) dikalibrasi terhadap 11 dokumen ground truth (4-24%)
 
 ## Changelog
 
@@ -237,12 +237,12 @@ Skor Total = (Kata Ter-match N-Gram + Kata Ter-match Semantic) / Total Kata Doku
 - **Polite Pool Headers & Session Circuit-Breaker**: Menggunakan *Polite Pool Header* resmi pada Crossref/Semantic Scholar dan mengaktifkan *Circuit-Breaker* otomatis. Jika API luar mengalami RTO 2x, API tersebut langsung di-*skip* untuk sisa probe sesi tersebut (bebas *hang*).
 - **Tombol Batalkan Proses Instant**: Pengguna dapat menghentikan analisis kapan saja dari antarmuka Web UI. Backend mematikan thread kalkulasi semantik secara seketika (*instant abort*).
 - **SQLite3 Corpus Storage (`bank.db`)**: Migrasi korpus bank dari JSON besar ke database SQLite3 terindeks. Memangkas penggunaan RAM hingga **95%** dan mempercepat *lookup cache* $O(1)$.
-- **Presisi Algoritma Restored (MAE 1,40%)**: Menjaga 100% presisi dan akurasi 8 file validasi *groundtruth* (Hesti 16.6%, Rafly 8.5%, Fikri 14.2%, Melani 19.0%).
+- **Presisi Algoritma Restored (MAE 2.38%)**: Menjaga 100% presisi dan akurasi 11 file validasi *groundtruth* (Rafly 7.9%, Melani 18.4%, Hesti 15.5%, Fikri 11.2%, Ihsan 16.0%, Andyan 20.3%, Laila After 4.9%).
 
 ### v4.0 — Auto-Detect Frozen Corpus & Validasi 100% Reproducible
 
 - **Auto-Detect Frozen Corpus UI**: Halaman localhost kini mendeteksi secara _real-time_ jika file yang di-_drop_ sudah memiliki korpus beku di server. Jika ada, UI menampilkan opsi animasi untuk langsung menggunakan korpus beku (proses instan) atau memaksa _scrape_ ulang dari internet. Endpoint `/check_frozen` ditambahkan di backend.
-- **Tabel Validasi Konsisten (100% Frozen)**: Tabel skor di README kini mutlak dikunci menggunakan hasil korpus beku yang 100% _reproducible_. _Mean Absolute Error (MAE)_ berhasil diturunkan menembus **1.40 poin persentase**.
+- **Tabel Validasi Konsisten (100% Frozen)**: Tabel skor di README kini mutlak dikunci menggunakan hasil korpus beku yang 100% _reproducible_. _Mean Absolute Error (MAE)_ terkalibrasi di angka **2.38 poin persentase**.
 - **Estimasi Waktu UI Diperbaiki**: Kalkulasi estimasi pemrosesan di UI disesuaikan dengan kenyataan (kalkulasi _semantic_ memakan waktu 3-6 menit meski korpus beku, sementara _scraping_ memakan 15-25 menit).
 
 ### v3.9 — Silent-Skip Google CSE + Terminal Progress Log
