@@ -154,15 +154,10 @@ def process_document(file_id, filepath, original_filename, exclude_quotes=True, 
         # run_test_groundtruth.py, sehingga skor dokumen tervalidasi konsisten saat
         # dites di localhost (korpus sama-sama terkurasi, bukan bank mentah).
         
-        # Signal-to-Noise 3-Tier Auto-Thresholding:
+        # Signal-to-Noise Adaptive Thresholding:
         # Hitung N-Gram baseline terlebih dahulu untuk mengukur kerapatan teks pasaran
         _, ngram_sim, _ = calculate_similarity(doc_text, corpus, exclude_small, use_semantic=False)
-        if ngram_sim < 10.0:
-            dynamic_thresh = 0.87
-        elif 10.0 <= ngram_sim < 11.0:
-            dynamic_thresh = 0.89
-        else:
-            dynamic_thresh = 0.88
+        dynamic_thresh = 0.88 if ngram_sim >= 10.0 else 0.87
 
         sorted_sources, total_similarity, plagiarized_sentences = calculate_similarity(
             doc_text, corpus, exclude_small, use_semantic=use_semantic,

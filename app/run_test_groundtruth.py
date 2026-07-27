@@ -59,12 +59,7 @@ for name, fname, target in discover_docs():
         print(f"[{name}] korpus DIBEKUKAN ke disk: {len(corpus)} sumber", flush=True)
 
     _, ngram_sim, _ = calculate_similarity(doc_text, corpus, exclude_small=True, use_semantic=False)
-    if ngram_sim < 10.0:
-        dynamic_thresh = 0.87
-    elif 10.0 <= ngram_sim < 11.0:
-        dynamic_thresh = 0.89
-    else:
-        dynamic_thresh = 0.88
+    dynamic_thresh = 0.88 if ngram_sim >= 10.0 else 0.87
 
     sources, total_sim, phrases = calculate_similarity(
         doc_text, corpus, exclude_small=True, use_semantic=True, 
