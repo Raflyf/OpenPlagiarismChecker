@@ -114,28 +114,87 @@ def extract_text_from_pdf(filepath, exclude_quotes=True, exclude_biblio=True, re
 
     return cleaned_text, manipulation_warnings
 
-def extract_text_from_docx(docx_path, exclude_quotes=True, exclude_biblio=True, return_hidden=False):
-    """Extract text from .docx (Word). Dipakai untuk dokumen sumber asli (bukan PDF hasil Turnitin)."""
-    from docx import Document
-    doc = Document(docx_path)
-    text = " ".join(p.text for p in doc.paragraphs if p.text)
-    # Sertakan teks dari tabel (banyak skripsi menaruh konten di tabel)
+def _extract_visible_docx(doc):
+    """
+    Ekstrak teks dari DOCX, BUANG bagian (run) yang memiliki font mungil (< 4pt),
+    berwarna putih, atau diatur tersembunyi (hidden).
+    """
+    visible_parts = []
+    raw_parts = []
+    hidden_word_count = 0
+    any_dropped = False
+    
+    def process_runs(runs):
+        nonlocal hidden_word_count, any_dropped
+        for run in runs:
+            text = run.text
+            if not text.strip():
+                raw_parts.append(text)
+                visible_parts.append(text)
+                continue
+                
+            is_hidden = False
+            # 1. Cek properti font 'hidden'
+            if run.font.hidden:
+                is_hidden = True
+            # 2. Cek font size sangat kecil (< 4pt)
+            elif getattr(run.font.size, 'pt', None) is not None and getattr(run.font.size, 'pt', None) < 4:
+                is_hidden = True
+            # 3. Cek warna putih
+            elif run.font.color and run.font.color.rgb and str(run.font.color.rgb) == "FFFFFF":
+                is_hidden = True
+                
+            raw_parts.append(text)
+            
+            if is_hidden:
+                hidden_word_count += len(text.split())
+                any_dropped = True
+            else:
+                visible_parts.append(text)
+                
+    for p in doc.paragraphs:
+        process_runs(p.runs)
+        raw_parts.append("\n")
+        visible_parts.append("\n")
+        
     for table in doc.tables:
         for row in table.rows:
             for cell in row.cells:
-                if cell.text:
-                    text += " " + cell.text
-    if not text.strip():
-        raise Exception("DOCX appears to be empty")
+                for p in cell.paragraphs:
+                    process_runs(p.runs)
+                    raw_parts.append("\n")
+                    visible_parts.append("\n")
+                    
+    return "".join(visible_parts), hidden_word_count, any_dropped, "".join(raw_parts)
 
-    manipulation_warnings = detect_manipulation(text)
+
+def extract_text_from_docx(docx_path, exclude_quotes=True, exclude_biblio=True, return_hidden=False, fast_mode=False):
+    """Extract text from .docx (Word). Mendeteksi trik manipulasi font."""
+    from docx import Document
+    doc = Document(docx_path)
+    
+    vis_text, hidden_word_count, any_dropped, raw_text = _extract_visible_docx(doc)
+    
+    if not raw_text.strip():
+        raise Exception("DOCX appears to be empty")
+        
+    # Gunakan text asli (raw) jika fast_mode atau tidak ada manipulasi agar skor jujur 100% konsisten
+    if any_dropped and vis_text.strip() and not fast_mode:
+        text = vis_text
+    else:
+        text = raw_text
+
+    manipulation_warnings = detect_manipulation(text, hidden_word_count)
     cleaned_text = clean_text(text, exclude_quotes, exclude_biblio)
     cleaned_text = re.sub(r'[\u200B-\u200D\uFEFF]', '', cleaned_text)
     cyrillic_to_latin = str.maketrans('асеорхуАСЕОРХУ', 'aceopxyACEOPXY')
     cleaned_text = cleaned_text.translate(cyrillic_to_latin)
     
     if return_hidden:
-        return cleaned_text, manipulation_warnings, cleaned_text, []
+        raw_cleaned = clean_text(raw_text, exclude_quotes, exclude_biblio)
+        raw_cleaned = re.sub(r'[\u200B-\u200D\uFEFF]', '', raw_cleaned)
+        raw_cleaned = raw_cleaned.translate(cyrillic_to_latin)
+        return cleaned_text, manipulation_warnings, raw_cleaned, []
     return cleaned_text, manipulation_warnings
 
 
