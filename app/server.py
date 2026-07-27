@@ -291,8 +291,8 @@ def upload_file():
         return jsonify({'error': 'No file part'}), 400
     
     file = request.files['file']
-    exclude_quotes = request.form.get('exclude_quotes') == 'true'
-    exclude_biblio = request.form.get('exclude_biblio') == 'true'
+    exclude_quotes = request.form.get('exclude_quotes', 'true') == 'true'
+    exclude_biblio = request.form.get('exclude_biblio', 'true') == 'true'
     exclude_small = request.form.get('exclude_small') == 'true'
     # Deteksi parafrasa (Semantic AI) selalu nyala; UI tak lagi menampilkan opsinya.
     # Default True agar tetap aktif walau field 'use_semantic' tidak dikirim form.

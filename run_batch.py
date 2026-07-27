@@ -22,7 +22,12 @@ for idx, filename in enumerate(files):
     session = requests.Session()
     with open(filepath, 'rb') as f:
         # Ganti force_scrape menjadi 'false' agar otomatis menggunakan frozen corpus jika ada!
-        resp = session.post(URL_UPLOAD, files={'file': f}, data={'force_scrape': 'false', 'use_semantic': 'true'})
+        resp = session.post(URL_UPLOAD, files={'file': f}, data={
+            'force_scrape': 'false', 
+            'use_semantic': 'true',
+            'exclude_quotes': 'true',
+            'exclude_biblio': 'true'
+        })
         
     if resp.status_code != 200:
         print(f"Error upload: {resp.text}")
