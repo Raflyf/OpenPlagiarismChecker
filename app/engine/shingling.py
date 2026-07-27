@@ -409,19 +409,6 @@ def calculate_similarity(doc_text, corpus, exclude_small=False, use_semantic=Fal
                     source_url = best_match['source_url']
                     
                     sent_start, sent_end = sentence_word_positions[actual_sent_idx]
-                    sent_word_count = sent_end - sent_start
-                    
-                    # ====================================================================
-                    # FILTER PENYEIMBANG SKOR (ANTI FALSE-POSITIVE UNTUK max_probes TINGGI)
-                    # ====================================================================
-                    # Kalimat sangat pendek lebih rentan false positive di semantic.
-                    # Kita perlonggar agar plagiarisme asli (seperti pada Andyan) tidak terblokir,
-                    # tapi tetap mencegah kalimat 5-7 kata yang generik merusak skor.
-                    if sent_word_count <= 6 and best_match['similarity_score'] < 0.93:
-                        continue
-                    elif sent_word_count <= 8 and best_match['similarity_score'] < 0.90:
-                        continue
-                    # ====================================================================
                     
                     newly_detected_words = 0
                     
