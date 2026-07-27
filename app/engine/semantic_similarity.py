@@ -91,12 +91,16 @@ def find_semantic_matches(query_sentences, corpus_sentences, threshold=0.88):
         semantic_matches[query_idx].sort(key=lambda x: x['similarity_score'], reverse=True)
     return semantic_matches
 
-def batch_semantic_check(unmatched_sentences, corpus_sentences, threshold=0.88, batch_size=32):
+def batch_semantic_check(unmatched_sentences, corpus_sentences, threshold=0.88, batch_size=64):
     if not unmatched_sentences:
         return {}
     
     model = get_model()
-    print(f"[!] Performing semantic similarity check on {len(unmatched_sentences)} unmatched sentences...")
+    # Jika CUDA tersedia, tingkatkan batch_size untuk memaksimalkan VRAM & GPU paralelism
+    if torch.cuda.is_available() and not getattr(model, 'force_cpu', False):
+        batch_size = max(batch_size, 128)
+        
+    print(f"[!] Performing semantic similarity check on {len(unmatched_sentences)} unmatched sentences (batch_size={batch_size})...")
     
     try:
         query_embeddings = model.encode(unmatched_sentences, convert_to_tensor=True, 
@@ -106,14 +110,11 @@ def batch_semantic_check(unmatched_sentences, corpus_sentences, threshold=0.88, 
             print(f"[!] CUDA Error ({e}). Fallback otomatis ke CPU...")
             model = get_model(force_cpu=True)
             query_embeddings = model.encode(unmatched_sentences, convert_to_tensor=True, 
-                                           batch_size=batch_size, show_progress_bar=True)
+                                           batch_size=32, show_progress_bar=True)
         else:
             raise e
     
-    # === OPTIMASI: Gabungkan SEMUA kalimat sumber menjadi 1 batch encoding ===
-    # Sebelumnya: model.encode() dipanggil N kali (sekali per sumber) -> lambat.
-    # Sekarang:   model.encode() dipanggil 1 kali untuk seluruh kalimat sumber.
-    # Hasilnya IDENTIK secara matematis (cosine similarity per-pair tidak berubah).
+    # === OPTIMASI GPU: Gabungkan SEMUA kalimat sumber menjadi 1 batch encoding ===
     all_source_sentences = []
     source_map = []  # (source_url, local_index) untuk setiap kalimat
     for source_url, sentences in corpus_sentences.items():
@@ -126,7 +127,7 @@ def batch_semantic_check(unmatched_sentences, corpus_sentences, threshold=0.88, 
     if not all_source_sentences:
         return {}
     
-    print(f"[!] Encoding {len(all_source_sentences)} source sentences from {len(source_map)} sources in 1 batch...")
+    print(f"[!] Encoding {len(all_source_sentences)} source sentences from {len(source_map)} sources in 1 batch (GPU VRAM optimized)...")
     try:
         all_source_embeddings = model.encode(all_source_sentences, convert_to_tensor=True,
                                              batch_size=batch_size, show_progress_bar=False)
@@ -135,42 +136,51 @@ def batch_semantic_check(unmatched_sentences, corpus_sentences, threshold=0.88, 
             print(f"[!] CUDA Error saat encode sumber ({e}). Fallback otomatis ke CPU...")
             model = get_model(force_cpu=True)
             query_embeddings = model.encode(unmatched_sentences, convert_to_tensor=True, 
-                                           batch_size=batch_size, show_progress_bar=False)
+                                           batch_size=32, show_progress_bar=False)
             all_source_embeddings = model.encode(all_source_sentences, convert_to_tensor=True,
-                                                 batch_size=batch_size, show_progress_bar=False)
+                                                 batch_size=32, show_progress_bar=False)
         else:
             raise e
     
-    # Hitung cosine similarity SEKALI untuk seluruh matriks (query x all_sources)
+    # Hitung cosine similarity SEKALI penuh di VRAM GPU
     full_similarity_matrix = util.pytorch_cos_sim(query_embeddings, all_source_embeddings)
     
     semantic_matches = {}
-    # Iris matriks per-sumber untuk atribusi yang benar
+    # Operasi Vectorized Matriks sepenuhnya di GPU (tanpa loop item-per-item ke CPU)
     for source_url, start_idx, end_idx in source_map:
-        source_slice = full_similarity_matrix[:, start_idx:end_idx]
+        source_slice = full_similarity_matrix[:, start_idx:end_idx] # Tensor [num_queries, num_source_sents]
         source_sents = all_source_sentences[start_idx:end_idx]
         
-        for query_idx, query_sent in enumerate(unmatched_sentences):
-            max_similarity = torch.max(source_slice[query_idx]).item()
+        # Max dan Argmax dihitung secara paralel penuh di GPU per baris query
+        max_sims, max_indices = torch.max(source_slice, dim=1)
+        
+        # Filter query_idx yang memenuhi threshold saja yang ditransfer ke CPU
+        above_thresh_indices = (max_sims >= threshold).nonzero(as_tuple=True)[0]
+        
+        for q_idx_tensor in above_thresh_indices:
+            query_idx = q_idx_tensor.item()
+            similarity_score = max_sims[query_idx].item()
+            best_match_idx = max_indices[query_idx].item()
+            query_sent = unmatched_sentences[query_idx]
             
-            if max_similarity >= threshold:
-                best_match_idx = torch.argmax(source_slice[query_idx]).item()
-                
-                if query_idx not in semantic_matches:
-                    semantic_matches[query_idx] = []
-                
-                semantic_matches[query_idx].append({
-                    'source_url': source_url,
-                    'matched_text': source_sents[best_match_idx],
-                    'similarity_score': max_similarity,
-                    'detection_method': 'semantic',
-                    'original_sentence': query_sent
-                })
+            if query_idx not in semantic_matches:
+                semantic_matches[query_idx] = []
+            
+            semantic_matches[query_idx].append({
+                'source_url': source_url,
+                'matched_text': source_sents[best_match_idx],
+                'similarity_score': similarity_score,
+                'detection_method': 'semantic',
+                'original_sentence': query_sent
+            })
 
-    # Urutkan tiap daftar match per-kalimat berdasarkan skor tertinggi. Tanpa ini,
-    # daftar tersusun urut dict sumber, sehingga matches[0] di pemanggil belum tentu
-    # match terbaik (atribusi sumber & skor yang ditampilkan bisa salah).
+    # Urutkan tiap daftar match per-kalimat berdasarkan skor tertinggi
     for query_idx in semantic_matches:
         semantic_matches[query_idx].sort(key=lambda m: m['similarity_score'], reverse=True)
+
+    # Bersihkan memori GPU VRAM dan RAM setelah komputasi selesai
+    del query_embeddings, all_source_embeddings, full_similarity_matrix
+    if torch.cuda.is_available():
+        torch.cuda.empty_cache()
 
     return semantic_matches
