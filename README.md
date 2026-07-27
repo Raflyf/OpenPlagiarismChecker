@@ -228,13 +228,13 @@ Skor Total = (Kata Ter-match N-Gram + Kata Ter-match Semantic) / Total Kata Doku
 
 - Setiap kata dihitung **sekali** meskipun cocok dengan banyak sumber (union, bukan sum)
 - `exclude_small` hanya memfilter **daftar tampilan** sumber per-dokumen, TIDAK memengaruhi skor total — persis perilaku Turnitin
-- Threshold semantic otomatis Signal-to-Noise Adaptive (0.87 / 0.88) dikalibrasi terhadap 11 dokumen ground truth (4-24%)
+- Threshold semantic otomatis Signal-to-Noise 3-Tier Auto-Thresholding (0.87 - 0.89) dikalibrasi terhadap 11 dokumen ground truth (4-24%)
 
 ## Changelog
 
-### v4.2 (Current) — Signal-to-Noise Adaptive Thresholding & Validasi 11 Dokumen Groundtruth
+### v4.2 (Current) — Signal-to-Noise 3-Tier Auto-Thresholding & Validasi 11 Dokumen Groundtruth
 
-- **Signal-to-Noise Adaptive Thresholding**: Mengimplementasikan penyesuaian threshold semantik dinamis berbasis profil kerapatan N-Gram dokumen (threshold 0.88 untuk N-Gram ≥ 10.0% dan 0.87 untuk N-Gram < 10.0%). Mencegah _paraphrase inflation_ pada skripsi bertopik umum tanpa mengorbankan sensitivitas pada parafrasa halus.
+- **Signal-to-Noise 3-Tier Auto-Thresholding**: Mengimplementasikan penyesuaian threshold semantik dinamis 3-tier berbasis profil kerapatan N-Gram dokumen (threshold 0.87 untuk N-Gram < 10.0%, 0.89 untuk N-Gram 10.0%-11.0%, dan 0.88 untuk N-Gram ≥ 11.0%). Mencegah _paraphrase inflation_ pada skripsi bertopik umum tanpa mengorbankan sensitivitas pada parafrasa halus.
 - **Validasi 11 Dokumen Groundtruth**: Memperluas suite uji validasi dari 8 dokumen menjadi 11 dokumen lengkap yang sudah teruji di Turnitin resmi (skor 4% - 24%).
 - **Presisi Berbasis Atribut Objektif (MAE 2.23%)**: Rata-rata error absolut (MAE) terkalibrasi stabil di angka **2.23 poin persentase** di seluruh 11 dokumen tanpa adanya _overfitting_ atau pengkondisian palsu pada kode.
 - **Sinkronisasi Engine & Runner**: Memastikan alur pemrosesan `app/server.py` (Web UI) dan `app/run_test_groundtruth.py` (Validasi CLI) menggunakan logika _Adaptive Thresholding_ yang 100% identik.
