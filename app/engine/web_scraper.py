@@ -619,9 +619,11 @@ def fetch_openaire(probe):
                 metadata = item.get("metadata", {}).get("oaf:entity", {}).get("oaf:result", {})
                 title = metadata.get("title", "")
                 if isinstance(title, list): title = title[0]
+                if isinstance(title, dict): title = title.get("$", "")
                 
                 abstract = metadata.get("description", "")
                 if isinstance(abstract, list): abstract = abstract[0]
+                if isinstance(abstract, dict): abstract = abstract.get("$", "")
                 
                 children = metadata.get("children", {}).get("instance", [])
                 if isinstance(children, dict): children = [children]
@@ -631,8 +633,13 @@ def fetch_openaire(probe):
                     webresource = child.get("webresource", [])
                     if isinstance(webresource, dict): webresource = [webresource]
                     for wr in webresource:
-                        if wr.get("url"):
-                            p_url = wr.get("url")
+                        raw_u = wr.get("url")
+                        if isinstance(raw_u, dict):
+                            u = raw_u.get("$", "")
+                        else:
+                            u = raw_u
+                        if u and isinstance(u, str) and u.startswith("http"):
+                            p_url = u
                             break
                     if p_url: break
                 
