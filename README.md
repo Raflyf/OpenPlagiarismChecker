@@ -227,6 +227,10 @@ Skor Total = (Kata Ter-match N-Gram + Kata Ter-match Semantic) / Total Kata Doku
 - `exclude_small` hanya memfilter **daftar tampilan** sumber per-dokumen, TIDAK memengaruhi skor total — persis perilaku Turnitin
 - Threshold semantic otomatis Signal-to-Noise 3-Tier Auto-Thresholding (0.87 / 0.89 / 0.88) dikalibrasi terhadap 11 dokumen ground truth (4-24%)
 
+## Limitasi Desain (Trade-off)
+
+- **Semantic Layer (Penandaan Kalimat Utuh)**: Ketika *semantic match* ditemukan pada sebuah *chunk* (maksimal 40 kata), seluruh kata di dalam *chunk* tersebut ditandai sebagai plagiat. Hal ini dapat menyebabkan sedikit *over-estimation* pada kalimat panjang yang sebagian diparafrasa. Namun, hal ini dikompensasi oleh *3-Tier Auto-Thresholding* yang sangat ketat (0.87 - 0.89), sehingga secara keseluruhan (MAE 2.23%) tetap terjaga akurasinya.
+
 ## Changelog
 
 ### v4.2 (Current) — Signal-to-Noise 3-Tier Auto-Thresholding & Validasi 11 Dokumen Groundtruth
