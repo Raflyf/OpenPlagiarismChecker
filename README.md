@@ -237,7 +237,7 @@ Skor Total = (Kata Ter-match N-Gram + Kata Ter-match Semantic) / Total Kata Doku
 
 - **Semantic Syarat Ganda (Anti-False Positives)**: Mengimplementasikan logika Poin 3 dimana AI *Semantic Similarity* **HANYA** akan memproses dokumen sumber (jurnal/web) yang telah terbukti memiliki irisan *N-Gram Exact Match* (> 0%). Mencegah mesin mengevaluasi ribuan artikel *random* yang menyebabkan *over-detection*.
 - **Presisi Berbasis Atribut Objektif (MAE 1.45%)**: Rata-rata error absolut (MAE) sukses ditekan hingga **1.45 poin persentase** di 11 dokumen. Luar biasanya, **4 dokumen meraih akurasi 100% (selisih 0.0%)** dibandingkan skor Turnitin asli.
-- **Sistem Anti-Cheat Sempurna**: Berhasil membongkar trik manipulasi "Teks Putih" (Hidden Text) pada Laila Romadona (Skor dimanipulasi: 4%, Skor Asli ditemukan sistem: 19%). Mengalahkan deteksi mesin Turnitin orisinal!
+- **Sistem Anti-Cheat Sempurna**: Berhasil mengidentifikasi dan membongkar trik manipulasi dokumen seperti "Teks Putih" (*Hidden Text*) yang kerap digunakan untuk mengelabui skor plagiarisme, memberikan lapisan keamanan yang bahkan melampaui standar orisinal.
 - **Signal-to-Noise 3-Tier Auto-Thresholding**: Penyesuaian threshold semantik dinamis 3-tier berbasis profil kerapatan N-Gram dokumen tetap aktif untuk menjaga batas aman sensitivitas pada parafrasa halus.
 
 ### v4.1 — Super-Fast Live Scraping, Indonesia OneSearch & Instant Cancel UI
