@@ -269,7 +269,8 @@ def index():
 @app.route('/check_frozen', methods=['POST'])
 def check_frozen():
     """Cek apakah file yang di-drop sudah memiliki korpus beku (frozen corpus).
-    Endpoint ringan: hanya ekstrak teks -> hash -> cek file exists."""
+    Endpoint super instan: cek nama -> jika cocok langsung return (<1ms),
+    jika tidak cocok baru ekstrak teks & hash (fallback)."""
     if 'file' not in request.files:
         return jsonify({'exists': False})
     file = request.files['file']
@@ -277,7 +278,23 @@ def check_frozen():
     if not (ext.endswith('.pdf') or ext.endswith('.docx') or ext.endswith('.doc')):
         return jsonify({'exists': False})
 
-    # Simpan sementara untuk ekstraksi
+    # 1. FAST PRE-CHECK: Cek instan via nama file di folder frozen_corpus (<1 ms)
+    frozen_dir = os.path.join(base_dir, "frozen_corpus")
+    safe_name = re.sub(r'[^\w\-]', '_', os.path.splitext(file.filename)[0])
+    safe_name = re.sub(r'_+', '_', safe_name).strip('_')[:20]
+    if safe_name and os.path.exists(frozen_dir):
+        fast_matches = glob.glob(os.path.join(frozen_dir, f"web_{safe_name}*.json"))
+        if fast_matches:
+            target_file = fast_matches[0]
+            try:
+                with open(target_file, "r", encoding="utf-8") as f:
+                    corpus_size = f.read().count('"http')
+                print(f"[!] FAST CHECK_FROZEN HIT (<1ms): {os.path.basename(target_file)}")
+                return jsonify({'exists': True, 'corpus_size': corpus_size, 'hash': 'fast_match'})
+            except Exception:
+                pass
+
+    # 2. FALLBACK: Simpan sementara untuk ekstraksi & hash jika nama tidak cocok
     tmp_path = os.path.join(app.config['UPLOAD_FOLDER'], f"_check_{uuid.uuid4().hex[:8]}{os.path.splitext(file.filename)[1]}")
     try:
         file.save(tmp_path)
