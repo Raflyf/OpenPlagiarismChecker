@@ -193,7 +193,7 @@ def process_document(file_id, filepath, original_filename, exclude_quotes=True, 
         # korpus yang SAMA, hanya teksnya berbeda (raw_text = termasuk hidden text).
         # calculate_similarity cuma n-gram matching di memori -> tambah 1-2 detik saja.
         fooled_similarity = None
-        if hidden_spans and raw_text and raw_text.strip() != doc_text.strip():
+        if raw_text and raw_text.strip() != doc_text.strip():
             print("[!] Menghitung skor kedua (jika hidden text lolos)...")
             _, fooled_sim, _ = calculate_similarity(
                 raw_text, corpus, exclude_small, use_semantic=use_semantic,
