@@ -8,34 +8,26 @@ reports/
 .env.local
 *.env
 
-# Audit R5 additions
-.venv/
-__pycache__/
-uploads/
-reports/
-
-# Konfigurasi rahasia
-.env
-.env.local
-*.env
-
-# Audit R5 additions
+# Dokumen uji & file besar
 .search_cache/
 app/before_turnitin/
 *.pdf
 
-# Runtime artifacts (log & hasil test, tidak perlu di-commit)
+# Runtime artifacts
 *.log
+*.tmp
+batch_output.txt
+
 # Bank & cache lokal
 app/corpus_bank/*.db
 app/corpus_bank/*.bak
 app/corpus_bank/bank.json
+app/engine/.search_cache.db
 
 app/test_groundtruth_result.json
-*.tmp
 
-# Tooling skill lokal (ribuan file, tidak perlu di-repo)
+# Tooling skill lokal
 .claude/
 
-# Config editor lokal (path absolut mesin, jangan di-commit)
+# Config editor lokal
 .vscode/
