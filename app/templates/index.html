@@ -275,9 +275,9 @@
             
             <h2 class="upload-title" id="fileText">Cek Plagiasi No-Repository</h2>
             <p class="upload-subtitle" id="fileSub">TARIK FILE MU KESINI / KLIK AJA DISINI</p>
-            <p class="upload-ext" id="fileExt">Hanya menerima format .pdf</p>
+            <p class="upload-ext" id="fileExt">Hanya menerima format .pdf, .docx, .doc</p>
             
-            <input type="file" id="fileInput" accept=".pdf" onchange="fileSelected()">
+            <input type="file" id="fileInput" accept=".pdf, .docx, .doc" onchange="fileSelected()">
         </div>
         
         <div class="filter-section">
@@ -439,7 +439,7 @@
         document.getElementById('fileInput').value = '';
         document.getElementById('fileText').innerText = 'Cek Plagiasi No-Repository';
         document.getElementById('fileSub').innerText = 'TARIK FILE MU KESINI / KLIK AJA DISINI';
-        document.getElementById('fileExt').innerText = 'Hanya menerima format .pdf';
+        document.getElementById('fileExt').innerText = 'Hanya menerima format .pdf, .docx, .doc';
         document.getElementById('frozenBanner').style.display = 'none';
         
         const btn = document.getElementById('submitBtn');

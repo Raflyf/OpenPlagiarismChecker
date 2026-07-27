@@ -17,7 +17,7 @@ load_dotenv()
 from flask import Flask, render_template, request, jsonify, send_file, session
 from werkzeug.utils import secure_filename
 import threading
-from engine.extractor import extract_text_from_pdf, get_sentences
+from engine.extractor import extract_text_auto, get_sentences
 from engine.web_scraper import get_candidate_urls, scrape_all_candidates, load_corpus_bank
 from engine.shingling import calculate_similarity
 from engine.pdf_generator import generate_report_pdf
@@ -115,9 +115,9 @@ def process_document(file_id, filepath, original_filename, exclude_quotes=True, 
         return False
 
     try:
-        set_progress(5, "Mengekstrak teks dari PDF...")
+        set_progress(5, "Mengekstrak teks dari dokumen...")
         print(f"[!] Mulai ekstraksi teks dari: {filepath}")
-        extraction_result = extract_text_from_pdf(filepath, exclude_quotes, exclude_biblio, return_hidden=True)
+        extraction_result = extract_text_auto(filepath, exclude_quotes, exclude_biblio, return_hidden=True)
         doc_text, manipulation_warnings, raw_text, hidden_spans = extraction_result
         sentences = get_sentences(doc_text)
         if check_cancelled(): return
@@ -256,14 +256,15 @@ def check_frozen():
     if 'file' not in request.files:
         return jsonify({'exists': False})
     file = request.files['file']
-    if not file.filename.lower().endswith('.pdf'):
+    ext = file.filename.lower()
+    if not (ext.endswith('.pdf') or ext.endswith('.docx') or ext.endswith('.doc')):
         return jsonify({'exists': False})
 
     # Simpan sementara untuk ekstraksi
-    tmp_path = os.path.join(app.config['UPLOAD_FOLDER'], f"_check_{uuid.uuid4().hex[:8]}.pdf")
+    tmp_path = os.path.join(app.config['UPLOAD_FOLDER'], f"_check_{uuid.uuid4().hex[:8]}{os.path.splitext(file.filename)[1]}")
     try:
         file.save(tmp_path)
-        doc_text, _ = extract_text_from_pdf(tmp_path, fast_mode=True)
+        doc_text, _ = extract_text_auto(tmp_path, fast_mode=True)
         doc_hash = hashlib.md5(doc_text.encode("utf-8")).hexdigest()[:16]
         frozen_path = os.path.join(base_dir, "frozen_corpus", f"web_{doc_hash}.json")
         exists = os.path.exists(frozen_path)
@@ -301,11 +302,12 @@ def upload_file():
     if file.filename == '':
         return jsonify({'error': 'No selected file'}), 400
         
-    if file and file.filename.lower().endswith('.pdf'):
+    if file and (file.filename.lower().endswith('.pdf') or file.filename.lower().endswith('.docx') or file.filename.lower().endswith('.doc')):
         filename = secure_filename(file.filename)
         # SECURITY FIX: Use cryptographically secure UUID instead of predictable timestamp
         file_id = str(uuid.uuid4())
-        filepath = os.path.join(app.config['UPLOAD_FOLDER'], f"{file_id}.pdf")
+        ext = os.path.splitext(filename)[1]
+        filepath = os.path.join(app.config['UPLOAD_FOLDER'], f"{file_id}{ext}")
         file.save(filepath)
         
         # SECURITY FIX: Store session ID for ownership validation
@@ -334,7 +336,7 @@ def upload_file():
         thread.start()
         
         return jsonify({'file_id': file_id, 'filename': filename})
-    return jsonify({'error': 'Hanya file PDF yang diizinkan'}), 400
+    return jsonify({'error': 'Hanya file PDF, DOCX, dan DOC yang diizinkan'}), 400
 
 @app.route('/cancel/<file_id>', methods=['POST'])
 def cancel_process(file_id):
