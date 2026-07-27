@@ -48,6 +48,10 @@
         .upload-area:hover {
             background-color: #ebedf0;
         }
+        .upload-area.drag-over {
+            background-color: #e2e8f0;
+            border: 2px dashed #3b82f6;
+        }
         .upload-area input[type="file"] {
             display: none;
         }
@@ -253,9 +257,146 @@
             color: #6b7280;
             margin-top: 2px;
         }
+
+        /* --- Dark Mode CSS --- */
+        body {
+            transition: background-color 0.3s, color 0.3s;
+        }
+        
+        body.dark-mode {
+            background-color: #111827;
+            color: #f3f4f6;
+        }
+        
+        body.dark-mode .card {
+            background-color: #1f2937;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            border: 1px solid #374151;
+        }
+        
+        body.dark-mode .top-title, 
+        body.dark-mode .section-title, 
+        body.dark-mode .upload-title,
+        body.dark-mode .frozen-title {
+            color: #f3f4f6;
+        }
+        
+        body.dark-mode .upload-subtitle, 
+        body.dark-mode .upload-ext, 
+        body.dark-mode .checkbox-item {
+            color: #9ca3af;
+        }
+        
+        body.dark-mode .upload-area {
+            background-color: #374151;
+        }
+        
+        body.dark-mode .upload-area:hover {
+            background-color: #4b5563;
+        }
+
+        body.dark-mode .upload-area.drag-over {
+            background-color: #4b5563;
+            border: 2px dashed #60a5fa;
+        }
+        
+        body.dark-mode .frozen-banner {
+            background: linear-gradient(135deg, #1f2937, #111827);
+            border-color: #059669;
+        }
+        
+        body.dark-mode .frozen-radio-group label {
+            color: #d1d5db;
+        }
+        
+        body.dark-mode .frozen-radio-group label:hover {
+            background-color: #374151;
+        }
+        
+        body.dark-mode .frozen-radio-group label.selected {
+            background-color: #064e3b;
+            border-color: #10b981;
+        }
+        
+        body.dark-mode .frozen-radio-group label.selected-orange {
+            background-color: #7c2d12;
+            border-color: #f97316;
+        }
+        
+        body.dark-mode .loading-overlay {
+            background: rgba(17,24,39,0.9);
+        }
+        
+        body.dark-mode #loadingTitle {
+            color: #f3f4f6 !important;
+        }
+        
+        body.dark-mode #loadingSubtitle, 
+        body.dark-mode #progressText {
+            color: #d1d5db !important;
+        }
+        
+        /* Toggle Switch Button Styles */
+        .theme-toggle-container {
+            position: fixed;
+            top: 25px;
+            right: 25px;
+            z-index: 1000;
+        }
+        
+        .theme-toggle-btn {
+            background-color: white;
+            border: 1px solid #e5e7eb;
+            border-radius: 50%;
+            width: 48px;
+            height: 48px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            transition: all 0.3s;
+            color: #4b5563;
+        }
+        
+        .theme-toggle-btn:hover {
+            transform: scale(1.05);
+            background-color: #f9fafb;
+        }
+        
+        body.dark-mode .theme-toggle-btn {
+            background-color: #374151;
+            border-color: #4b5563;
+            color: #fbbf24; /* Sun color */
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
+        }
+        
+        body.dark-mode .theme-toggle-btn:hover {
+            background-color: #4b5563;
+        }
     </style>
 </head>
 <body>
+
+<!-- Dark Mode Toggle -->
+<div class="theme-toggle-container">
+    <button class="theme-toggle-btn" id="themeToggleBtn" onclick="toggleTheme()" aria-label="Toggle Dark Mode" title="Switch Theme">
+        <svg id="moonIcon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display: block;">
+            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+        </svg>
+        <svg id="sunIcon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display: none;">
+            <circle cx="12" cy="12" r="5"></circle>
+            <line x1="12" y1="1" x2="12" y2="3"></line>
+            <line x1="12" y1="21" x2="12" y2="23"></line>
+            <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+            <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+            <line x1="1" y1="12" x2="3" y2="12"></line>
+            <line x1="21" y1="12" x2="23" y2="12"></line>
+            <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+            <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+        </svg>
+    </button>
+</div>
 
 <div class="main-container">
     <div class="top-title">CEK PLAGIASI NO-REPOSITORY</div>
@@ -351,6 +492,26 @@
     let selectedFile = null;
     let frozenDetected = false;
 
+    // Theme Toggle Logic
+    function toggleTheme() {
+        const isDark = document.body.classList.toggle('dark-mode');
+        localStorage.setItem('theme', isDark ? 'dark' : 'light');
+        updateThemeIcon(isDark);
+    }
+    
+    function updateThemeIcon(isDark) {
+        document.getElementById('moonIcon').style.display = isDark ? 'none' : 'block';
+        document.getElementById('sunIcon').style.display = isDark ? 'block' : 'none';
+    }
+    
+    document.addEventListener('DOMContentLoaded', () => {
+        const savedTheme = localStorage.getItem('theme');
+        if (savedTheme === 'dark' || (!savedTheme && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+            document.body.classList.add('dark-mode');
+            updateThemeIcon(true);
+        }
+    });
+
     function selectFrozenOption(choice) {
         const lblFrozen = document.getElementById('lblFrozen');
         const lblScrape = document.getElementById('lblScrape');
@@ -412,20 +573,17 @@
 
     dropZone.addEventListener('dragover', (e) => {
         e.preventDefault();
-        dropZone.style.backgroundColor = '#e2e8f0';
-        dropZone.style.border = '2px dashed #3b82f6';
+        dropZone.classList.add('drag-over');
     });
 
     dropZone.addEventListener('dragleave', (e) => {
         e.preventDefault();
-        dropZone.style.backgroundColor = '#f4f5f7';
-        dropZone.style.border = 'none';
+        dropZone.classList.remove('drag-over');
     });
 
     dropZone.addEventListener('drop', (e) => {
         e.preventDefault();
-        dropZone.style.backgroundColor = '#f4f5f7';
-        dropZone.style.border = 'none';
+        dropZone.classList.remove('drag-over');
         
         if (e.dataTransfer.files.length > 0) {
             document.getElementById('fileInput').files = e.dataTransfer.files;
