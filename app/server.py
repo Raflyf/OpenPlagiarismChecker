@@ -288,8 +288,9 @@ def check_frozen():
         corpus_size = 0
         if exists:
             try:
-                with open(frozen_path, encoding="utf-8") as f:
-                    corpus_size = len(json.load(f))
+                with open(frozen_path, "r", encoding="utf-8") as f:
+                    content = f.read()
+                    corpus_size = content.count('"http')
             except Exception:
                 pass
         return jsonify({'exists': exists, 'corpus_size': corpus_size, 'hash': doc_hash})
