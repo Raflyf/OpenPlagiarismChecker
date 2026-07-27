@@ -31,21 +31,35 @@ def discover_docs():
     return docs
 
 
+import hashlib
+
+def get_frozen_path(original_filename, doc_hash):
+    matches = glob.glob(os.path.join(FROZEN, f"*{doc_hash}.json"))
+    if matches:
+        return matches[0]
+    safe_name = re.sub(r'[^\w\-]', '_', os.path.splitext(original_filename)[0])
+    safe_name = re.sub(r'_+', '_', safe_name).strip('_')[:35]
+    if not safe_name:
+        safe_name = "doc"
+    return os.path.join(FROZEN, f"web_{safe_name}_{doc_hash}.json")
+
 summary = []
 for name, fname, target in discover_docs():
     path = os.path.join(BASE, fname)
-    frozen_path = os.path.join(FROZEN, f"{name}.json")
     tgt_str = f"{target}%" if target is not None else "?"
     print(f"\n{'='*60}\n[{name}] target Turnitin = {tgt_str}\n{'='*60}", flush=True)
     t0 = time.time()
-    doc_text, warns = extract_text_auto(path)
+    doc_text, warns = extract_text_auto(path, exclude_quotes=True, exclude_biblio=True)
+    doc_hash = hashlib.md5(doc_text.encode("utf-8")).hexdigest()[:16]
+    frozen_path = get_frozen_path(fname, doc_hash)
+
     sentences = get_sentences(doc_text)
     print(f"[{name}] {len(doc_text.split())} kata, {len(sentences)} kalimat", flush=True)
 
     if not REFRESH and os.path.exists(frozen_path):
         with open(frozen_path, "r", encoding="utf-8") as f:
             corpus = json.load(f)
-        print(f"[{name}] KORPUS BEKU dimuat: {len(corpus)} sumber (deterministik)", flush=True)
+        print(f"[{name}] KORPUS BEKU dimuat: {len(corpus)} sumber ({os.path.basename(frozen_path)})", flush=True)
     else:
         adaptive_probes = max(100, min(180, int(len(sentences) / 2.5)))
         print(f"[{name}] ADAPTIVE SAMPLING: {adaptive_probes} probes untuk {len(sentences)} kalimat", flush=True)
@@ -54,7 +68,7 @@ for name, fname, target in discover_docs():
         corpus = scrape_all_candidates(urls, preloaded)
         with open(frozen_path, "w", encoding="utf-8") as f:
             json.dump(corpus, f, ensure_ascii=False)
-        print(f"[{name}] korpus DIBEKUKAN ke disk: {len(corpus)} sumber", flush=True)
+        print(f"[{name}] korpus DIBEKUKAN ke disk: {len(corpus)} sumber ({os.path.basename(frozen_path)})", flush=True)
 
     sources, total_sim, phrases = calculate_similarity(
         doc_text, corpus, exclude_small=True, use_semantic=True, 
