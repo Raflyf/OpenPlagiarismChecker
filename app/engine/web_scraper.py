@@ -603,6 +603,71 @@ def fetch_core(probe):
         print(f"[!] CORE API error: {e}")
     return urls_found, texts_found
 
+def fetch_openaire(probe):
+    """Mencari paper di OpenAIRE (Jaringan Repositori Eropa — 100M+ publikasi, gratis tanpa API key)."""
+    urls_found = []
+    texts_found = []
+    try:
+        short_probe = " ".join(probe.split()[:8])
+        url = "https://api.openaire.eu/search/publications"
+        params = {"title": short_probe, "size": 5, "format": "json"}
+        res = requests.get(url, params=params, timeout=8)
+        if res.status_code == 200:
+            data = res.json()
+            results = data.get("response", {}).get("results", {}).get("result", [])
+            for item in results:
+                metadata = item.get("metadata", {}).get("oaf:entity", {}).get("oaf:result", {})
+                title = metadata.get("title", "")
+                if isinstance(title, list): title = title[0]
+                
+                abstract = metadata.get("description", "")
+                if isinstance(abstract, list): abstract = abstract[0]
+                
+                children = metadata.get("children", {}).get("instance", [])
+                if isinstance(children, dict): children = [children]
+                
+                p_url = ""
+                for child in children:
+                    webresource = child.get("webresource", [])
+                    if isinstance(webresource, dict): webresource = [webresource]
+                    for wr in webresource:
+                        if wr.get("url"):
+                            p_url = wr.get("url")
+                            break
+                    if p_url: break
+                
+                combined = f"{title}. {abstract}"
+                if p_url and len(combined) > 50:
+                    urls_found.append(p_url)
+                    texts_found.append(combined)
+    except Exception:
+        pass
+    return urls_found, texts_found
+
+def fetch_hal(probe):
+    """Mencari paper di HAL (Hyper Article en Ligne — Arsip Terbuka Multi-Disiplin, gratis tanpa API key)."""
+    urls_found = []
+    texts_found = []
+    try:
+        short_probe = " ".join(probe.split()[:8])
+        url = "https://api.archives-ouvertes.fr/search/"
+        params = {"q": short_probe, "wt": "json", "fl": "title_s,abstract_s,uri_s", "rows": 5}
+        res = requests.get(url, params=params, timeout=8)
+        if res.status_code == 200:
+            data = res.json()
+            docs = data.get("response", {}).get("docs", [])
+            for doc in docs:
+                title = doc.get("title_s", [""])[0]
+                abstract = doc.get("abstract_s", [""])[0] if doc.get("abstract_s") else ""
+                p_url = doc.get("uri_s", "")
+                combined = f"{title}. {abstract}"
+                if p_url and len(combined) > 50:
+                    urls_found.append(p_url)
+                    texts_found.append(combined)
+    except Exception:
+        pass
+    return urls_found, texts_found
+
 def fetch_europe_pmc(probe):
     """Mencari artikel di Europe PMC (40M+ paper open-access, full-text gratis, tanpa API key)."""
     urls_found = []
@@ -742,6 +807,8 @@ def fetch_probe_multi(probe):
     u_doaj, t_doaj = _call_api_safe("DOAJ", fetch_doaj, probe)
     u_arxiv, t_arxiv = _call_api_safe("arXiv", fetch_arxiv, probe)
     u_core, t_core = _call_api_safe("CORE", fetch_core, probe)
+    u_openaire, t_openaire = _call_api_safe("OpenAIRE", fetch_openaire, probe)
+    u_hal, t_hal = _call_api_safe("HAL", fetch_hal, probe)
     
     # 2. Try paid APIs
     u_gs, _ = fetch_google_scholar(probe)
@@ -801,6 +868,8 @@ def fetch_probe_multi(probe):
         "DOAJ": len(u_doaj),
         "arXiv": len(u_arxiv),
         "CORE": len(u_core),
+        "OpenAIRE": len(u_openaire),
+        "HAL": len(u_hal),
         "GoogleScholar": len(u_gs),
         "GoogleWeb": len(u_gw),
         "Garuda": len(u_gr),
@@ -821,6 +890,8 @@ def fetch_probe_multi(probe):
     for u, t in zip(u_doaj, t_doaj): preloaded[u] = t
     for u, t in zip(u_arxiv, t_arxiv): preloaded[u] = t
     for u, t in zip(u_core, t_core): preloaded[u] = t
+    for u, t in zip(u_openaire, t_openaire): preloaded[u] = t
+    for u, t in zip(u_hal, t_hal): preloaded[u] = t
     for u, t in zip(u_gsn, t_gsn): preloaded[u] = t
     
     # OpenAlex dan Fallback CSE sering punya snippet/teks yang layak
