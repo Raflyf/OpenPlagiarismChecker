@@ -6,6 +6,8 @@ import json
 import hashlib
 import secrets
 import urllib3
+import glob
+import re
 from dotenv import load_dotenv
 
 # Nonaktifkan peringatan SSL (banyak web kampus SSL-nya kedaluwarsa)
@@ -39,6 +41,21 @@ app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024 # 16MB max
 
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 os.makedirs(app.config['REPORT_FOLDER'], exist_ok=True)
+
+def get_frozen_path(original_filename, doc_hash):
+    """Mencari atau membuat path frozen corpus yang ramah dibaca manusia (memuat nama file + hash)."""
+    frozen_dir = os.path.join(base_dir, "frozen_corpus")
+    os.makedirs(frozen_dir, exist_ok=True)
+    
+    matches = glob.glob(os.path.join(frozen_dir, f"*{doc_hash}.json"))
+    if matches:
+        return matches[0]
+        
+    safe_name = re.sub(r'[^\w\-]', '_', os.path.splitext(original_filename)[0])
+    safe_name = re.sub(r'_+', '_', safe_name).strip('_')[:35]
+    if not safe_name:
+        safe_name = "doc"
+    return os.path.join(frozen_dir, f"web_{safe_name}_{doc_hash}.json")
 
 def cleanup_old_files(max_age_hours=24):
     """Menghapus file upload & laporan lama (> 24 jam) agar disk tetap bersih & efisien"""
@@ -140,7 +157,7 @@ def process_document(file_id, filepath, original_filename, exclude_quotes=True, 
         # yang isinya diparafrase -> teks beda -> hash beda -> dianggap dokumen BARU ->
         # scrape ulang. Reuse dir frozen_corpus/ yang sama dgn run_test_groundtruth.
         doc_hash = hashlib.md5(doc_text.encode("utf-8")).hexdigest()[:16]
-        frozen_path = os.path.join(base_dir, "frozen_corpus", f"web_{doc_hash}.json")
+        frozen_path = get_frozen_path(original_filename, doc_hash)
         corpus = None
         if force_scrape:
             print(f"[!] FORCE SCRAPE: user meminta scrape ulang dari internet, abaikan korpus beku.")
@@ -266,7 +283,7 @@ def check_frozen():
         file.save(tmp_path)
         doc_text, _ = extract_text_auto(tmp_path, exclude_quotes=True, exclude_biblio=True)
         doc_hash = hashlib.md5(doc_text.encode("utf-8")).hexdigest()[:16]
-        frozen_path = os.path.join(base_dir, "frozen_corpus", f"web_{doc_hash}.json")
+        frozen_path = get_frozen_path(file.filename, doc_hash)
         exists = os.path.exists(frozen_path)
         corpus_size = 0
         if exists:
