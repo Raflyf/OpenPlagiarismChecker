@@ -264,7 +264,7 @@ def check_frozen():
     tmp_path = os.path.join(app.config['UPLOAD_FOLDER'], f"_check_{uuid.uuid4().hex[:8]}{os.path.splitext(file.filename)[1]}")
     try:
         file.save(tmp_path)
-        doc_text, _ = extract_text_auto(tmp_path, fast_mode=True)
+        doc_text, _ = extract_text_auto(tmp_path, exclude_quotes=True, exclude_biblio=True)
         doc_hash = hashlib.md5(doc_text.encode("utf-8")).hexdigest()[:16]
         frozen_path = os.path.join(base_dir, "frozen_corpus", f"web_{doc_hash}.json")
         exists = os.path.exists(frozen_path)
