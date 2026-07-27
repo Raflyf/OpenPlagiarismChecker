@@ -22,7 +22,7 @@ Diuji terhadap 11 dokumen nyata yang sudah punya skor Turnitin asli sebagai grou
 | Tesyar                   | 11.6%      | 8%              | +3.6pt | Aman         |
 | Dias Maulana             | 19.2%      | 23%             | -3.8pt | Aman         |
 
-**Rata-rata error absolut (MAE): 2.23 poin persentase.** Menggunakan algoritma _Signal-to-Noise 3-Tier Auto-Thresholding_ (0.87 - 0.89) yang mendeteksi profil N-Gram dokumen secara otomatis menjaga presisi tinggi dan kebebasan dari _overfitting_ saat menguji dokumen PDF baru di masa mendatang.
+**Rata-rata error absolut (MAE): 2.23 poin persentase.** Menggunakan algoritma _Signal-to-Noise 3-Tier Auto-Thresholding_ (0.87 / 0.89 / 0.88) yang mendeteksi profil N-Gram dokumen secara otomatis menjaga presisi tinggi dan kebebasan dari _overfitting_ saat menguji dokumen PDF baru di masa mendatang.
 
 ## Keterbatasan (Penting Dibaca)
 
@@ -55,7 +55,7 @@ Diuji terhadap 11 dokumen nyata yang sudah punya skor Turnitin asli sebagai grou
 Alur pemrosesan (mirip Turnitin):
 
 ```
-PDF/DOCX → Ekstraksi Teks → Sampling 100 Kalimat Probe → Cari Sumber Online (OneSearch/Neliti/OpenAlex/EuropePMC/Unpaywall/DDG)
+PDF/DOCX → Ekstraksi Teks → Sampling 180-200 Kalimat Probe → Cari Sumber Online (OneSearch/Neliti/OpenAlex/EuropePMC/Unpaywall/DDG)
 → Download Teks Sumber (SQLite3 bank.db lokal sbg CACHE) → N-Gram 5-Gram Exact Matching
 → Semantic Paraphrase Check → Skor Agregasi Global → PDF Report Berwarna (gaya Turnitin)
 ```
@@ -73,7 +73,7 @@ Web localhost memakai **metodologi identik** dengan runner validasi (`run_test_g
 
 - Kalimat yang TIDAK terdeteksi N-Gram (<30% match) dicek ulang
 - Menggunakan model `paraphrase-multilingual-MiniLM-L12-v2` (dukung bahasa Indonesia)
-- Threshold otomatis Signal-to-Noise Adaptive (0.87 / 0.88) dikalibrasi terhadap 11 dokumen ground truth
+- Threshold otomatis Signal-to-Noise Adaptive (0.87 / 0.89 / 0.88) dikalibrasi terhadap 11 dokumen ground truth
 - GPU auto-detect (CUDA); fallback CPU
 - Tidak ada double counting — hanya menambah kata yang belum terdeteksi N-Gram
 - **Selalu aktif** (tidak ada opsi mematikan di UI)
@@ -181,9 +181,6 @@ REFRESH=1 python app/run_test_groundtruth.py
 
 # Jalankan ulang dari korpus beku (instan, 100% deterministik)
 python app/run_test_groundtruth.py
-
-# Override threshold semantic
-THRESHOLD=0.90 python app/run_test_groundtruth.py
 ```
 
 ## Arsitektur File
@@ -228,7 +225,7 @@ Skor Total = (Kata Ter-match N-Gram + Kata Ter-match Semantic) / Total Kata Doku
 
 - Setiap kata dihitung **sekali** meskipun cocok dengan banyak sumber (union, bukan sum)
 - `exclude_small` hanya memfilter **daftar tampilan** sumber per-dokumen, TIDAK memengaruhi skor total — persis perilaku Turnitin
-- Threshold semantic otomatis Signal-to-Noise 3-Tier Auto-Thresholding (0.87 - 0.89) dikalibrasi terhadap 11 dokumen ground truth (4-24%)
+- Threshold semantic otomatis Signal-to-Noise 3-Tier Auto-Thresholding (0.87 / 0.89 / 0.88) dikalibrasi terhadap 11 dokumen ground truth (4-24%)
 
 ## Changelog
 

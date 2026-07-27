@@ -7,19 +7,19 @@ def detect_manipulation(text, hidden_word_count=0):
     # 1. Deteksi Zero-Width Characters (diselipkan antar huruf agar kata tidak terbaca)
     zero_width_chars = re.findall(r'[\u200B-\u200D\uFEFF]', text)
     if len(zero_width_chars) > 20:
-        warnings.append("⚠️ MANIPULASI TERDETEKSI: Ditemukan karakter tak terlihat (Zero-Width Space) yang digunakan untuk mengelabui sistem.")
+        warnings.append("MANIPULASI TERDETEKSI: Ditemukan karakter tak terlihat (Zero-Width Space) yang digunakan untuk mengelabui sistem.")
     
     # 2. Deteksi huruf Cyrillic Homoglyphs (Huruf Rusia yang terlihat seperti huruf A, E, O latin)
     # Ini sangat umum digunakan untuk memutus N-Gram
     cyrillic_chars = re.findall(r'[асеорхуАСЕОРХУ]', text)
     if len(cyrillic_chars) > 30:
-        warnings.append("⚠️ MANIPULASI TERDETEKSI: Ditemukan penggunaan huruf Cyrillic (Rusia) ilegal yang menyamar sebagai abjad Latin.")
+        warnings.append("MANIPULASI TERDETEKSI: Ditemukan penggunaan huruf Cyrillic (Rusia) ilegal yang menyamar sebagai abjad Latin.")
 
     # 3. Deteksi teks tersembunyi (font mungil / warna putih) yang disuntik untuk
     # menggelembungkan jumlah kata sehingga persentase similarity turun. Kata semacam
     # ini sudah dibuang saat ekstraksi; di sini hanya memberi peringatan bila signifikan.
     if hidden_word_count > 30:
-        warnings.append(f"⚠️ MANIPULASI TERDETEKSI: Ditemukan ~{hidden_word_count} kata teks tersembunyi (font mungil/tak terlihat) yang disuntikkan untuk menurunkan persentase similarity.")
+        warnings.append(f"MANIPULASI TERDETEKSI: Ditemukan ~{hidden_word_count} kata teks tersembunyi (font mungil/tak terlihat) yang disuntikkan untuk menurunkan persentase similarity.")
 
     return warnings
 

@@ -145,7 +145,7 @@ def get_ngrams(text, n=5):
 def get_shingles(text, n=5):
     return set(get_ngrams(text, n))
 
-def calculate_similarity(doc_text, corpus, exclude_small=False, use_semantic=False, semantic_threshold=0.88, semantic_max_sources=None, min_source_overlap=1, is_cancelled_cb=None):
+def calculate_similarity(doc_text, corpus, exclude_small=False, use_semantic=False, semantic_threshold="auto", semantic_max_sources=None, min_source_overlap=1, is_cancelled_cb=None):
     """
     Algoritma Turnitin Asli (Rabin-Karp / N-Gram Exact Match) + Semantic Similarity.
 
@@ -322,6 +322,13 @@ def calculate_similarity(doc_text, corpus, exclude_small=False, use_semantic=Fal
     semantic_plagiarized_words = 0
     
     if use_semantic and corpus:
+        if semantic_threshold == "auto":
+            if ngram_similarity < 10.0:
+                semantic_threshold = 0.87
+            elif 10.0 <= ngram_similarity < 11.0:
+                semantic_threshold = 0.89
+            else:
+                semantic_threshold = 0.88
         print("\n[!] ===== STARTING SEMANTIC SIMILARITY CHECK =====")
         print(f"[!] Threshold: {semantic_threshold}, Total sentences: {len(doc_spans)}")
         

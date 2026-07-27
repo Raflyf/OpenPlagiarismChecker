@@ -64,6 +64,35 @@ cleanup_old_files(24)
 
 # Store results in memory
 results_db = {}
+RESULTS_DB_LOCK = threading.Lock()
+MAX_RESULTS_DB_SIZE = 50
+RESULTS_DB_TTL_HOURS = 2
+
+def periodic_cleanup_task():
+    """Background task untuk membersihkan results_db dan file temporary lama."""
+    while True:
+        try:
+            time.sleep(6 * 3600)  # Tiap 6 jam
+            
+            # 1. Bersihkan file lama
+            cleanup_old_files(24)
+            
+            # 2. Bersihkan results_db (TTL eviction)
+            cutoff = time.time() - (RESULTS_DB_TTL_HOURS * 3600)
+            with RESULTS_DB_LOCK:
+                to_delete = []
+                for k, v in results_db.items():
+                    if v.get('timestamp', 0) < cutoff:
+                        to_delete.append(k)
+                for k in to_delete:
+                    del results_db[k]
+                if to_delete:
+                    print(f"[!] Cleanup: {len(to_delete)} sesi usang (> {RESULTS_DB_TTL_HOURS} jam) dihapus dari memory.")
+        except Exception as e:
+            print(f"[!] Error in periodic cleanup: {e}")
+
+cleanup_thread = threading.Thread(target=periodic_cleanup_task, daemon=True)
+cleanup_thread.start()
 
 # Jumlah kalimat-probe untuk mencari sumber di internet. SAMA dengan groundtruth
 # (run_test_groundtruth.py pakai 100) agar metodologi & skor localhost setara nilai
@@ -154,19 +183,9 @@ def process_document(file_id, filepath, original_filename, exclude_quotes=True, 
         # run_test_groundtruth.py, sehingga skor dokumen tervalidasi konsisten saat
         # dites di localhost (korpus sama-sama terkurasi, bukan bank mentah).
         
-        # Signal-to-Noise 3-Tier Auto-Thresholding:
-        # Hitung N-Gram baseline terlebih dahulu untuk mengukur kerapatan teks pasaran
-        _, ngram_sim, _ = calculate_similarity(doc_text, corpus, exclude_small, use_semantic=False)
-        if ngram_sim < 10.0:
-            dynamic_thresh = 0.87
-        elif 10.0 <= ngram_sim < 11.0:
-            dynamic_thresh = 0.89
-        else:
-            dynamic_thresh = 0.88
-
         sorted_sources, total_similarity, plagiarized_sentences = calculate_similarity(
             doc_text, corpus, exclude_small, use_semantic=use_semantic,
-            semantic_threshold=dynamic_thresh, is_cancelled_cb=check_cancelled)
+            semantic_threshold="auto", is_cancelled_cb=check_cancelled)
         if check_cancelled(): return
 
         # --- SKOR KEDUA: "fooled" (hidden text lolos) ---
@@ -292,12 +311,23 @@ def upload_file():
         # SECURITY FIX: Store session ID for ownership validation
         if 'session_id' not in session:
             session['session_id'] = secrets.token_urlsafe(32)
+            
+        with RESULTS_DB_LOCK:
+            # Cleanup inline for safety if background thread hasn't run
+            cutoff = time.time() - (RESULTS_DB_TTL_HOURS * 3600)
+            to_delete = [k for k, v in results_db.items() if v.get('timestamp', 0) < cutoff]
+            for k in to_delete: del results_db[k]
+            
+            if len(results_db) >= MAX_RESULTS_DB_SIZE:
+                return jsonify({'error': 'Server sedang sibuk memproses banyak dokumen. Coba lagi nanti.'}), 503
         
-        results_db[file_id] = {
-            'status': 'processing', 
-            'progress': 0, 
-            'message': 'Memulai proses...',
-            'session_id': session['session_id'],  # Track ownership
+            results_db[file_id] = {
+                'status': 'processing', 
+                'progress': 0, 
+                'message': 'Memulai proses...',
+                'session_id': session['session_id'],  # Track ownership
+                'timestamp': time.time(),
+
             'filename': filename
         }
         thread = threading.Thread(target=process_document, args=(file_id, filepath, filename, exclude_quotes, exclude_biblio, exclude_small, use_semantic, True, force_scrape), daemon=True)
