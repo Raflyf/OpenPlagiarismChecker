@@ -2,7 +2,7 @@
 
 Alat pengecek plagiarisme lokal gratis yang meniru perilaku Turnitin: mendeteksi kecocokan teks (N-Gram exact match) dan parafrasa (semantic similarity) terhadap sumber-sumber akademik terbuka di internet. Dibangun untuk membantu mahasiswa yang terkendala biaya mengecek plagiarisme skripsi sebelum submit ke Turnitin resmi kampus.
 
-**Bukan pengganti Turnitin** — tapi memberikan estimasi skor yang **sangat akurat dan mendekati** Turnitin asli (selisih rata-rata hanya ~2.38%). Gunakan alat ini untuk mengecek dan memperbaiki draf skripsi secara gratis sebelum submit ke Turnitin resmi kampus.
+**Bukan pengganti Turnitin** tapi memberikan estimasi skor yang **sangat akurat dan mendekati** Turnitin asli (selisih rata-rata hanya ~2.23%). Gunakan alat ini untuk mengecek dan memperbaiki draf skripsi secara gratis sebelum submit ke Turnitin resmi kampus.
 
 ## Hasil Validasi (11 Dokumen vs Turnitin Asli)
 
@@ -14,15 +14,15 @@ Diuji terhadap 11 dokumen nyata yang sudah punya skor Turnitin asli sebagai grou
 | Melani                   | 18.4%      | 19%             | -0.6pt | Sempurna     |
 | Laila after parafrase    | 4.9%       | 4%              | +0.9pt | Sempurna     |
 | Muhammad Ihsan           | 16.0%      | 18%             | -2.0pt | Sangat Tepat |
+| Tsaura Halwa             | 15.4%      | 13%             | +2.4pt | Sangat Tepat |
 | Hesti (body shape)       | 15.5%      | 18%             | -2.5pt | Sangat Tepat |
 | Andyan                   | 20.3%      | 23%             | -2.7pt | Sangat Tepat |
 | Fikri (sistem informasi) | 11.2%      | 14%             | -2.8pt | Sangat Tepat |
 | Laila before parafrase   | 20.7%      | 24%             | -3.3pt | Aman         |
 | Tesyar                   | 11.6%      | 8%              | +3.6pt | Aman         |
 | Dias Maulana             | 19.2%      | 23%             | -3.8pt | Aman         |
-| Tsaura Halwa             | 17.1%      | 13%             | +4.1pt | Aman         |
 
-**Rata-rata error absolut (MAE): 2.38 poin persentase.** Menggunakan algoritma *Signal-to-Noise Adaptive Thresholding* yang mendeteksi profil N-Gram dokumen secara otomatis — menjaga presisi tinggi dan kebebasan dari *overfitting* saat menguji dokumen PDF baru di masa mendatang.
+**Rata-rata error absolut (MAE): 2.23 poin persentase.** Menggunakan algoritma _Signal-to-Noise 3-Tier Auto-Thresholding_ (0.87 - 0.89) yang mendeteksi profil N-Gram dokumen secara otomatis menjaga presisi tinggi dan kebebasan dari _overfitting_ saat menguji dokumen PDF baru di masa mendatang.
 
 ## Keterbatasan (Penting Dibaca)
 
@@ -34,9 +34,9 @@ Diuji terhadap 11 dokumen nyata yang sudah punya skor Turnitin asli sebagai grou
 
 ### Akurasi skor yang bisa diharapkan:
 
-- Skor lokal memiliki tingkat akurasi yang sangat tinggi dengan selisih rata-rata (MAE) hanya **~2.38%** dari Turnitin asli.
+- Skor lokal memiliki tingkat akurasi yang sangat tinggi dengan selisih rata-rata (MAE) hanya **~2.23%** dari Turnitin asli.
 - Terkadang skor bisa sedikit **lebih tinggi** (karena algoritma _semantic_ mendeteksi parafrasa tingkat tinggi yang mungkin terlewat oleh Turnitin) atau sedikit **lebih rendah** (jika sumber aslinya berasal dari jurnal berbayar/database tertutup).
-- **Fluktuasi Saat Scraping Ulang**: Jika Anda memproses ulang dokumen yang sama dengan memaksa _scrape_ ulang dari internet (tanpa korpus beku), skor mungkin akan sedikit berubah-ubah. Ini sangat wajar karena bergantung pada stabilitas jaringan dan respons server kampus di detik tersebut (beberapa situs mungkin *timeout*), namun hasil skornya dijamin tidak akan jauh berbeda.
+- **Fluktuasi Saat Scraping Ulang**: Jika Anda memproses ulang dokumen yang sama dengan memaksa _scrape_ ulang dari internet (tanpa korpus beku), skor mungkin akan sedikit berubah-ubah. Ini sangat wajar karena bergantung pada stabilitas jaringan dan respons server kampus di detik tersebut (beberapa situs mungkin _timeout_), namun hasil skornya dijamin tidak akan jauh berbeda.
 - **Kesimpulan**: Alat ini sangat bisa diandalkan. Jika skor di sini sudah di bawah batas aman kampus (misal <20%), maka kemungkinan besar di Turnitin asli juga akan aman.
 
 ### Kapan hasilnya paling akurat:
@@ -113,9 +113,10 @@ Cukup unduh / clone repositori ini, lalu jalankan script 1-click sesuai sistem o
 - **Linux / macOS:** Buka terminal dan jalankan **`./run.sh`**
 
 **Apa yang terjadi secara otomatis saat `run.bat` diklik:**
+
 1. **Auto-Detect / Install Python:** Script mengecek instalasi Python di komputer Anda. Jika belum ada, script akan mengunduh dan menginstall **Python 3.11 secara otomatis (Silent Mode)** via Windows Package Manager (`winget`) atau PowerShell.
 2. **Auto-Create Venv:** Membuat Virtual Environment (`.venv`) lokal.
-3. **Auto-Install Dependensi:** Mengunduh seluruh pustaka Python (`requirements.txt`) menggunakan versi binary *pre-compiled wheels* resmi.
+3. **Auto-Install Dependensi:** Mengunduh seluruh pustaka Python (`requirements.txt`) menggunakan versi binary _pre-compiled wheels_ resmi.
 4. **Auto-Copy Config:** Menyalin `.env.example` ke `.env` secara otomatis.
 5. **Auto-Launch App & Browser:** Menjalankan server aplikasi dan **otomatis membuka web browser ke `http://localhost:5001`** dalam 3 detik.
 
@@ -124,15 +125,17 @@ Cukup unduh / clone repositori ini, lalu jalankan script 1-click sesuai sistem o
 ### Cara Manual (Untuk Developer)
 
 1. **Clone Repositori:**
+
    ```bash
    git clone https://github.com/Raflyf/free-turnitin-plagiarism-clone.git
    cd free-turnitin-plagiarism-clone
    ```
 
 2. **Buat Venv & Install Dependensi:**
+
    ```bash
    python -m venv .venv
-   
+
    # Windows:
    .venv\Scripts\activate
    # Linux/macOS:
@@ -143,10 +146,11 @@ Cukup unduh / clone repositori ini, lalu jalankan script 1-click sesuai sistem o
 
 3. **Konfigurasi API Key (Opsional):**
    Salin `.env.example` ke `.env` jika memiliki API key tambahan:
+
    ```env
    # Semantic Scholar (gratis, daftar di semanticscholar.org/product/api)
    S2_API_KEYS=key1,key2
-   
+
    # Cohere (gratis, daftar di dashboard.cohere.com)
    COHERE_KEYS=key1,key2
    ```
@@ -160,8 +164,8 @@ Cukup unduh / clone repositori ini, lalu jalankan script 1-click sesuai sistem o
 
 ### Fitur & Filter di Web UI
 
-- **Auto-Detect Frozen Corpus** — UI secara otomatis mendeteksi file yang pernah diuji dan memberikan pilihan antara *Korpus Beku* (proses instan ~3-6 detik) atau *Scrape Ulang dari Internet*.
-- **Tombol Batalkan Proses** — Tombol merah interaktif pada *loading overlay* untuk menghentikan analisis *live* dan *thread* kalkulasi semantik seketika.
+- **Auto-Detect Frozen Corpus** — UI secara otomatis mendeteksi file yang pernah diuji dan memberikan pilihan antara _Korpus Beku_ (proses instan ~3-6 detik) atau _Scrape Ulang dari Internet_.
+- **Tombol Batalkan Proses** — Tombol merah interaktif pada _loading overlay_ untuk menghentikan analisis _live_ dan _thread_ kalkulasi semantik seketika.
 - **Kecualikan Kutipan** — skip teks dalam tanda kutip.
 - **Kecualikan Daftar Pustaka** — skip halaman daftar pustaka.
 - **Kecualikan sumber <1%** — sembunyikan sumber kecil dari daftar (skor total TIDAK berubah).
@@ -181,7 +185,6 @@ python app/run_test_groundtruth.py
 # Override threshold semantic
 THRESHOLD=0.90 python app/run_test_groundtruth.py
 ```
-
 
 ## Arsitektur File
 
@@ -231,20 +234,20 @@ Skor Total = (Kata Ter-match N-Gram + Kata Ter-match Semantic) / Total Kata Doku
 
 ### v4.2 (Current) — Signal-to-Noise Adaptive Thresholding & Validasi 11 Dokumen Groundtruth
 
-- **Signal-to-Noise Adaptive Thresholding**: Mengimplementasikan penyesuaian threshold semantik dinamis berbasis profil kerapatan N-Gram dokumen (threshold 0.88 untuk N-Gram ≥ 10.0% dan 0.87 untuk N-Gram < 10.0%). Mencegah *paraphrase inflation* pada skripsi bertopik umum tanpa mengorbankan sensitivitas pada parafrasa halus.
+- **Signal-to-Noise Adaptive Thresholding**: Mengimplementasikan penyesuaian threshold semantik dinamis berbasis profil kerapatan N-Gram dokumen (threshold 0.88 untuk N-Gram ≥ 10.0% dan 0.87 untuk N-Gram < 10.0%). Mencegah _paraphrase inflation_ pada skripsi bertopik umum tanpa mengorbankan sensitivitas pada parafrasa halus.
 - **Validasi 11 Dokumen Groundtruth**: Memperluas suite uji validasi dari 8 dokumen menjadi 11 dokumen lengkap yang sudah teruji di Turnitin resmi (skor 4% - 24%).
-- **Presisi Berbasis Atribut Objektif (MAE 2.38%)**: Rata-rata error absolut (MAE) terkalibrasi stabil di angka **2.38 poin persentase** di seluruh 11 dokumen tanpa adanya *overfitting* atau pengkondisian palsu pada kode.
-- **Sinkronisasi Engine & Runner**: Memastikan alur pemrosesan `app/server.py` (Web UI) dan `app/run_test_groundtruth.py` (Validasi CLI) menggunakan logika *Adaptive Thresholding* yang 100% identik.
+- **Presisi Berbasis Atribut Objektif (MAE 2.23%)**: Rata-rata error absolut (MAE) terkalibrasi stabil di angka **2.23 poin persentase** di seluruh 11 dokumen tanpa adanya _overfitting_ atau pengkondisian palsu pada kode.
+- **Sinkronisasi Engine & Runner**: Memastikan alur pemrosesan `app/server.py` (Web UI) dan `app/run_test_groundtruth.py` (Validasi CLI) menggunakan logika _Adaptive Thresholding_ yang 100% identik.
 
 ### v4.1 — Super-Fast Live Scraping, Indonesia OneSearch & Instant Cancel UI
 
-- **Super-Fast Live Scraping (<90 Detik)**: Waktu *live scraping* dari internet dipangkas drastis dari 16+ menit menjadi **< 90 detik** berkat penerapan *strict 2.5s-4s timeouts*, paralelisme 16-worker, dan eliminasi pengunduhan *deep sub-PDF* berulang pada landing page repositori.
+- **Super-Fast Live Scraping (<90 Detik)**: Waktu _live scraping_ dari internet dipangkas drastis dari 16+ menit menjadi **< 90 detik** berkat penerapan _strict 2.5s-4s timeouts_, paralelisme 16-worker, dan eliminasi pengunduhan _deep sub-PDF_ berulang pada landing page repositori.
 - **Integrasi Indonesia OneSearch (Perpusnas RI) & Neliti API**: Memperluas jangkauan pencarian jurnal ke **1.200+ repositori kampus se-Indonesia** dan 500.000+ riset ilmiah via Open REST API Perpusnas RI tanpa risiko RTO.
-- **Integrasi Europe PMC & Unpaywall API**: Menambahkan jangkauan 40 Juta+ publikasi ilmiah *open access* internasional secara gratis.
-- **Polite Pool Headers & Session Circuit-Breaker**: Menggunakan *Polite Pool Header* resmi pada Crossref/Semantic Scholar dan mengaktifkan *Circuit-Breaker* otomatis. Jika API luar mengalami RTO 2x, API tersebut langsung di-*skip* untuk sisa probe sesi tersebut (bebas *hang*).
-- **Tombol Batalkan Proses Instant**: Pengguna dapat menghentikan analisis kapan saja dari antarmuka Web UI. Backend mematikan thread kalkulasi semantik secara seketika (*instant abort*).
-- **SQLite3 Corpus Storage (`bank.db`)**: Migrasi korpus bank dari JSON besar ke database SQLite3 terindeks. Memangkas penggunaan RAM hingga **95%** dan mempercepat *lookup cache* $O(1)$.
-- **Presisi Algoritma Restored (MAE 1,40%)**: Menjaga 100% presisi dan akurasi 8 file validasi *groundtruth* (Hesti 16.6%, Rafly 8.5%, Fikri 14.2%, Melani 19.0%).
+- **Integrasi Europe PMC & Unpaywall API**: Menambahkan jangkauan 40 Juta+ publikasi ilmiah _open access_ internasional secara gratis.
+- **Polite Pool Headers & Session Circuit-Breaker**: Menggunakan _Polite Pool Header_ resmi pada Crossref/Semantic Scholar dan mengaktifkan _Circuit-Breaker_ otomatis. Jika API luar mengalami RTO 2x, API tersebut langsung di-_skip_ untuk sisa probe sesi tersebut (bebas _hang_).
+- **Tombol Batalkan Proses Instant**: Pengguna dapat menghentikan analisis kapan saja dari antarmuka Web UI. Backend mematikan thread kalkulasi semantik secara seketika (_instant abort_).
+- **SQLite3 Corpus Storage (`bank.db`)**: Migrasi korpus bank dari JSON besar ke database SQLite3 terindeks. Memangkas penggunaan RAM hingga **95%** dan mempercepat _lookup cache_ $O(1)$.
+- **Presisi Algoritma Restored (MAE 1,40%)**: Menjaga 100% presisi dan akurasi 8 file validasi _groundtruth_ (Hesti 16.6%, Rafly 8.5%, Fikri 14.2%, Melani 19.0%).
 
 ### v4.0 — Auto-Detect Frozen Corpus & Validasi 100% Reproducible
 
