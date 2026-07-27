@@ -1,9 +1,0 @@
-[Rafly FIrmansyah - Skripsi_Fix 8%.] target=8%   skor=8.5%  corpus=3504 [377s]
-[Hesti_skripsi_final_before_turniti] target=18%  skor=16.6%  corpus=3172 [384s]
-[SKRIPSI ANDYAN AGUNG MAULANA 23%.p] target=23%  skor=17.6%  corpus=2881 [372s]
-[SKRIPSI_FIKRI_FIRDAUS-15220792 14%] target=14%  skor=14.2%  corpus=3129 [363s]
-[Skripsi Melani 15220760 19%.pdf   ] target=19%  skor=19.0%  corpus=3096 [227s]
-[tesyar - skripsi 8%.pdf           ] target=8%   skor=10.6%  corpus=2808 [164s]
-[Skripsi Laila Romadona FIX- before] target=24%  skor=24.2%  corpus=3042 [193s]
-[new Skripsi Laila Romadona FIX- af] target=4%   skor=5.4%  corpus=2711 [199s]
-SELESAI

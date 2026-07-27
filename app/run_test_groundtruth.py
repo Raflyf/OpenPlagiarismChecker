@@ -12,8 +12,6 @@ os.makedirs(FROZEN, exist_ok=True)
 # REFRESH=1  -> kumpulkan ulang korpus dari internet (lalu bekukan ke disk).
 # default    -> pakai korpus beku (skor 100% reproducible, defensible).
 REFRESH = os.environ.get("REFRESH", "0") == "1"
-# THRESHOLD -> ambang semantic (default 0.88; nilai tervalidasi vs Turnitin asli).
-THRESHOLD = float(os.environ.get("THRESHOLD", "0.87"))
 
 
 def discover_docs():
@@ -58,17 +56,9 @@ for name, fname, target in discover_docs():
             json.dump(corpus, f, ensure_ascii=False)
         print(f"[{name}] korpus DIBEKUKAN ke disk: {len(corpus)} sumber", flush=True)
 
-    _, ngram_sim, _ = calculate_similarity(doc_text, corpus, exclude_small=True, use_semantic=False)
-    if ngram_sim < 10.0:
-        dynamic_thresh = 0.87
-    elif 10.0 <= ngram_sim < 11.0:
-        dynamic_thresh = 0.89
-    else:
-        dynamic_thresh = 0.88
-
     sources, total_sim, phrases = calculate_similarity(
         doc_text, corpus, exclude_small=True, use_semantic=True, 
-        semantic_threshold=dynamic_thresh)
+        semantic_threshold="auto")
     dt = time.time() - t0
     print(f"[{name}] SKOR LOKAL = {round(total_sim)}%  (target {tgt_str})  [{int(dt)}s]", flush=True)
     print(f"[{name}] TOP SUMBER:", flush=True)
@@ -76,7 +66,7 @@ for name, fname, target in discover_docs():
         print(f"    {s['percentage']:.1f}%  {s['url'][:80]}", flush=True)
     summary.append((name, round(total_sim, 1), target, len(corpus), len(sources)))
 
-print(f"\n===== RINGKASAN (threshold={THRESHOLD}) =====", flush=True)
+print(f"\n===== RINGKASAN (3-Tier Auto-Thresholding) =====", flush=True)
 for name, local, target, corp, nsrc in summary:
     if target is not None:
         delta = round(local - target, 1)

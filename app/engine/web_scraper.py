@@ -859,6 +859,8 @@ def get_candidate_urls(sentences, max_probes=100, progress_cb=None):
         _INDO_REPO_BUDGET = 15
     with _GOOGLE_NATIVE_LOCK:
         _GOOGLE_NATIVE_BUDGET = 5
+    with _FAILED_APIS_LOCK:
+        _FAILED_APIS.clear()
 
     valid_sentences = [s for s in sentences if len(s.split()) >= 8]
     if len(valid_sentences) <= max_probes:
@@ -938,156 +940,6 @@ def get_candidate_urls(sentences, max_probes=100, progress_cb=None):
         print(f"[!] Cohere/DDG expander error: {e}")
 
     # --- blok API mati di bawah dinonaktifkan (disimpan sbagai referensi histori) ---
-    if False:
-        def fetch_pplx(args):
-            idx, probe = args
-            combined_urls = set()
-
-            # 1. PERPLEXITY AI
-            import time
-            for attempt in range(3):
-                try:
-                    url_api = 'https://api.perplexity.ai/chat/completions'
-                    import os
-                    api_key = os.environ.get("PERPLEXITY_KEY", "")
-                    if not api_key: raise Exception("No PERPLEXITY_KEY")
-                    headers = {
-                        'Authorization': f'Bearer {api_key}',
-                        'Content-Type': 'application/json'
-                    }
-                    payload = {
-                        'model': 'sonar',
-                        'messages': [
-                            {'role': 'system', 'content': 'Find the exact academic journal or repository source for this text. Return URLs in citations.'},
-                            {'role': 'user', 'content': f'Find exact source for: {probe}. Prioritize repository.bsi.ac.id, ejurnal.seminar-id.com, repository.umsu.ac.id, etheses.uin-malang.ac.id, ejournal.itn.ac.id, and PDF files.'}
-                        ]
-                    }
-                    res = requests.post(url_api, json=payload, headers=headers, timeout=20)
-                    if res.status_code == 200:
-                        data = res.json()
-                        for u in data.get('citations', []):
-                            combined_urls.add(u)
-                        break # Sukses, keluar dari loop retry
-                    elif res.status_code == 429: # Rate Limit
-                        time.sleep(2 ** attempt) # Exponential backoff: 1s, 2s, 4s
-                    else:
-                        break # Error lain, hentikan retry
-                except Exception as e:
-                    if attempt == 2:
-                        print(f"[!] Perplexity API Error: {e}")
-
-            # 2. GEMINI AI GROUNDING (Sistem Load Balancer dengan Auto-Failover)
-            import os
-            gemini_env = os.environ.get("GEMINI_KEYS", "")
-            if gemini_env:
-                gemini_keys = gemini_env.split(',')
-                for offset in range(len(gemini_keys)):
-                    try:
-                        # Coba key saat ini, jika gagal (429), maju ke key berikutnya (offset)
-                        key_index = (idx + offset) % len(gemini_keys)
-                        from google import genai
-                        from google.genai import types
-                        
-                        client = genai.Client(api_key=gemini_keys[key_index])
-                        response = client.models.generate_content(
-                            model='gemini-2.5-flash',
-                            contents=f'Find the exact URL source for this text: {probe}. Prioritize repository.bsi.ac.id, ejurnal.seminar-id.com, repository.umsu.ac.id, etheses.uin-malang.ac.id, ejournal.itn.ac.id, or site:ac.id',
-                            config=types.GenerateContentConfig(
-                                tools=[{'google_search': {}}],
-                                temperature=0.0
-                            )
-                        )
-                        if response.candidates:
-                            for cand in response.candidates:
-                                if cand.grounding_metadata and cand.grounding_metadata.grounding_chunks:
-                                    for chunk in cand.grounding_metadata.grounding_chunks:
-                                        if chunk.web and chunk.web.uri:
-                                            combined_urls.add(chunk.web.uri)
-                        break # Sukses, keluar dari loop failover
-                    except Exception as e:
-                        if "429" in str(e) or "quota" in str(e).lower():
-                            continue # Coba key berikutnya di iterasi loop
-                        if offset == len(gemini_keys) - 1:
-                            print(f"[!] Gemini API Error: {e}")
-                
-            # 3. COHERE AI GROUNDING
-            for attempt in range(3):
-                try:
-                    import os
-                    cohere_key = os.environ.get("COHERE_KEY", "")
-                    if not cohere_key: raise Exception("No COHERE_KEY")
-                    cohere_url = "https://api.cohere.ai/v1/chat"
-                    headers = {
-                        "Authorization": f"Bearer {cohere_key}",
-                        "Content-Type": "application/json"
-                    }
-                    payload = {
-                        "message": f'Find the exact URL source for: "{probe}". Focus on repository.bsi.ac.id, ejurnal.seminar-id.com, repository.umsu.ac.id, etheses.uin-malang.ac.id, ejournal.itn.ac.id',
-                        "model": "command-r-plus",
-                        "connectors": [{"id": "web-search"}],
-                        "temperature": 0.0
-                    }
-                    res = requests.post(cohere_url, json=payload, headers=headers, timeout=20)
-                    if res.status_code == 200:
-                        data = res.json()
-                        if 'documents' in data:
-                            for doc in data['documents']:
-                                if 'url' in doc:
-                                    combined_urls.add(doc['url'])
-                        break
-                    elif res.status_code == 429:
-                        time.sleep(2 ** attempt)
-                    else:
-                        break
-                except Exception as e:
-                    if attempt == 2:
-                        print(f"[!] Cohere API Error: {e}")
-                
-            # 4. TAVILY AI SEARCH
-            for attempt in range(3):
-                try:
-                    import os
-                    tavily_key = os.environ.get("TAVILY_KEY", "")
-                    if not tavily_key: raise Exception("No TAVILY_KEY")
-                    tavily_url = "https://api.tavily.com/search"
-                    payload = {
-                        "api_key": tavily_key,
-                        "query": f'"{probe}" site:ac.id OR ext:pdf',
-                        "search_depth": "basic",
-                        "max_results": 5
-                    }
-                    res = requests.post(tavily_url, json=payload, timeout=20)
-                    if res.status_code == 200:
-                        data = res.json()
-                        if 'results' in data:
-                            for result in data['results']:
-                                if 'url' in result:
-                                    combined_urls.add(result['url'])
-                        break
-                    elif res.status_code == 429:
-                        time.sleep(2 ** attempt)
-                    else:
-                        break
-                except Exception as e:
-                    if attempt == 2:
-                        print(f"[!] Tavily API Error: {e}")
-                
-            return list(combined_urls)
-
-        with concurrent.futures.ThreadPoolExecutor(max_workers=3) as executor:
-            futures_pplx = {executor.submit(fetch_pplx, (i, p)): i for i, p in enumerate(probes)}
-            for i, future in enumerate(concurrent.futures.as_completed(futures_pplx)):
-                if progress_cb:
-                    progress_cb(futures_pplx[future] + 1, len(probes) + len(probes))
-                try:
-                    c_urls = future.result()
-                    for u in c_urls:
-                        if u and u.startswith('http'):
-                            urls.add(u)
-                except Exception as e:
-                    print(f"[!] pplx future gagal: {e}")
-    # --- akhir blok API mati ---
-
     print(f"[API] Mencari jurnal dari {len(probes)} sampel kalimat via Semantic Scholar, Crossref & DuckDuckGo...")
     
     # Akumulasi statistik per-API lintas semua probe
@@ -1152,22 +1004,40 @@ def scrape_url(url):
         import urllib.parse
         encoded_url = urllib.parse.quote(url)
         abstract_key = os.environ.get("ABSTRACT_KEY", "")
+        res = None
         if abstract_key:
             proxy_url = f"https://scrape.abstractapi.com/v1/?api_key={abstract_key}&url={encoded_url}"
-            res = requests.get(proxy_url, timeout=8)
+            res = requests.get(proxy_url, timeout=8, stream=True)
             if res.status_code != 200:
-                res = requests.get(url, timeout=8, verify=False, headers=headers)
+                try:
+                    res = requests.get(url, timeout=8, verify=True, headers=headers, stream=True)
+                except requests.exceptions.SSLError:
+                    res = requests.get(url, timeout=8, verify=False, headers=headers, stream=True)
         else:
-            res = requests.get(url, timeout=8, verify=False, headers=headers)
+            try:
+                res = requests.get(url, timeout=8, verify=True, headers=headers, stream=True)
+            except requests.exceptions.SSLError:
+                res = requests.get(url, timeout=8, verify=False, headers=headers, stream=True)
             
-        if res.status_code == 200:
-            total_bytes += len(res.content)
+        if res and res.status_code == 200:
+            content_length = res.headers.get('Content-Length')
+            if content_length and int(content_length) > 20 * 1024 * 1024:
+                return url, "", total_bytes
+
+            content = b""
+            for chunk in res.iter_content(chunk_size=8192):
+                content += chunk
+                if len(content) > 20 * 1024 * 1024:
+                    break
+            
+            total_bytes += len(content)
+            res_text = content.decode(res.apparent_encoding or 'utf-8', errors='ignore')
             import re
             
             # Deteksi jika file adalah PDF langsung
             if 'application/pdf' in res.headers.get('Content-Type', '').lower() or url.lower().endswith('.pdf'):
                 import fitz
-                doc = fitz.open(stream=res.content, filetype="pdf")
+                doc = fitz.open(stream=content, filetype="pdf")
                 text = ""
                 try:
                     for page_num, page in enumerate(doc):
@@ -1179,7 +1049,7 @@ def scrape_url(url):
                 return url, text, total_bytes
             else:
                 # Parsing HTML biasa (Fast Scraping tanpa Deep PDF Crawl yang lambat)
-                soup = BeautifulSoup(res.text, 'html.parser')
+                soup = BeautifulSoup(res_text, 'html.parser')
                 for tag in soup(["script", "style", "nav", "footer", "header", "aside", "menu"]):
                     tag.decompose()
                 text = soup.get_text(separator=' ')
