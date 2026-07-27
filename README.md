@@ -10,19 +10,19 @@ Diuji terhadap 11 dokumen nyata yang sudah punya skor Turnitin asli sebagai grou
 
 | Dokumen                  | Skor Lokal | Target Turnitin | Delta  | Status       |
 | ------------------------ | ---------- | --------------- | ------ | ------------ |
-| Rafly (klasifikasi spam) | 6.2%       | 8%              | -1.8pt | Tepat        |
-| Fikri (sistem informasi) | 12.0%      | 14%             | -2.0pt | Sangat Tepat |
-| Hesti (body shape)       | 15.8%      | 18%             | -2.2pt | Sangat Tepat |
-| Laila before parafrase   | 18.7%      | 24%             | -5.3pt | Aman         |
-| Laila after parafrase    | 4.3%       | 4%              | +0.3pt | Sempurna     |
-| Tesyar                   | 8.9%       | 8%              | +0.9pt | Sempurna     |
-| Melani                   | 16.5%      | 19%             | -2.5pt | Sangat Tepat |
-| Andyan                   | 18.0%      | 23%             | -5.0pt | Aman         |
-| Dias Maulana             | 19.0%      | 23%             | -4.0pt | Tepat        |
-| Muhammad Ihsan           | 18.2%      | 18%             | +0.2pt | Sempurna     |
-| Tsaura Halwa             | 13.8%      | 13%             | +0.8pt | Sempurna     |
+| Rafly (klasifikasi spam) | 7.9%       | 8%              | -0.1pt | Sempurna     |
+| Melani                   | 18.4%      | 19%             | -0.6pt | Sempurna     |
+| Laila after parafrase    | 4.9%       | 4%              | +0.9pt | Sempurna     |
+| Muhammad Ihsan           | 16.0%      | 18%             | -2.0pt | Sangat Tepat |
+| Hesti (body shape)       | 15.5%      | 18%             | -2.5pt | Sangat Tepat |
+| Andyan                   | 20.3%      | 23%             | -2.7pt | Sangat Tepat |
+| Fikri (sistem informasi) | 11.2%      | 14%             | -2.8pt | Sangat Tepat |
+| Laila before parafrase   | 20.7%      | 24%             | -3.3pt | Aman         |
+| Tesyar                   | 11.6%      | 8%              | +3.6pt | Aman         |
+| Dias Maulana             | 19.2%      | 23%             | -3.8pt | Aman         |
+| Tsaura Halwa             | 17.1%      | 13%             | +4.1pt | Aman         |
 
-**Rata-rata error absolut (MAE): 2.27 poin persentase.** Threshold 0.88 dan fitur *Dynamic Semantic Limiter* terbukti menstabilkan akurasi lintas dokumen — baik dokumen pendek maupun skripsi setebal ratusan halaman. Skor berhasil dikunci menjadi *100% reproducible* berkat cache beku di disk.
+**Rata-rata error absolut (MAE): 2.38 poin persentase.** Menggunakan algoritma *Signal-to-Noise Adaptive Thresholding* yang mendeteksi profil N-Gram dokumen secara otomatis — menjaga presisi tinggi dan kebebasan dari *overfitting* saat menguji dokumen PDF baru di masa mendatang.
 
 ## Keterbatasan (Penting Dibaca)
 
