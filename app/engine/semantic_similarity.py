@@ -110,40 +110,58 @@ def batch_semantic_check(unmatched_sentences, corpus_sentences, threshold=0.88, 
         else:
             raise e
     
-    semantic_matches = {}
-    for source_url, source_sentences in corpus_sentences.items():
-        if not source_sentences:
+    # === OPTIMASI: Gabungkan SEMUA kalimat sumber menjadi 1 batch encoding ===
+    # Sebelumnya: model.encode() dipanggil N kali (sekali per sumber) -> lambat.
+    # Sekarang:   model.encode() dipanggil 1 kali untuk seluruh kalimat sumber.
+    # Hasilnya IDENTIK secara matematis (cosine similarity per-pair tidak berubah).
+    all_source_sentences = []
+    source_map = []  # (source_url, local_index) untuk setiap kalimat
+    for source_url, sentences in corpus_sentences.items():
+        if not sentences:
             continue
+        start_idx = len(all_source_sentences)
+        all_source_sentences.extend(sentences)
+        source_map.append((source_url, start_idx, start_idx + len(sentences)))
+    
+    if not all_source_sentences:
+        return {}
+    
+    print(f"[!] Encoding {len(all_source_sentences)} source sentences from {len(source_map)} sources in 1 batch...")
+    try:
+        all_source_embeddings = model.encode(all_source_sentences, convert_to_tensor=True,
+                                             batch_size=batch_size, show_progress_bar=False)
+    except Exception as e:
+        if "cuda" in str(e).lower():
+            print(f"[!] CUDA Error saat encode sumber ({e}). Fallback otomatis ke CPU...")
+            model = get_model(force_cpu=True)
+            query_embeddings = model.encode(unmatched_sentences, convert_to_tensor=True, 
+                                           batch_size=batch_size, show_progress_bar=False)
+            all_source_embeddings = model.encode(all_source_sentences, convert_to_tensor=True,
+                                                 batch_size=batch_size, show_progress_bar=False)
+        else:
+            raise e
+    
+    # Hitung cosine similarity SEKALI untuk seluruh matriks (query x all_sources)
+    full_similarity_matrix = util.pytorch_cos_sim(query_embeddings, all_source_embeddings)
+    
+    semantic_matches = {}
+    # Iris matriks per-sumber untuk atribusi yang benar
+    for source_url, start_idx, end_idx in source_map:
+        source_slice = full_similarity_matrix[:, start_idx:end_idx]
+        source_sents = all_source_sentences[start_idx:end_idx]
         
-        try:
-            source_embeddings = model.encode(source_sentences, convert_to_tensor=True, 
-                                            batch_size=batch_size, show_progress_bar=False)
-        except Exception as e:
-            if "cuda" in str(e).lower():
-                print(f"[!] CUDA Error saat encode sumber ({e}). Fallback otomatis ke CPU...")
-                model = get_model(force_cpu=True)
-                query_embeddings = model.encode(unmatched_sentences, convert_to_tensor=True, 
-                                               batch_size=batch_size, show_progress_bar=False)
-                source_embeddings = model.encode(source_sentences, convert_to_tensor=True, 
-                                                batch_size=batch_size, show_progress_bar=False)
-            else:
-                raise e
-        
-        similarity_matrix = util.pytorch_cos_sim(query_embeddings, source_embeddings)
-        
-        # Find matches
         for query_idx, query_sent in enumerate(unmatched_sentences):
-            max_similarity = torch.max(similarity_matrix[query_idx]).item()
+            max_similarity = torch.max(source_slice[query_idx]).item()
             
             if max_similarity >= threshold:
-                best_match_idx = torch.argmax(similarity_matrix[query_idx]).item()
+                best_match_idx = torch.argmax(source_slice[query_idx]).item()
                 
                 if query_idx not in semantic_matches:
                     semantic_matches[query_idx] = []
                 
                 semantic_matches[query_idx].append({
                     'source_url': source_url,
-                    'matched_text': source_sentences[best_match_idx],
+                    'matched_text': source_sents[best_match_idx],
                     'similarity_score': max_similarity,
                     'detection_method': 'semantic',
                     'original_sentence': query_sent
