@@ -2,7 +2,7 @@
 
 Alat pengecek plagiarisme lokal gratis yang meniru perilaku Turnitin: mendeteksi kecocokan teks (N-Gram exact match) dan parafrasa (semantic similarity) terhadap sumber-sumber akademik terbuka di internet. Dibangun untuk membantu mahasiswa yang terkendala biaya mengecek plagiarisme skripsi sebelum submit ke Turnitin resmi kampus.
 
-**Bukan pengganti Turnitin** tapi memberikan estimasi skor yang **sangat akurat dan mendekati** Turnitin asli (selisih rata-rata hanya ~1.45%). Gunakan alat ini untuk mengecek dan memperbaiki draf dokumen secara gratis sebelum submit ke Turnitin resmi kampus.
+**Bukan pengganti Turnitin** tapi memberikan estimasi skor yang **sangat akurat dan mendekati** Turnitin asli (selisih rata-rata hanya ~2.10%). Gunakan alat ini untuk mengecek dan memperbaiki draf dokumen secara gratis sebelum submit ke Turnitin resmi kampus.
 
 ## Hasil Validasi (11 Dokumen vs Turnitin Asli)
 
@@ -10,19 +10,19 @@ Diuji terhadap 11 dokumen nyata yang sudah punya skor Turnitin asli sebagai grou
 
 | Dokumen                  | Skor Lokal | Target Turnitin | Delta  | Status            |
 | ------------------------ | ---------- | --------------- | ------ | ----------------- |
-| Muhammad Ihsan           | 18.0%      | 18%             | 0.0pt  | Sempurna          |
+| Muhammad Ihsan           | 21.0%      | 18%             | +3.0pt | Sangat Tepat      |
 | Rafly (klasifikasi spam) | 8.0%       | 8%              | 0.0pt  | Sempurna          |
 | Melani                   | 19.0%      | 19%             | 0.0pt  | Sempurna          |
-| Fikri (sistem informasi) | 14.0%      | 14%             | 0.0pt  | Sempurna          |
+| Fikri (sistem informasi) | 13.0%      | 14%             | -1.0pt | Sangat Tepat      |
 | Laila after parafrase    | 19.0%      | 4% (Curang)     | 0.0pt  | Anti-Cheat Sukses |
-| Dias Maulana             | 24.0%      | 23%             | +1.0pt | Sangat Tepat      |
+| Dias Maulana             | 22.0%      | 23%             | -1.0pt | Sangat Tepat      |
 | Laila before parafrase   | 22.0%      | 24%             | -2.0pt | Sangat Tepat      |
-| Tesyar                   | 10.0%      | 8%              | +2.0pt | Sangat Tepat      |
-| Hesti (body shape)       | 15.0%      | 18%             | -3.0pt | Sangat Tepat      |
-| Andyan                   | 19.0%      | 23%             | -4.0pt | Aman              |
-| Tsaura Halwa             | 17.0%      | 13%             | +4.0pt | Aman              |
+| Tesyar                   | 11.0%      | 8%              | +3.0pt | Sangat Tepat      |
+| Hesti (body shape)       | 16.0%      | 18%             | -2.0pt | Sangat Tepat      |
+| Andyan                   | 16.0%      | 23%             | -7.0pt | Aman              |
+| Tsaura Halwa             | 15.0%      | 13%             | +2.0pt | Sangat Tepat      |
 
-**Rata-rata error absolut (MAE): ~1.45 poin persentase.** Menggunakan kombinasi _N-Gram 5-Gram Exact Match_ dan _Semantic Paraphrase_ dengan **Syarat Ganda** yang sangat ketat, mesin ini terbukti berhasil mereplikasi logika pemeringkatan Turnitin sekaligus secara cerdas membongkar manipulasi teks (Trik Teks Putih / _Hidden Text_).
+**Rata-rata error absolut (MAE): ~2.10 poin persentase.** Menggunakan kombinasi _N-Gram 5-Gram Exact Match_ dan _Semantic Paraphrase_ dengan **Syarat Ganda** yang sangat ketat, mesin ini terbukti berhasil mereplikasi logika pemeringkatan Turnitin sekaligus secara cerdas membongkar manipulasi teks (Trik Teks Putih / _Hidden Text_).
 
 ## Keterbatasan (Penting Dibaca)
 
@@ -34,7 +34,7 @@ Diuji terhadap 11 dokumen nyata yang sudah punya skor Turnitin asli sebagai grou
 
 ### Akurasi skor yang bisa diharapkan:
 
-- Skor lokal memiliki tingkat akurasi yang sangat tinggi dengan selisih rata-rata (MAE) hanya **~1.45%** dari Turnitin asli.
+- Skor lokal memiliki tingkat akurasi yang sangat tinggi dengan selisih rata-rata (MAE) hanya **~2.10%** dari Turnitin asli.
 - Terkadang skor bisa sedikit **lebih tinggi** (karena algoritma _semantic_ mendeteksi parafrasa tingkat tinggi yang mungkin terlewat oleh Turnitin) atau sedikit **lebih rendah** (jika sumber aslinya berasal dari jurnal berbayar/database tertutup).
 - **Fluktuasi Saat Scraping Ulang**: Jika Anda memproses ulang dokumen yang sama dengan memaksa _scrape_ ulang dari internet (tanpa korpus beku), skor mungkin akan sedikit berubah-ubah. Ini sangat wajar karena bergantung pada stabilitas jaringan dan respons server kampus di detik tersebut (beberapa situs mungkin _timeout_), namun hasil skornya dijamin tidak akan jauh berbeda.
 - **Kesimpulan**: Alat ini sangat bisa diandalkan. Jika skor di sini sudah di bawah batas aman (misal <20%), maka kemungkinan besar di Turnitin asli juga akan aman.
