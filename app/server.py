@@ -38,6 +38,12 @@ app.config['UPLOAD_FOLDER'] = os.path.join(base_dir, 'uploads')
 app.config['REPORT_FOLDER'] = os.path.join(base_dir, 'reports')
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024 # 16MB max
 
+# Rate limiting: max 10 upload per IP per menit
+RATE_LIMIT_WINDOW = 60  # detik
+RATE_LIMIT_MAX_REQUESTS = 10
+_rate_limit_db = {}
+_rate_limit_lock = threading.Lock()
+
 
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 os.makedirs(app.config['REPORT_FOLDER'], exist_ok=True)
@@ -124,12 +130,14 @@ def process_document(file_id, filepath, original_filename, exclude_quotes=True, 
             results_db[file_id]['message'] = msg
 
     def check_cancelled():
-        if results_db.get(file_id, {}).get('cancel_requested'):
-            results_db[file_id]['status'] = 'cancelled'
-            results_db[file_id]['message'] = 'Proses dibatalkan oleh pengguna.'
-            print(f"[!] PROSES DIBATALKAN USER: {file_id}")
-            return True
-        return False
+        with RESULTS_DB_LOCK:
+            entry = results_db.get(file_id, {})
+            if entry.get('cancel_requested'):
+                entry['status'] = 'cancelled'
+                entry['message'] = 'Proses dibatalkan oleh pengguna.'
+                print(f"[!] PROSES DIBATALKAN USER: {file_id}")
+                return True
+            return False
 
     try:
         set_progress(5, "Mengekstrak teks dari dokumen...")
@@ -186,8 +194,12 @@ def process_document(file_id, filepath, original_filename, exclude_quotes=True, 
             corpus = scrape_all_candidates(urls, preloaded_corpus, progress_cb=scrape_progress)
             print(f"[!] Korpus terkurasi utk dokumen ini: {len(corpus)} sumber.")
             try:
-                with open(frozen_path, "w", encoding="utf-8") as f:
+                # Atomic write: tulis ke file temp dulu, lalu rename
+                # Mencegah race condition jika 2 proses parallel menulis file yang sama
+                frozen_tmp = frozen_path + ".tmp." + secrets.token_hex(4)
+                with open(frozen_tmp, "w", encoding="utf-8") as f:
                     json.dump(corpus, f, ensure_ascii=False)
+                os.replace(frozen_tmp, frozen_path)
                 print(f"[!] Korpus DIBEKUKAN: {os.path.basename(frozen_path)} (run berikut skor identik).")
             except Exception as e:
                 print(f"[!] Gagal simpan frozen: {e}")
@@ -320,10 +332,31 @@ def check_frozen():
             pass
 
 
+def _check_rate_limit(ip):
+    """Check rate limit for IP. Returns (allowed, remaining_time)"""
+    now = time.time()
+    with _rate_limit_lock:
+        if ip not in _rate_limit_db:
+            _rate_limit_db[ip] = []
+        # Remove old entries
+        _rate_limit_db[ip] = [t for t in _rate_limit_db[ip] if now - t < RATE_LIMIT_WINDOW]
+        if len(_rate_limit_db[ip]) >= RATE_LIMIT_MAX_REQUESTS:
+            oldest = _rate_limit_db[ip][0]
+            remaining = int(RATE_LIMIT_WINDOW - (now - oldest)) + 1
+            return False, remaining
+        _rate_limit_db[ip].append(now)
+        return True, 0
+
 @app.route('/upload', methods=['POST'])
 def upload_file():
     if 'file' not in request.files:
         return jsonify({'error': 'No file part'}), 400
+    
+    # Rate limiting
+    client_ip = request.remote_addr or request.headers.get('X-Forwarded-For', 'unknown')
+    allowed, remaining = _check_rate_limit(client_ip)
+    if not allowed:
+        return jsonify({'error': f'Rate limit terlampaui. Coba lagi dalam {remaining} detik.'}), 429
     
     file = request.files['file']
     exclude_quotes = request.form.get('exclude_quotes', 'true') == 'true'

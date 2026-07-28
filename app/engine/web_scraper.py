@@ -103,7 +103,8 @@ def save_to_corpus_bank(new_corpus):
             print(f"[Bank] PERINGATAN: gagal menyimpan ke bank.db: {e}")
 
 def is_safe_url(url):
-    """Sanitasi URL anti-SSRF: memblokir IP privat/local, loopback, dan metadata endpoint."""
+    """Sanitasi URL anti-SSRF: memblokir IP privat/local, loopback, dan metadata endpoint.
+    Juga memblokir URL shortener/redirector yang bisa dipakai bypass."""
     try:
         parsed = urllib.parse.urlparse(url)
         if parsed.scheme not in ('http', 'https'):
@@ -111,14 +112,50 @@ def is_safe_url(url):
         hostname = parsed.hostname
         if not hostname:
             return False
-        if hostname.lower() in ('localhost', '127.0.0.1', '0.0.0.0', '::1', 'metadata.google.internal'):
+        
+        # Normalisasi hostname: lower + strip trailing dot
+        hostname = hostname.lower().rstrip('.')
+        
+        # Blokir hostname berbahaya
+        BLOCKED_HOSTNAMES = {
+            'localhost', '127.0.0.1', '0.0.0.0', '::1', '::',
+            'metadata.google.internal', 'metadata.google.internal.',
+            '169.254.169.254',  # AWS/GCP/Azure metadata endpoint
+            '100.100.100.200',  # Alibaba Cloud metadata
+        }
+        if hostname in BLOCKED_HOSTNAMES:
             return False
+        
+        # Blokir wildcard localhost (mis. 127.0.0.2, 127.0.0.3, ...)
+        if hostname.startswith('127.'):
+            parts = hostname.split('.')
+            if len(parts) == 4 and parts[0] == '127':
+                return False
+        
+        # Blokir URL shortener umum (bisa redirect ke internal)
+        SHORTENER_DOMAINS = {
+            'bit.ly', 'tinyurl.com', 'shorturl.at', 'tiny.cc', 'ow.ly',
+            'is.gd', 'buff.ly', 'rebrand.ly', 'cutt.ly', 'short.link',
+            's.id', 'rb.gy', 'bl.ink', 'short.cm', '1url.com',
+        }
+        if hostname in SHORTENER_DOMAINS:
+            return False
+        
         try:
             ip = _ipaddress.ip_address(hostname)
             if ip.is_private or ip.is_loopback or ip.is_link_local or ip.is_multicast or ip.is_reserved:
                 return False
         except ValueError:
             pass
+        
+        # Cek apakah hostname mengandung IP dalam format desimal/oktal/hex
+        # yang bisa bypass filter (mis. http://0x7f000001/ = 127.0.0.1)
+        import re as _re
+        if _re.match(r'^0[xX][0-9a-fA-F]+$', hostname):
+            return False
+        if _re.match(r'^0\d+$', hostname):
+            return False
+        
         return True
     except Exception:
         return False

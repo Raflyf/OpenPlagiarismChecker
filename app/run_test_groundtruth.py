@@ -66,8 +66,13 @@ for name, fname, target in discover_docs():
         urls, preloaded = get_candidate_urls(sentences, max_probes=adaptive_probes)
         print(f"[{name}] preloaded={len(preloaded)} scrape-urls={len(urls)}", flush=True)
         corpus = scrape_all_candidates(urls, preloaded)
-        with open(frozen_path, "w", encoding="utf-8") as f:
+        # Atomic write: tulis ke file temp dulu, lalu rename
+        # Mencegah race condition jika 2 proses parallel menulis file yang sama
+        import secrets as _secrets
+        frozen_tmp = frozen_path + ".tmp." + _secrets.token_hex(4)
+        with open(frozen_tmp, "w", encoding="utf-8") as f:
             json.dump(corpus, f, ensure_ascii=False)
+        os.replace(frozen_tmp, frozen_path)
         print(f"[{name}] korpus DIBEKUKAN ke disk: {len(corpus)} sumber ({os.path.basename(frozen_path)})", flush=True)
 
     sources, total_sim, phrases = calculate_similarity(
