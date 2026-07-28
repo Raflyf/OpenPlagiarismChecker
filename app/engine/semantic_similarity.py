@@ -6,9 +6,16 @@ Uses sentence-transformers to detect paraphrased content that N-Gram might miss
 from sentence_transformers import SentenceTransformer, util
 import torch
 import numpy as np
+import gc
+import os
 
 # Global model instance (loaded once for efficiency)
 _model = None
+
+# Memory guard: max embeddings in VRAM/RAM per batch
+# Model 'paraphrase-multilingual-MiniLM-L12-v2' ~500MB, embeddings ~384 dims
+# Batasi batch agar tidak OOM pada GPU 4-8GB atau RAM rendah
+_MAX_EMBEDDINGS_PER_BATCH = int(os.environ.get("SEMANTIC_MAX_BATCH", "2000"))
 
 def get_model(force_cpu=False):
     """
@@ -94,6 +101,19 @@ def find_semantic_matches(query_sentences, corpus_sentences, threshold=0.88):
 def batch_semantic_check(unmatched_sentences, corpus_sentences, threshold=0.88, batch_size=64):
     if not unmatched_sentences:
         return {}
+    
+    # Hitung total source sentences untuk estimasi memori
+    total_source_sentences = sum(len(s) for s in corpus_sentences.values() if s)
+    estimated_embeddings = len(unmatched_sentences) + total_source_sentences
+    
+    # Memory guard: jika terlalu besar, kurangi batch_size atau tolak
+    if estimated_embeddings > _MAX_EMBEDDINGS_PER_BATCH:
+        # Coba kurangi batch_size proporsional
+        scale = _MAX_EMBEDDINGS_PER_BATCH / estimated_embeddings
+        suggested_batch = max(1, int(batch_size * scale))
+        print(f"[!] PERINGATAN: Estimasi {estimated_embeddings} embeddings melebihi batas {_MAX_EMBEDDINGS_PER_BATCH}.")
+        print(f"[!] Menurunkan batch_size dari {batch_size} -> {suggested_batch} untuk mencegah OOM.")
+        batch_size = suggested_batch
     
     model = get_model()
     # Jika CUDA tersedia, tingkatkan batch_size untuk memaksimalkan VRAM & GPU paralelism
