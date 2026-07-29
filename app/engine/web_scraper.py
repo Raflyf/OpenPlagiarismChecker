@@ -946,8 +946,8 @@ def fetch_probe_multi(probe):
 
     # Grup 4: Google Scholar + Google Web
     g4_pre, g4_norm, g4_stat = _fetch_group("google", [
-        ("GoogleScholar", _fetch_google_scholar),
-        ("GoogleWeb", _fetch_google_web),
+        ("GoogleScholar", fetch_google_scholar),
+        ("GoogleWeb", fetch_google_web),
     ])
     preloaded.update(g4_pre); normal_urls.extend(g4_norm); stats.update(g4_stat)
 
