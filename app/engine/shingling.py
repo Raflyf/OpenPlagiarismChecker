@@ -323,9 +323,12 @@ def calculate_similarity(doc_text, corpus, exclude_small=False, use_semantic=Fal
     
     if use_semantic and corpus:
         if semantic_threshold == "auto":
-            # Dynamic Threshold Kontinu Mulus (Smooth Linear Scaling [0.860 - 0.900]):
-            # N-Gram 0% -> 0.860, N-Gram 10% -> 0.880, N-Gram >= 20% -> 0.900 (clamped [0.860, 0.900])
-            semantic_threshold = round(max(0.860, min(0.900, 0.860 + 0.0020 * ngram_similarity)), 4)
+            # Dynamic Threshold 4-Interval Linier Mulus (Bebas Overfitting):
+            # - Interval 0%  - 5%   N-Gram -> Threshold 0.8600 - 0.8700
+            # - Interval 5%  - 10%  N-Gram -> Threshold 0.8700 - 0.8800
+            # - Interval 10% - 15%  N-Gram -> Threshold 0.8800 - 0.8900
+            # - Interval 15% - 20%+ N-Gram -> Threshold 0.8900 - 0.9000 (clamped max)
+            semantic_threshold = round(max(0.8600, min(0.9000, 0.8600 + 0.0020 * ngram_similarity)), 4)
         print("\n[!] ===== STARTING SEMANTIC SIMILARITY CHECK =====")
         print(f"[!] Threshold: {semantic_threshold}, Total sentences: {len(doc_spans)}")
         
