@@ -27,7 +27,7 @@ for idx, filename in enumerate(files):
     with open(filepath, 'rb') as f:
         # Ganti force_scrape menjadi 'false' agar otomatis menggunakan frozen corpus jika ada!
         resp = session.post(URL_UPLOAD, files={'file': f}, data={
-            'force_scrape': 'false',
+            'force_scrape': 'true',
             'use_semantic': 'true',
             'exclude_quotes': 'true',
             'exclude_biblio': 'true'
@@ -51,14 +51,15 @@ for idx, filename in enumerate(files):
             progress = status_data.get('progress', 0)
             message = status_data.get('message', '')
             if progress is not None and message:
-                print(f"    [{progress}%] {message}", end='\r')
+                # Pad spasi agar menghapus karakter sisa dari pesan sebelumnya
+                print(f"    [{progress:>3}%] {message:<60}", end='\r', flush=True)
 
             if status == 'completed':
                 score = status_data.get('data', {}).get('total_similarity', 'N/A')
-                print(f"\n    [SELESAI] Score: {score}%")
+                print(f"\n    [SELESAI] Hasil Similarity: {score}%")
                 results.append({
                     'file': filename,
-                    'score': score,
+                    'score': f"{score}%",
                     'file_id': file_id
                 })
                 break
