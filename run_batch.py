@@ -9,7 +9,7 @@ import json
 import uuid
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-FOLDER = os.path.join(BASE_DIR, "App", "before_turnitin")
+FOLDER = os.path.join(BASE_DIR, "app", "before_turnitin")
 URL_UPLOAD = "http://127.0.0.1:5001/upload"
 URL_STATUS = "http://127.0.0.1:5001/status/"
 

@@ -10,7 +10,7 @@ Konfigurasi rahasia
 
 Dokumen uji file besar
 .search_cache/
-App/before_turnitin/
+app/before_turnitin/
 *.pdf
 
 Runtime artifacts
@@ -19,12 +19,12 @@ Runtime artifacts
 batch_output.txt
 
 Bank cache lokal
-App/corpus_bank/*.db
-App/corpus_bank/*.bak
-App/corpus_bank/bank.json
-App/engine/.search_cache.db
+app/corpus_bank/*.db
+app/corpus_bank/*.bak
+app/corpus_bank/bank.json
+app/engine/.search_cache.db
 
-App/test_groundtruth_result.json
+app/test_groundtruth_result.json
 
 Tooling skill lokal
 .claude/
