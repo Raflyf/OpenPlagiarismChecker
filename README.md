@@ -82,6 +82,9 @@ Web localhost memakai **metodologi identik** dengan runner validasi (`run_test_g
 
 - **Indonesia OneSearch (IOS Perpusnas RI)** (Open REST API resmi yang mengindeks **1.200+ repositori & jurnal kampus se-Indonesia**)
 - **Neliti Indonesia** (Repositori riset terbesar Indonesia — **500.000+ jurnal, tesis, & skripsi**)
+- **MORAREF Kemenag** (Portal jurnal keagamaan Kementerian Agama RI — **200.000+ artikel jurnal UIN/IAIN/STAIN** via REST API + OAI-PMH XML fallback)
+- **BASE (Bielefeld Academic Search Engine)** (Mesin pencari akademik open-access terbesar — **300M+ dokumen** via OAI-PMH API)
+- **E-Thesis Repositori PTN Besar** (Scraping langsung repositori skripsi & tesis **UGM, UI, ITB, Unair, Undip, IPB**)
 - **Europe PMC** (40M+ publikasi ilmiah open access internasional, full-text gratis)
 - **Unpaywall API** (Database tautan PDF open access dari DOI jurnal)
 - **Semantic Scholar** (200M+ paper, dengan Polite Pool Header resmi)
@@ -90,7 +93,7 @@ Web localhost memakai **metodologi identik** dengan runner validasi (`run_test_g
 - **DOAJ** (9M+ open-access articles)
 - **arXiv** (2.4M+ preprints)
 - **CORE** (300M+ papers aggregator)
-- **DuckDuckGo** (web search umum, prioritas domain .ac.id)
+- **DuckDuckGo** (web search umum, prioritas domain .ac.id + query bias Indonesia)
 - **Repository kampus Indonesia** (scraping langsung EPrints/DSpace/OJS)
 - **ScraperAPI / ScrapingBee** (bypass WAF/Cloudflare jika dikonfigurasi)
 - **Cohere AI** (query-expander untuk variasi frasa pencarian — opsional, aktifkan via env `USE_COHERE_EXPANDER=1`)
@@ -206,9 +209,10 @@ plagiarism_checker/
 │   │   └── free_api_fallbacks.py # Fallback pencarian gratis
 │   ├── templates/
 │   │   ├── index.html            # Halaman upload + Cancel UI
-│   │   └── report.html           # Halaman hasil
+│   │   └── report.html           # Halaman hasil + Dark Mode
 │   └── static/                   # CSS, JS, assets
 ├── docs/
+│   ├── STRATEGI_EKSPANSI_SUMBER.md # Strategi ekspansi korpus & API
 │   ├── DIAGNOSA_0_PERSEN.md      # Diagnosa lengkap bug 0%
 │   └── AUDIT_*.md                # Riwayat audit kode
 ├── .env                          # API keys (jangan commit)
@@ -233,7 +237,15 @@ Skor Total = (Kata Ter-match N-Gram + Kata Ter-match Semantic) / Total Kata Doku
 
 ## Changelog
 
-### v4.3 (Current) — Security Hardening & Stabilitas
+### v4.4 (Current) — Ekspansi Sumber Indonesia (MORAREF, BASE, E-Thesis PTN) & Dark Mode
+
+- **Grup 5 Ekspansi Sumber (MORAREF, BASE, IndoEThesis)**: Mengintegrasikan 3 mesin pencari akademik baru dalam `fetch_probe_multi` secara paralel:
+  - **MORAREF Kemenag**: Portal jurnal keagamaan UIN/IAIN/STAIN dengan *dual-approach* (REST API + OAI-PMH XML fallback).
+  - **BASE API**: Bielefeld Academic Search Engine (300M+ artikel open access).
+  - **E-Thesis PTN Besar**: Direct scraper untuk repositori skripsi/tesis UGM, UI, ITB, Unair, Undip.
+- **Google Scholar & DDG Bias Bahasa Indonesia**: Mengaktifkan parameter `lr=lang_id` pada Google Scholar dan query bias `"skripsi" OR "tesis" OR "jurnal"` untuk mendongkrak recall sumber lokal Indonesia.
+- **Dark Mode Halaman Report**: Menambahkan toggle dan tema Dark Mode interaktif di `report.html` yang tersinkronisasi otomatis dengan `index.html`.
+- **Fix Regresi `fetch_probe_multi` & Restoration `get_candidate_urls`**: Memperbaiki penanganan URL web publik dari Google/Garuda serta mengembalikan fungsi `get_candidate_urls` secara utuh.
 
 - **Thread-safety**: `check_cancelled()` di `server.py` & `shingling.py` kini dilindungi `RESULTS_DB_LOCK`, menghilangkan race condition pada akses `results_db`.
 - **Atomic Frozen Write**: Penulisan `frozen_corpus` pakai `os.replace(temp, final)` di `server.py` & `run_test_groundtruth.py` — cegah race & file korup saat 2 proses parallel.
