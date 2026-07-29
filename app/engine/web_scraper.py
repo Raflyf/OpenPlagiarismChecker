@@ -901,6 +901,8 @@ def fetch_probe_multi(probe):
         group_preloaded = {}
         group_normal = []
         group_stats = {}
+        if not api_pairs:
+            return group_preloaded, group_normal, group_stats
         from concurrent.futures import ThreadPoolExecutor, as_completed
         with ThreadPoolExecutor(max_workers=len(api_pairs)) as executor:
             fut_map = {}
@@ -909,19 +911,28 @@ def fetch_probe_multi(probe):
                 fut_map[fut] = api_name
             for fut in as_completed(fut_map):
                 api_name = fut_map[fut]
-                urls, texts = fut.result(timeout=_REQUEST_TIMEOUT)
+                try:
+                    urls, texts = fut.result(timeout=_REQUEST_TIMEOUT)
+                except Exception:
+                    urls, texts = [], []
+                urls = urls or []
+                texts = texts or []
                 group_stats[api_name] = len(urls)
+                if len(texts) < len(urls):
+                    texts = list(texts) + [""] * (len(urls) - len(texts))
                 for u, t in zip(urls, texts):
-                    if len(t) >= 50:
-                        group_preloaded[u] = t
-                    else:
-                        group_normal.append(u)
+                    if u:
+                        if t and len(t) >= 50:
+                            group_preloaded[u] = t
+                        else:
+                            group_normal.append(u)
         return group_preloaded, group_normal, group_stats
 
     # Grup 1: API Akademik Indonesia (prioritas)
     g1_pre, g1_norm, g1_stat = _fetch_group("indonesia", [
-        ("IOS", fetch_onesearch_id),
+        ("OneSearchID", fetch_onesearch_id),
         ("Neliti", fetch_neliti),
+        ("Garuda", fetch_garuda),
     ])
     preloaded.update(g1_pre); normal_urls.extend(g1_norm); stats.update(g1_stat)
 
@@ -944,25 +955,77 @@ def fetch_probe_multi(probe):
     ])
     preloaded.update(g3_pre); normal_urls.extend(g3_norm); stats.update(g3_stat)
 
-    # Grup 4: Google Scholar + Google Web
+    # Grup 4: Google Scholar + Google Web + DuckDuckGo
     g4_pre, g4_norm, g4_stat = _fetch_group("google", [
         ("GoogleScholar", fetch_google_scholar),
         ("GoogleWeb", fetch_google_web),
+        ("DuckDuckGo", fetch_ddgs),
     ])
     preloaded.update(g4_pre); normal_urls.extend(g4_norm); stats.update(g4_stat)
 
-    # DuckDuckGo + Google Native fallback
-    try:
-        u_dd, t_dd = _fetch_ddgs(probe)
-        stats["DuckDuckGo"] = len(u_dd)
-        for u, t in zip(u_dd, t_dd):
-            if len(t) >= 50: preloaded[u] = t
-            else: normal_urls.append(u)
-    except Exception:
-        stats["DuckDuckGo"] = 0
+    # 5. Google Search Native (Top 5 probe terpanjang, budgeted)
+    u_gsn, t_gsn = [], []
+    global _GOOGLE_NATIVE_BUDGET
+    _claim_google = False
+    with _GOOGLE_NATIVE_LOCK:
+        if _GOOGLE_NATIVE_BUDGET > 0:
+            _GOOGLE_NATIVE_BUDGET -= 1
+            _claim_google = True
+    if _claim_google:
+        try:
+            u_gsn, t_gsn = call_api_safe_v2("GoogleNative", fetch_google_search_native, probe)
+        except Exception:
+            u_gsn, t_gsn = [], []
+    stats["GoogleNative"] = len(u_gsn) if u_gsn else 0
+    if u_gsn:
+        if not t_gsn or len(t_gsn) < len(u_gsn):
+            t_gsn = list(t_gsn or []) + [""] * (len(u_gsn) - len(t_gsn or []))
+        for u, t in zip(u_gsn, t_gsn):
+            if u:
+                if t and len(t) >= 50: preloaded[u] = t
+                else: normal_urls.append(u)
 
+    # 6. Repositori Kampus Indonesia (budgeted 15 probe)
+    u_repo, t_repo = [], []
+    global _INDO_REPO_BUDGET
+    _claim_repo = False
+    with _INDO_REPO_LOCK:
+        if _INDO_REPO_BUDGET > 0:
+            _INDO_REPO_BUDGET -= 1
+            _claim_repo = True
+    if _claim_repo:
+        try:
+            from .indonesian_repos import search_all_indonesian_repos
+            u_repo, t_repo = search_all_indonesian_repos(probe, max_repos=3, results_per_repo=2)
+        except Exception as e:
+            u_repo, t_repo = [], []
+    stats["IndoRepos"] = len(u_repo) if u_repo else 0
+    if u_repo:
+        if not t_repo or len(t_repo) < len(u_repo):
+            t_repo = list(t_repo or []) + [""] * (len(u_repo) - len(t_repo or []))
+        for u, t in zip(u_repo, t_repo):
+            if u:
+                if t and len(t) >= 50: preloaded[u] = t
+                else: normal_urls.append(u)
+
+    # 7. Free API Fallbacks
+    try:
+        from .free_api_fallbacks import search_with_fallbacks
+        u_fb, t_fb = search_with_fallbacks(probe, use_cache=True)
+        stats["Fallback"] = len(u_fb) if u_fb else 0
+        if u_fb:
+            if not t_fb or len(t_fb) < len(u_fb):
+                t_fb = list(t_fb or []) + [""] * (len(u_fb) - len(t_fb or []))
+            for u, t in zip(u_fb, t_fb):
+                if u:
+                    if t and len(t) >= 50: preloaded[u] = t
+                    else: normal_urls.append(u)
+    except Exception:
+        stats["Fallback"] = 0
+
+    # Normalisasi akhir: hapus entri preloaded yang teksnya terlalu pendek (<50 kata)
     for u, t in list(preloaded.items()):
-        if len(t) < 50:
+        if not t or len(t) < 50:
             del preloaded[u]
             normal_urls.append(u)
 
