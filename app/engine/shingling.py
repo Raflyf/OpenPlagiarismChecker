@@ -323,8 +323,10 @@ def calculate_similarity(doc_text, corpus, exclude_small=False, use_semantic=Fal
     
     if use_semantic and corpus:
         if semantic_threshold == "auto":
-            # Threshold universal yang stabil & bebas overfitting untuk paraphrase-multilingual-MiniLM-L12-v2
-            semantic_threshold = 0.88
+            # Dynamic Threshold Kontinu Mulus (Smooth Linear Scaling):
+            # Mengatur threshold secara dinamis berbasis rumus matematika kontinu tanpa lonjakan diskrit (bebas overfitting).
+            # N-Gram 0% -> 0.865, N-Gram 10% -> 0.880, N-Gram >= 16.6% -> 0.890 (clamped [0.860, 0.890])
+            semantic_threshold = round(max(0.860, min(0.890, 0.865 + 0.0015 * ngram_similarity)), 4)
         print("\n[!] ===== STARTING SEMANTIC SIMILARITY CHECK =====")
         print(f"[!] Threshold: {semantic_threshold}, Total sentences: {len(doc_spans)}")
         
