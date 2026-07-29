@@ -10,6 +10,12 @@ from concurrent.futures import ThreadPoolExecutor
 # Sembunyikan peringatan jika situs web yang di-scrape berupa XML/RSS
 warnings.filterwarnings("ignore", category=XMLParsedAsHTMLWarning)
 
+# --- Konstanta Timeout & Pool Global ---
+_REQUEST_TIMEOUT = 15           # timeout default semua fetch API (detik)
+_SCRAPE_TIMEOUT = 30            # timeout scrape URL lebih panjang (download konten)
+_POOL_CONNECTIONS = 30          # koneksi maks per host
+_POOL_MAXSIZE = 80              # max total koneksi pool
+
 # --- Bank Korpus Lokal (SQLite3 Database) ---
 import sqlite3 as _sqlite3
 import json as _json
@@ -27,7 +33,14 @@ def _get_session():
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
         })
         # Setel adapter dengan pool besar untuk koneksi paralel
-        adapter = requests.adapters.HTTPAdapter(pool_connections=20, pool_maxsize=50)
+        adapter = requests.adapters.HTTPAdapter(
+            pool_connections=_POOL_CONNECTIONS,
+            pool_maxsize=_POOL_MAXSIZE,
+            max_retries=requests.adapters.Retry(
+                total=2, backoff_factor=0.5,
+                status_forcelist=[429, 500, 502, 503, 504]
+            )
+        )
         _thread_local.session.mount('https://', adapter)
         _thread_local.session.mount('http://', adapter)
     return _thread_local.session
@@ -272,7 +285,7 @@ def fetch_semantic_scholar(probe):
         }
         s2_key = _next_s2_key()
         s2_headers = {"x-api-key": s2_key} if s2_key else {}
-        res = requests.get(url, params=params, headers=s2_headers, timeout=8)
+        res = requests.get(url, params=params, headers=s2_headers, timeout=_REQUEST_TIMEOUT)
         if res.status_code == 200:
             data = res.json()
             for paper in data.get('data', []):
@@ -305,7 +318,7 @@ def fetch_crossref(probe):
             "rows": 15,
             "mailto": "research_turnitin_local@university.edu"
         }
-        res = requests.get(url, params=params, timeout=8)
+        res = requests.get(url, params=params, timeout=_REQUEST_TIMEOUT)
         if res.status_code == 200:
             data = res.json()
             for item in data.get('message', {}).get('items', []):
@@ -340,7 +353,7 @@ def fetch_openalex(probe):
             "select": "id,title,open_access,primary_location,abstract_inverted_index",
             "mailto": "research_turnitin_local@university.edu"
         }
-        res = requests.get("https://api.openalex.org/works", params=params, timeout=8)
+        res = requests.get("https://api.openalex.org/works", params=params, timeout=_REQUEST_TIMEOUT)
         if res.status_code == 200:
             data = res.json()
             for work in data.get("results", []):
@@ -557,7 +570,7 @@ def fetch_doaj(probe):
         words = probe.split()
         short_probe = " ".join(words[:6])
         url = "https://doaj.org/api/search/articles/" + requests.utils.quote(short_probe)
-        res = requests.get(url, params={"pageSize": 5}, timeout=8)
+        res = requests.get(url, params={"pageSize": 5}, timeout=_REQUEST_TIMEOUT)
         if res.status_code == 200:
             data = res.json()
             results = data.get('results', [])
@@ -598,7 +611,7 @@ def fetch_arxiv(probe):
             "start": 0,
             "max_results": 3
         }
-        res = requests.get(search_url, params=params, timeout=8)
+        res = requests.get(search_url, params=params, timeout=_REQUEST_TIMEOUT)
         if res.status_code == 200:
             entries = _re.findall(r'<entry>(.*?)</entry>', res.text, _re.S)
             for entry in entries:
@@ -631,7 +644,7 @@ def fetch_core(probe):
         url = "https://api.core.ac.uk/v3/search/works"
         params = {"q": short_probe, "limit": 5}
         headers = {"Accept": "application/json", "Authorization": f"Bearer {core_key}"}
-        res = requests.get(url, params=params, headers=headers, timeout=8)
+        res = requests.get(url, params=params, headers=headers, timeout=_REQUEST_TIMEOUT)
         if res.status_code == 200:
             data = res.json()
             for item in data.get('results', []):
@@ -664,7 +677,7 @@ def fetch_openaire(probe):
         short_probe = " ".join(probe.split()[:8])
         url = "https://api.openaire.eu/search/publications"
         params = {"title": short_probe, "size": 5, "format": "json"}
-        res = requests.get(url, params=params, timeout=8)
+        res = requests.get(url, params=params, timeout=_REQUEST_TIMEOUT)
         if res.status_code == 200:
             data = res.json()
             results = data.get("response", {}).get("results", {}).get("result", [])
@@ -712,7 +725,7 @@ def fetch_hal(probe):
         short_probe = " ".join(probe.split()[:8])
         url = "https://api.archives-ouvertes.fr/search/"
         params = {"q": short_probe, "wt": "json", "fl": "title_s,abstract_s,uri_s", "rows": 5}
-        res = requests.get(url, params=params, timeout=8)
+        res = requests.get(url, params=params, timeout=_REQUEST_TIMEOUT)
         if res.status_code == 200:
             data = res.json()
             docs = data.get("response", {}).get("docs", [])
@@ -770,7 +783,7 @@ def fetch_onesearch_id(probe):
             "type": "all",
             "limit": 5
         }
-        res = requests.get(url, params=params, timeout=8)
+        res = requests.get(url, params=params, timeout=_REQUEST_TIMEOUT)
         if res.status_code == 200:
             data = res.json()
             docs = data.get("data", []) or data.get("docs", [])
@@ -796,7 +809,7 @@ def fetch_neliti(probe):
         short_probe = " ".join(probe.split()[:8])
         url = f"https://www.neliti.com/id/search?q={requests.utils.quote(short_probe)}"
         headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
-        res = requests.get(url, headers=headers, timeout=8)
+        res = requests.get(url, headers=headers, timeout=_REQUEST_TIMEOUT)
         if res.status_code == 200:
             from bs4 import BeautifulSoup
             soup = BeautifulSoup(res.text, 'html.parser')
@@ -839,6 +852,43 @@ def fetch_google_search_native(probe):
         pass
     return urls_found, []
 
+class APICircuitBreaker:
+    _FAILED_APIS = {}
+    _LOCK = __import__('threading').Lock()
+    COOLDOWN = 120
+
+    @classmethod
+    def is_available(cls, api_name):
+        with cls._LOCK:
+            if api_name not in cls._FAILED_APIS:
+                return True
+            return __import__('time').time() >= cls._FAILED_APIS[api_name]
+
+    @classmethod
+    def record_failure(cls, api_name):
+        with cls._LOCK:
+            cls._FAILED_APIS[api_name] = __import__('time').time() + cls.COOLDOWN
+
+    @classmethod
+    def record_success(cls, api_name):
+        with cls._LOCK:
+            cls._FAILED_APIS.pop(api_name, None)
+
+
+def call_api_safe_v2(api_name, fetch_func, probe):
+    """Panggil API dengan circuit breaker v2 (auto-recovery)."""
+    if not APICircuitBreaker.is_available(api_name):
+        return [], []
+    try:
+        urls, texts = fetch_func(probe)
+        APICircuitBreaker.record_success(api_name)
+        return urls, texts
+    except Exception:
+        APICircuitBreaker.record_failure(api_name)
+        return [], []
+
+
+
 def _call_api_safe(api_name, fetch_func, probe):
     with _FAILED_APIS_LOCK:
         if api_name in _FAILED_APIS:
@@ -852,124 +902,81 @@ def _call_api_safe(api_name, fetch_func, probe):
         return [], []
 
 def fetch_probe_multi(probe):
-    """Mencari ke semua mesin secara serentak dengan free API fallbacks & Circuit Breaker Anti-RTO.
-    Returns: (preloaded dict, normal_urls list, stats dict)"""
-
-    # 1. API Akademik Indonesia & Internasional Prioritas
-    u_ios, t_ios = _call_api_safe("IOS", fetch_onesearch_id, probe)
-    u_neliti, t_neliti = _call_api_safe("Neliti", fetch_neliti, probe)
-    u_ss, t_ss = _call_api_safe("SemanticScholar", fetch_semantic_scholar, probe)
-    u_cr, t_cr = _call_api_safe("Crossref", fetch_crossref, probe)
-    u_oa, t_oa = _call_api_safe("OpenAlex", fetch_openalex, probe)
-    u_epmc, t_epmc = _call_api_safe("EuropePMC", fetch_europe_pmc, probe)
-
-    # 1b. Additional free academic APIs
-    u_doaj, t_doaj = _call_api_safe("DOAJ", fetch_doaj, probe)
-    u_arxiv, t_arxiv = _call_api_safe("arXiv", fetch_arxiv, probe)
-    u_core, t_core = _call_api_safe("CORE", fetch_core, probe)
-    u_openaire, t_openaire = _call_api_safe("OpenAIRE", fetch_openaire, probe)
-    u_hal, t_hal = _call_api_safe("HAL", fetch_hal, probe)
-    
-    # 2. Try paid APIs
-    u_gs, _ = fetch_google_scholar(probe)
-    u_gw, _ = fetch_google_web(probe)
-    u_gr, _ = fetch_garuda(probe)
-    
-    # 3. Try DuckDuckGo
-    u_dd, _ = fetch_ddgs(probe)
-    
-    # 3b. Try Google Search Native (Top 5 only)
-    u_gsn, t_gsn = [], []
-    global _GOOGLE_NATIVE_BUDGET
-    _claim_google = False
-    with _GOOGLE_NATIVE_LOCK:
-        if _GOOGLE_NATIVE_BUDGET > 0:
-            _GOOGLE_NATIVE_BUDGET -= 1
-            _claim_google = True
-    if _claim_google:
-        u_gsn, t_gsn = fetch_google_search_native(probe)
-    
-    # 4. Direct search Indonesian repositories (no API limits, TAPI lambat: BSI ~15s/req).
-    # Dibatasi global agar tidak jalan 75x (=375 request kampus). Hanya probe paling awal
-    # (kalimat terpanjang/paling spesifik) yang menyisir repo lokal; sisanya sudah tercakup
-    # API akademik + DDG. Repo tetap disisir menyeluruh via get_candidate_urls terpisah.
-    u_repo, t_repo = [], []
-    global _INDO_REPO_BUDGET
-    # Klaim budget secara atomik (5 worker paralel): tanpa lock, read-modify-write bisa
-    # ras -> jumlah crawl repo non-deterministik antar-run.
-    _claim_repo = False
-    with _INDO_REPO_LOCK:
-        if _INDO_REPO_BUDGET > 0:
-            _INDO_REPO_BUDGET -= 1
-            _claim_repo = True
-    if _claim_repo:
-        try:
-            from .indonesian_repos import search_all_indonesian_repos
-            u_repo, t_repo = search_all_indonesian_repos(probe, max_repos=3, results_per_repo=2)
-        except Exception as e:
-            print(f"[!] Indonesian repos module error: {e}")
-    
-    # 5. NEW: Free API fallbacks with caching (jika paid APIs gagal)
-    u_fallback, t_fallback = [], []
-    try:
-        from .free_api_fallbacks import search_with_fallbacks
-        u_fallback, t_fallback = search_with_fallbacks(probe, use_cache=True)
-    except Exception as e:
-        print(f"[!] Free API fallbacks error: {e}")
-    
-    # Statistik per-API untuk probe ini
-    stats = {
-        "OneSearchID": len(u_ios),
-        "Neliti": len(u_neliti),
-        "SemanticScholar": len(u_ss),
-        "Crossref": len(u_cr),
-        "OpenAlex": len(u_oa),
-        "EuropePMC": len(u_epmc),
-        "DOAJ": len(u_doaj),
-        "arXiv": len(u_arxiv),
-        "CORE": len(u_core),
-        "OpenAIRE": len(u_openaire),
-        "HAL": len(u_hal),
-        "GoogleScholar": len(u_gs),
-        "GoogleWeb": len(u_gw),
-        "Garuda": len(u_gr),
-        "DuckDuckGo": len(u_dd),
-        "GoogleNative": len(u_gsn),
-        "IndoRepos": len(u_repo),
-        "Fallback": len(u_fallback),
-    }
-    
-    # Gabungkan URL yang sudah ada abstraknya menjadi dictionary
     preloaded = {}
-    for u, t in zip(u_ios, t_ios): preloaded[u] = t
-    for u, t in zip(u_neliti, t_neliti): preloaded[u] = t
-    for u, t in zip(u_ss, t_ss): preloaded[u] = t
-    for u, t in zip(u_cr, t_cr): preloaded[u] = t
-    for u, t in zip(u_epmc, t_epmc): preloaded[u] = t
-    for u, t in zip(u_repo, t_repo): preloaded[u] = t
-    for u, t in zip(u_doaj, t_doaj): preloaded[u] = t
-    for u, t in zip(u_arxiv, t_arxiv): preloaded[u] = t
-    for u, t in zip(u_core, t_core): preloaded[u] = t
-    for u, t in zip(u_openaire, t_openaire): preloaded[u] = t
-    for u, t in zip(u_hal, t_hal): preloaded[u] = t
-    for u, t in zip(u_gsn, t_gsn): preloaded[u] = t
-    
-    # OpenAlex dan Fallback CSE sering punya snippet/teks yang layak
-    normal_urls = u_gs + u_gw + u_gr + u_dd + u_gsn
-    
-    for u, t in zip(u_oa, t_oa):
-        if t and len(t) > 50:
-            preloaded[u] = t
-        else:
+    normal_urls = []
+    stats = {}
+
+    def _fetch_group(group_name, api_pairs):
+        group_preloaded = {}
+        group_normal = []
+        group_stats = {}
+        from concurrent.futures import ThreadPoolExecutor, as_completed
+        with ThreadPoolExecutor(max_workers=len(api_pairs)) as executor:
+            fut_map = {}
+            for api_name, fetch_func in api_pairs:
+                fut = executor.submit(call_api_safe_v2, api_name, fetch_func, probe)
+                fut_map[fut] = api_name
+            for fut in as_completed(fut_map):
+                api_name = fut_map[fut]
+                urls, texts = fut.result(timeout=_REQUEST_TIMEOUT)
+                group_stats[api_name] = len(urls)
+                for u, t in zip(urls, texts):
+                    if len(t) >= 50:
+                        group_preloaded[u] = t
+                    else:
+                        group_normal.append(u)
+        return group_preloaded, group_normal, group_stats
+
+    # Grup 1: API Akademik Indonesia (prioritas)
+    g1_pre, g1_norm, g1_stat = _fetch_group("indonesia", [
+        ("IOS", fetch_onesearch_id),
+        ("Neliti", fetch_neliti),
+    ])
+    preloaded.update(g1_pre); normal_urls.extend(g1_norm); stats.update(g1_stat)
+
+    # Grup 2: API Akademik Internasional
+    g2_pre, g2_norm, g2_stat = _fetch_group("internasional", [
+        ("SemanticScholar", fetch_semantic_scholar),
+        ("Crossref", fetch_crossref),
+        ("OpenAlex", fetch_openalex),
+        ("EuropePMC", fetch_europe_pmc),
+    ])
+    preloaded.update(g2_pre); normal_urls.extend(g2_norm); stats.update(g2_stat)
+
+    # Grup 3: API Akademik Tambahan
+    g3_pre, g3_norm, g3_stat = _fetch_group("tambahan", [
+        ("DOAJ", fetch_doaj),
+        ("arXiv", fetch_arxiv),
+        ("CORE", fetch_core),
+        ("OpenAIRE", fetch_openaire),
+        ("HAL", fetch_hal),
+    ])
+    preloaded.update(g3_pre); normal_urls.extend(g3_norm); stats.update(g3_stat)
+
+    # Grup 4: Google Scholar + Google Web
+    g4_pre, g4_norm, g4_stat = _fetch_group("google", [
+        ("GoogleScholar", _fetch_google_scholar),
+        ("GoogleWeb", _fetch_google_web),
+    ])
+    preloaded.update(g4_pre); normal_urls.extend(g4_norm); stats.update(g4_stat)
+
+    # DuckDuckGo + Google Native fallback
+    try:
+        u_dd, t_dd = _fetch_ddgs(probe)
+        stats["DuckDuckGo"] = len(u_dd)
+        for u, t in zip(u_dd, t_dd):
+            if len(t) >= 50: preloaded[u] = t
+            else: normal_urls.append(u)
+    except Exception:
+        stats["DuckDuckGo"] = 0
+
+    for u, t in list(preloaded.items()):
+        if len(t) < 50:
+            del preloaded[u]
             normal_urls.append(u)
-            
-    for u, t in zip(u_fallback, t_fallback):
-        if t and len(t) > 50:
-            preloaded[u] = t
-        else:
-            normal_urls.append(u)
-    
+
     return preloaded, normal_urls, stats
+
 
 def get_candidate_urls(sentences, max_probes=100, progress_cb=None):
     """
@@ -1078,7 +1085,7 @@ def get_candidate_urls(sentences, max_probes=100, progress_cb=None):
     probes_done = 0
     
     # Gunakan max_workers=5 agar ScrapingBee dan ScraperAPI tidak menolak request karena melanggar batas concurrency Free Tier
-    with concurrent.futures.ThreadPoolExecutor(max_workers=16) as executor:
+    with concurrent.futures.ThreadPoolExecutor(max_workers=8) as executor:
         futures = [executor.submit(fetch_probe_multi, p) for p in probes]
         for i, future in enumerate(concurrent.futures.as_completed(futures)):
             if progress_cb:
@@ -1113,6 +1120,38 @@ def get_candidate_urls(sentences, max_probes=100, progress_cb=None):
     print(f"[API] Berhasil menarik {len(preloaded_corpus)} abstrak jurnal dan {len(urls)} link web publik.")
     return list(urls), preloaded_corpus
 
+class AdaptiveThreadPool:
+    """Dynamic thread pool yang menyesuaikan ukuran berdasarkan rasio timeout."""
+    def __init__(self, min_workers=2, max_workers=8, cooldown=30):
+        self.min_workers = min_workers
+        self.max_workers = max_workers
+        self.current_workers = max_workers
+        self.cooldown = cooldown
+        self.recent_timeouts = []
+        self._last_adjust = 0.0
+
+    def get_workers(self):
+        now = __import__('time').time()
+        if now - self._last_adjust < self.cooldown:
+            return self.current_workers
+        self._last_adjust = now
+        if not self.recent_timeouts:
+            return self.current_workers
+        rate = sum(self.recent_timeouts) / len(self.recent_timeouts)
+        if rate > 0.3:
+            self.current_workers = max(self.min_workers, self.current_workers - 2)
+        elif rate < 0.1 and self.current_workers < self.max_workers:
+            self.current_workers += 1
+        self.recent_timeouts = []
+        return self.current_workers
+
+    def record_timeout(self, occurred):
+        self.recent_timeouts.append(1 if occurred else 0)
+        if len(self.recent_timeouts) > 20:
+            self.recent_timeouts.pop(0)
+
+
+
 def scrape_url(url):
     """Mengekstrak teks mentah dari URL (Website atau PDF) menggunakan AbstractAPI Proxy untuk menembus WAF/Cloudflare"""
     if not is_safe_url(url):
@@ -1138,17 +1177,17 @@ def scrape_url(url):
         res = None
         if abstract_key:
             proxy_url = f"https://scrape.abstractapi.com/v1/?api_key={abstract_key}&url={encoded_url}"
-            res = _get_session().get(proxy_url, timeout=8, stream=True)
+            res = _get_session().get(proxy_url, timeout=_REQUEST_TIMEOUT, stream=True)
             if res.status_code != 200:
                 try:
-                    res = _get_session().get(url, timeout=8, verify=True, headers=headers, stream=True)
+                    res = _get_session().get(url, timeout=_REQUEST_TIMEOUT, verify=True, headers=headers, stream=True)
                 except requests.exceptions.SSLError:
-                    res = _get_session().get(url, timeout=8, verify=False, headers=headers, stream=True)
+                    res = _get_session().get(url, timeout=_REQUEST_TIMEOUT, verify=False, headers=headers, stream=True)
         else:
             try:
-                res = _get_session().get(url, timeout=8, verify=True, headers=headers, stream=True)
+                res = _get_session().get(url, timeout=_REQUEST_TIMEOUT, verify=True, headers=headers, stream=True)
             except requests.exceptions.SSLError:
-                res = _get_session().get(url, timeout=8, verify=False, headers=headers, stream=True)
+                res = _get_session().get(url, timeout=_REQUEST_TIMEOUT, verify=False, headers=headers, stream=True)
             
         if res and res.status_code == 200:
             content_length = res.headers.get('Content-Length')
@@ -1219,9 +1258,9 @@ def scrape_all_candidates(urls, preloaded_corpus, progress_cb=None):
     import time
     start_time = time.time()
     total_downloaded_bytes = 0
-    # max_workers=15: High concurrency to speed up scraping without drastically modifying timeouts
+    # max_workers=8: High concurrency to speed up scraping without drastically modifying timeouts
     failed_urls = []
-    with concurrent.futures.ThreadPoolExecutor(max_workers=15) as executor:
+    with concurrent.futures.ThreadPoolExecutor(max_workers=8) as executor:
         futures = {executor.submit(scrape_url, u): u for u in urls}
         total = len(futures)
         for i, future in enumerate(concurrent.futures.as_completed(futures)):
