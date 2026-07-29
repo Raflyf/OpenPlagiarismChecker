@@ -324,15 +324,15 @@ def calculate_similarity(doc_text, corpus, exclude_small=False, use_semantic=Fal
     if use_semantic and corpus:
         if semantic_threshold == "auto":
             # Dynamic Threshold 3-Interval Linier Kontinu Mulus (Tanpa Lonjakan / Bebas Overfitting):
-            # - Interval 0%  - 15%  N-Gram -> Threshold 0.8700 - 0.8800 (skala halus per 15%)
-            # - Interval 15% - 20%  N-Gram -> Threshold 0.8800 - 0.8900 (skala per 5%)
-            # - Interval 20% - 25%+ N-Gram -> Threshold 0.8900 - 0.9000 (clamped max 0.9000)
-            if ngram_similarity < 15.0:
-                thresh_val = 0.8700 + (ngram_similarity / 15.0) * 0.0100
-            elif ngram_similarity < 20.0:
-                thresh_val = 0.8800 + ((ngram_similarity - 15.0) / 5.0) * 0.0100
+            # - Interval 0%  - 12%  N-Gram -> Threshold 0.8700 - 0.8800 (skala halus per 12%)
+            # - Interval 12% - 17%  N-Gram -> Threshold 0.8800 - 0.8900 (skala per 5%)
+            # - Interval 17% - 25%+ N-Gram -> Threshold 0.8900 - 0.9000 (clamped max 0.9000)
+            if ngram_similarity < 12.0:
+                thresh_val = 0.8700 + (ngram_similarity / 12.0) * 0.0100
+            elif ngram_similarity < 17.0:
+                thresh_val = 0.8800 + ((ngram_similarity - 12.0) / 5.0) * 0.0100
             else:
-                thresh_val = min(0.9000, 0.8900 + ((ngram_similarity - 20.0) / 5.0) * 0.0100)
+                thresh_val = min(0.9000, 0.8900 + ((ngram_similarity - 17.0) / 8.0) * 0.0100)
             semantic_threshold = round(thresh_val, 4)
         print("\n[!] ===== STARTING SEMANTIC SIMILARITY CHECK =====")
         print(f"[!] Threshold: {semantic_threshold}, Total sentences: {len(doc_spans)}")
