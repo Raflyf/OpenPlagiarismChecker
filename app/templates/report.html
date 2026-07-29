@@ -10,16 +10,19 @@
         body {
             font-family: 'Roboto', sans-serif;
             background-color: #f0f0f0;
+            color: #333;
             margin: 0;
             padding: 40px;
             display: flex;
             justify-content: center;
+            transition: background-color 0.3s, color 0.3s;
         }
         .report-container {
             background-color: white;
             width: 800px;
             padding: 50px 60px;
             box-shadow: 0 0 20px rgba(0,0,0,0.05);
+            transition: background-color 0.3s, box-shadow 0.3s;
         }
         .filename {
             font-size: 24px;
@@ -118,9 +121,109 @@
         .color-7 { background-color: #795548; color: #795548; }
         .color-8 { background-color: #607d8b; color: #607d8b; }
         .color-9 { background-color: #3f51b5; color: #3f51b5; }
+
+        /* Dark Mode Theme Styles */
+        body.dark-mode {
+            background-color: #0f172a;
+            color: #f8fafc;
+        }
+        body.dark-mode .report-container {
+            background-color: #1e293b;
+            color: #f8fafc;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+        }
+        body.dark-mode .filename {
+            color: #f1f5f9;
+        }
+        body.dark-mode .divider-thick {
+            background-color: #38bdf8;
+        }
+        body.dark-mode .divider-thin {
+            background-color: #334155;
+        }
+        body.dark-mode .section-title {
+            color: #94a3b8;
+        }
+        body.dark-mode .score-number {
+            color: #f8fafc;
+        }
+        body.dark-mode .source-item {
+            border-bottom-color: #334155;
+        }
+        body.dark-mode .source-type {
+            color: #64748b;
+        }
+        body.dark-mode .source-stats {
+            color: #e2e8f0;
+        }
+        body.dark-mode .fooled-box {
+            background-color: #334155 !important;
+            border-color: #475569 !important;
+        }
+        body.dark-mode .fooled-title {
+            color: #cbd5e1 !important;
+        }
+        body.dark-mode .fooled-desc {
+            color: #94a3b8 !important;
+        }
+
+        /* Toggle Switch Button Styles */
+        .theme-toggle-container {
+            position: fixed;
+            top: 25px;
+            right: 25px;
+            z-index: 1000;
+        }
+        .theme-toggle-btn {
+            background-color: white;
+            border: 1px solid #e5e7eb;
+            border-radius: 50%;
+            width: 48px;
+            height: 48px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            transition: all 0.3s;
+            color: #4b5563;
+        }
+        .theme-toggle-btn:hover {
+            transform: scale(1.05);
+            background-color: #f9fafb;
+        }
+        body.dark-mode .theme-toggle-btn {
+            background-color: #374151;
+            border-color: #4b5563;
+            color: #fbbf24;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
+        }
+        body.dark-mode .theme-toggle-btn:hover {
+            background-color: #4b5563;
+        }
     </style>
 </head>
 <body>
+
+<!-- Dark Mode Toggle Button -->
+<div class="theme-toggle-container">
+    <button class="theme-toggle-btn" id="themeToggleBtn" onclick="toggleTheme()" aria-label="Toggle Dark Mode" title="Switch Theme">
+        <svg id="moonIcon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display: block;">
+            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+        </svg>
+        <svg id="sunIcon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display: none;">
+            <circle cx="12" cy="12" r="5"></circle>
+            <line x1="12" y1="1" x2="12" y2="3"></line>
+            <line x1="12" y1="21" x2="12" y2="23"></line>
+            <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+            <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+            <line x1="1" y1="12" x2="3" y2="12"></line>
+            <line x1="21" y1="12" x2="23" y2="12"></line>
+            <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+            <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+        </svg>
+    </button>
+</div>
 
 <div class="report-container">
     <div class="filename">{{ data.filename }}.pdf</div>
@@ -162,12 +265,12 @@
     {% if data.fooled_similarity is not none %}
     <div style="font-size: 11px; color: #888; margin-bottom: 5px;">(Skor asli &mdash; teks tersembunyi telah dibuang oleh sistem)</div>
     
-    <div style="background-color: #f5f5f5; border: 1px solid #ddd; border-radius: 6px; padding: 16px 20px; margin: 15px 0;">
+    <div class="fooled-box" style="background-color: #f5f5f5; border: 1px solid #ddd; border-radius: 6px; padding: 16px 20px; margin: 15px 0;">
         <div style="display: flex; align-items: baseline; gap: 12px;">
-            <span style="font-size: 36px; font-weight: 300; color: #999;">{{ data.fooled_similarity }}%</span>
+            <span class="fooled-title" style="font-size: 36px; font-weight: 300; color: #999;">{{ data.fooled_similarity }}%</span>
             <span style="font-size: 11px; color: #999; text-transform: uppercase; letter-spacing: 0.5px;">Skor Jika Hidden Text Lolos</span>
         </div>
-        <div style="font-size: 11px; color: #aaa; margin-top: 6px;">
+        <div class="fooled-desc" style="font-size: 11px; color: #aaa; margin-top: 6px;">
             Skor ini menunjukkan hasil jika sistem <b>tidak</b> mendeteksi teks tersembunyi (seperti Turnitin asli).
             Teks tersembunyi menggelembungkan jumlah kata sehingga persentase similaritas turun secara palsu.
         </div>
@@ -204,6 +307,27 @@
         {% endfor %}
     {% endif %}
 </div>
+
+<script>
+    function toggleTheme() {
+        const isDark = document.body.classList.toggle('dark-mode');
+        localStorage.setItem('theme', isDark ? 'dark' : 'light');
+        updateThemeIcon(isDark);
+    }
+
+    function updateThemeIcon(isDark) {
+        document.getElementById('moonIcon').style.display = isDark ? 'none' : 'block';
+        document.getElementById('sunIcon').style.display = isDark ? 'block' : 'none';
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        const savedTheme = localStorage.getItem('theme');
+        if (savedTheme === 'dark' || (!savedTheme && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+            document.body.classList.add('dark-mode');
+            updateThemeIcon(true);
+        }
+    });
+</script>
 
 </body>
 </html>
