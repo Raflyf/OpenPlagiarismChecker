@@ -935,8 +935,8 @@ def fetch_base(probe):
     return urls_found, texts_found
 
 def fetch_indonesian_ethesis(probe):
-    """Mencari skripsi/tesis dari repositori universitas negeri & swasta Indonesia via direct EPrints scraping.
-    Target: Undip, Unair, UMS, UNY (EPrints)
+    """Mencari skripsi/tesis dari 8 repositori universitas negeri, swasta & UIN aktif se-Indonesia.
+    Target: Undip, Unair, UMS, UNY, UIN Sunan Kalijaga Yogya, UIN Ar-Raniry Aceh, UNP Padang, UIN Jakarta.
     """
     urls_found = []
     texts_found = []
@@ -945,36 +945,51 @@ def fetch_indonesian_ethesis(probe):
         import urllib.parse
         encoded = urllib.parse.quote(short_probe)
         repos = [
-            ("Undip", f"https://eprints.undip.ac.id/cgi/search/simple?q={encoded}"),
-            ("Unair", f"https://repository.unair.ac.id/cgi/search/simple?q={encoded}"),
-            ("UMS", f"https://eprints.ums.ac.id/cgi/search/simple?q={encoded}"),
-            ("UNY", f"https://eprints.uny.ac.id/cgi/search/simple?q={encoded}"),
+            ("Undip", f"https://eprints.undip.ac.id/cgi/search/simple?q={encoded}", "eprints"),
+            ("Unair", f"https://repository.unair.ac.id/cgi/search/simple?q={encoded}", "eprints"),
+            ("UMS", f"https://eprints.ums.ac.id/cgi/search/simple?q={encoded}", "eprints"),
+            ("UNY", f"https://eprints.uny.ac.id/cgi/search/simple?q={encoded}", "eprints"),
+            ("UINSuka", f"https://digilib.uin-suka.ac.id/cgi/search/simple?q={encoded}", "eprints"),
+            ("UINArRaniry", f"https://repository.ar-raniry.ac.id/cgi/search/simple?q={encoded}", "eprints"),
+            ("UNPPadang", f"https://repository.unp.ac.id/cgi/search/simple?q={encoded}", "eprints"),
+            ("UINJakarta", f"https://repository.uinjkt.ac.id/dspace/simple-search?query={encoded}", "dspace"),
         ]
         headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
-        for repo_name, search_url in repos:
+        for repo_name, search_url, rtype in repos:
             try:
-                res = requests.get(search_url, timeout=4, headers=headers)
+                res = requests.get(search_url, timeout=3.5, headers=headers, verify=False)
                 if res.status_code != 200:
                     continue
                 soup = BeautifulSoup(res.text, "html.parser")
-                results = soup.select("tr.ep_search_result, p.ep_search_result, div.ep_search_result, table.ep_search_results tr")
-                for item in results:
-                    link_el = item.find("a", href=True)
-                    if not link_el:
-                        continue
-                    title = link_el.get_text(strip=True)
-                    if not title or len(title) < 15:
-                        continue
-                    href = link_el["href"]
-                    url = href if href.startswith("http") else f"https://eprints.{repo_name.lower()}.ac.id{href}"
-                    desc_el = item.find("p") or item.find("em") or item.find("span")
-                    description = desc_el.get_text(strip=True) if desc_el else ""
-                    combined = f"{title}. {description}" if description else title
-                    if len(combined) > 40:
-                        urls_found.append(url)
-                        texts_found.append(combined)
-                        if len(urls_found) >= 10:
-                            break
+                if rtype == "eprints":
+                    results = soup.select("tr.ep_search_result, p.ep_search_result, div.ep_search_result, table.ep_search_results tr")
+                    for item in results:
+                        link_el = item.find("a", href=True)
+                        if not link_el:
+                            continue
+                        title = link_el.get_text(strip=True)
+                        if not title or len(title) < 15:
+                            continue
+                        href = link_el["href"]
+                        url = href if href.startswith("http") else f"https://{search_url.split('/')[2]}{href}"
+                        desc_el = item.find("p") or item.find("em") or item.find("span")
+                        description = desc_el.get_text(strip=True) if desc_el else ""
+                        combined = f"{title}. {description}" if description else title
+                        if len(combined) > 40:
+                            urls_found.append(url)
+                            texts_found.append(combined)
+                elif rtype == "dspace":
+                    for item in soup.find_all("tr"):
+                        link_el = item.find("a", href=True)
+                        if link_el and "/handle/" in link_el.get("href", ""):
+                            title = link_el.get_text(strip=True)
+                            if not title or len(title) < 15:
+                                continue
+                            href = link_el["href"]
+                            url = href if href.startswith("http") else f"https://repository.uinjkt.ac.id{href}"
+                            combined = title
+                            urls_found.append(url)
+                            texts_found.append(combined)
             except Exception:
                 continue
     except Exception:
