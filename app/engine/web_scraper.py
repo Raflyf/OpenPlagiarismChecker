@@ -386,7 +386,7 @@ def fetch_google_scholar(probe):
         import urllib.parse
         short_probe = " ".join(probe.split()[:15])
         query = urllib.parse.quote(short_probe)
-        target_url = f"https://scholar.google.com/scholar?q={query}"
+        target_url = f"https://scholar.google.com/scholar?q={query}&lr=lang_id"
         
         import os
         scrapingbee_key = os.environ.get("SCRAPINGBEE_KEY", "")
@@ -528,7 +528,8 @@ def fetch_ddgs(probe):
         elif variant == 2:
             query = f'{short_probe} site:ac.id'
         else:
-            query = short_probe
+            # Bias Indonesia: tambah keyword bahasa Indonesia untuk recall lokal
+            query = f'{short_probe} (skripsi tesis jurnal penelitian)'
 
         # Ambil 25 hasil teratas untuk disortir dengan prioritas domain.
         # Backend 'auto' sering rotasi ke endpoint html.duckduckgo.com yang cert-nya
@@ -829,6 +830,181 @@ def fetch_neliti(probe):
         pass
     return urls_found, texts_found
 
+def fetch_moraref(probe):
+    """Mencari publikasi dari MORAREF (Kementerian Agama RI) - repositori jurnal keagamaan Islam.
+    Strategi: REST API + OAI-PMH fallback via search.apps.kemenag.go.id
+    """
+    urls_found = []
+    texts_found = []
+    try:
+        short_probe = " ".join(probe.split()[:10])
+        import urllib.parse
+        # Pendekatan 1: REST API search
+        api_url = "https://search.apps.kemenag.go.id/api/v1/documents"
+        params = {"q": short_probe, "limit": 10, "source": "moraref"}
+        try:
+            res = requests.get(api_url, params=params, timeout=_REQUEST_TIMEOUT)
+            if res.status_code == 200:
+                data = res.json()
+                docs = data.get("data", data.get("documents", data.get("results", [])))
+                if not isinstance(docs, list):
+                    docs = [docs]
+                for doc in docs:
+                    if isinstance(doc, dict):
+                        title = doc.get("title", doc.get("judul", ""))
+                        abstract = doc.get("abstract", doc.get("abstrak", doc.get("description", "")))
+                        url = doc.get("url", doc.get("link", doc.get("id", "")))
+                        if url and not url.startswith("http"):
+                            url = f"https://moraref.kemenag.go.id/archives/{url}"
+                        combined = f"{title}. {abstract}" if abstract else title
+                        if title and len(combined) > 50:
+                            urls_found.append(url)
+                            texts_found.append(combined)
+        except Exception:
+            pass
+        # Pendekatan 2: OAI-PMH fallback
+        if len(urls_found) < 3:
+            try:
+                oai_url = "https://moraref.kemenag.go.id/oai"
+                oai_params = {"verb": "ListRecords", "metadataPrefix": "oai_dc", "set": "moraref"}
+                res = requests.get(oai_url, params=oai_params, timeout=_REQUEST_TIMEOUT)
+                if res.status_code == 200:
+                    import xml.etree.ElementTree as ET
+                    root = ET.fromstring(res.text)
+                    for record in root.iter("{http://www.openarchives.org/OAI/2.0/}record"):
+                        metadata = record.find(".//{http://www.openarchives.org/OAI/2.0/}metadata")
+                        if metadata is None:
+                            continue
+                        titles = [t.text for t in metadata.iter("{http://purl.org/dc/elements/1.1/}title") if t.text]
+                        descriptions = [d.text for d in metadata.iter("{http://purl.org/dc/elements/1.1/}description") if d.text]
+                        identifiers = [i.text for i in metadata.iter("{http://purl.org/dc/elements/1.1/}identifier") if i.text]
+                        if not titles:
+                            continue
+                        title = titles[0]
+                        abstract = descriptions[0] if descriptions else ""
+                        url = identifiers[0] if identifiers else ""
+                        combined = f"{title}. {abstract}" if abstract else title
+                        probe_lower = probe.lower()
+                        if (probe_lower in title.lower() or probe_lower in abstract.lower()) and len(combined) > 50:
+                            urls_found.append(url)
+                            texts_found.append(combined)
+                            if len(urls_found) >= 5:
+                                break
+            except Exception:
+                pass
+    except Exception:
+        pass
+    return urls_found, texts_found
+
+def fetch_base(probe):
+    """Mencari publikasi dari BASE (Bielefeld Academic Search Engine) - 300M+ dokumen Open Access.
+    API gratis: https://api.base-search.net/
+    """
+    urls_found = []
+    texts_found = []
+    try:
+        short_probe = " ".join(probe.split()[:12])
+        import urllib.parse
+        api_url = "https://api.base-search.net/cgi-bin/BaseHttpSearchInterface.fcgi"
+        params = {"func": "PerformSearch", "query": short_probe, "format": "json", "limit": "10", "boost": "dc.description"}
+        res = requests.get(api_url, params=params, timeout=_REQUEST_TIMEOUT)
+        if res.status_code == 200:
+            data = res.json()
+            docs = data.get("result", data.get("docs", data.get("records", [])))
+            if isinstance(docs, dict):
+                docs = docs.get("doc", docs.get("result", []))
+            if not isinstance(docs, list):
+                docs = [docs]
+            for doc in docs:
+                if isinstance(doc, dict):
+                    title = doc.get("dc:title", doc.get("title", ""))
+                    if isinstance(title, list):
+                        title = title[0] if title else ""
+                    description = doc.get("dc:description", doc.get("description", ""))
+                    if isinstance(description, list):
+                        description = description[0] if description else ""
+                    url = doc.get("dc:identifier", doc.get("identifier", doc.get("id", "")))
+                    if isinstance(url, list):
+                        url = url[0] if url else ""
+                    combined = f"{title}. {description}" if description else title
+                    if title and len(combined) > 50:
+                        urls_found.append(url)
+                        texts_found.append(combined)
+    except Exception:
+        pass
+    return urls_found, texts_found
+
+def fetch_indonesian_ethesis(probe):
+    """Mencari skripsi/tesis dari repositori universitas negeri Indonesia via direct scraping.
+    Target: UGM, UI, ITB, Unair, Undip (EPrints/DSpace/Custom)
+    """
+    urls_found = []
+    texts_found = []
+    try:
+        short_probe = " ".join(probe.split()[:8])
+        import urllib.parse
+        encoded = urllib.parse.quote(short_probe)
+        repos = [
+            ("UGM", f"https://etd.repository.ugm.ac.id/search?q={encoded}"),
+            ("UI", f"https://lib.ui.ac.id/search?q={encoded}&f=title"),
+            ("ITB", f"https://repository.itb.ac.id/discover?query={encoded}"),
+            ("Unair", f"https://repository.unair.ac.id/discover?query={encoded}"),
+            ("Undip", f"https://eprints.undip.ac.id/search?q={encoded}"),
+        ]
+        headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
+        for repo_name, search_url in repos:
+            try:
+                res = requests.get(search_url, timeout=_SCRAPE_TIMEOUT, headers=headers)
+                if res.status_code != 200:
+                    continue
+                soup = BeautifulSoup(res.text, "html.parser")
+                found_any = False
+                selectors = "div.entry, div.result, li.result-item, tr, div.artifact, div.search-result, div.item"
+                for item in soup.select(selectors):
+                    title_el = item.find("h3") or item.find("h4") or item.find("a")
+                    if not title_el:
+                        continue
+                    title = title_el.get_text(strip=True)
+                    if not title or len(title) < 10:
+                        continue
+                    desc_el = item.find("p")
+                    description = desc_el.get_text(strip=True) if desc_el else ""
+                    link_el = item.find("a", href=True)
+                    url = ""
+                    if link_el and link_el.get("href"):
+                        href = link_el["href"]
+                        url = href if href.startswith("http") else f"https://{repo_name.lower()}.ac.id{href}"
+                    combined = f"{title}. {description}" if description else title
+                    if len(combined) > 50:
+                        urls_found.append(url)
+                        texts_found.append(combined)
+                        found_any = True
+                if not found_any:
+                    for heading in soup.find_all(["h2", "h3", "h4"]):
+                        title = heading.get_text(strip=True)
+                        if not title or len(title) < 15:
+                            continue
+                        link = heading.find("a", href=True)
+                        url = ""
+                        if link:
+                            href = link["href"]
+                            url = href if href.startswith("http") else f"https://{repo_name.lower()}.ac.id{href}"
+                        desc = ""
+                        next_p = heading.find_next("p")
+                        if next_p:
+                            desc = next_p.get_text(strip=True)
+                        combined = f"{title}. {desc}" if desc else title
+                        if len(combined) > 50:
+                            urls_found.append(url)
+                            texts_found.append(combined)
+                            if len(urls_found) % 3 == 0:
+                                break
+            except Exception:
+                continue
+    except Exception:
+        pass
+    return urls_found, texts_found
+
 _FAILED_APIS = set()
 _FAILED_APIS_LOCK = threading.Lock()
 
@@ -962,399 +1138,10 @@ def fetch_probe_multi(probe):
         ("DuckDuckGo", fetch_ddgs),
     ])
     preloaded.update(g4_pre); normal_urls.extend(g4_norm); stats.update(g4_stat)
-
-    # 5. Google Search Native (Top 5 probe terpanjang, budgeted)
-    u_gsn, t_gsn = [], []
-    global _GOOGLE_NATIVE_BUDGET
-    _claim_google = False
-    with _GOOGLE_NATIVE_LOCK:
-        if _GOOGLE_NATIVE_BUDGET > 0:
-            _GOOGLE_NATIVE_BUDGET -= 1
-            _claim_google = True
-    if _claim_google:
-        try:
-            u_gsn, t_gsn = call_api_safe_v2("GoogleNative", fetch_google_search_native, probe)
-        except Exception:
-            u_gsn, t_gsn = [], []
-    stats["GoogleNative"] = len(u_gsn) if u_gsn else 0
-    if u_gsn:
-        if not t_gsn or len(t_gsn) < len(u_gsn):
-            t_gsn = list(t_gsn or []) + [""] * (len(u_gsn) - len(t_gsn or []))
-        for u, t in zip(u_gsn, t_gsn):
-            if u:
-                if t and len(t) >= 50: preloaded[u] = t
-                else: normal_urls.append(u)
-
-    # 6. Repositori Kampus Indonesia (budgeted 15 probe)
-    u_repo, t_repo = [], []
-    global _INDO_REPO_BUDGET
-    _claim_repo = False
-    with _INDO_REPO_LOCK:
-        if _INDO_REPO_BUDGET > 0:
-            _INDO_REPO_BUDGET -= 1
-            _claim_repo = True
-    if _claim_repo:
-        try:
-            from .indonesian_repos import search_all_indonesian_repos
-            u_repo, t_repo = search_all_indonesian_repos(probe, max_repos=3, results_per_repo=2)
-        except Exception as e:
-            u_repo, t_repo = [], []
-    stats["IndoRepos"] = len(u_repo) if u_repo else 0
-    if u_repo:
-        if not t_repo or len(t_repo) < len(u_repo):
-            t_repo = list(t_repo or []) + [""] * (len(u_repo) - len(t_repo or []))
-        for u, t in zip(u_repo, t_repo):
-            if u:
-                if t and len(t) >= 50: preloaded[u] = t
-                else: normal_urls.append(u)
-
-    # 7. Free API Fallbacks
-    try:
-        from .free_api_fallbacks import search_with_fallbacks
-        u_fb, t_fb = search_with_fallbacks(probe, use_cache=True)
-        stats["Fallback"] = len(u_fb) if u_fb else 0
-        if u_fb:
-            if not t_fb or len(t_fb) < len(u_fb):
-                t_fb = list(t_fb or []) + [""] * (len(u_fb) - len(t_fb or []))
-            for u, t in zip(u_fb, t_fb):
-                if u:
-                    if t and len(t) >= 50: preloaded[u] = t
-                    else: normal_urls.append(u)
-    except Exception:
-        stats["Fallback"] = 0
-
-    # Normalisasi akhir: hapus entri preloaded yang teksnya terlalu pendek (<50 kata)
-    for u, t in list(preloaded.items()):
-        if not t or len(t) < 50:
-            del preloaded[u]
-            normal_urls.append(u)
-
-    return preloaded, normal_urls, stats
-
-
-def get_candidate_urls(sentences, max_probes=100, progress_cb=None):
-    """
-    Fungsi ini kini mengembalikan dua hal:
-    1. urls (List URL web biasa untuk discrape manual)
-    2. preloaded_corpus (Dict berisi teks abstrak/jurnal berbayar yang langsung didapat via API)
-
-    Strategi sampling 3-tier (75 probe):
-    - Tier 1 (33%): Kalimat terpanjang (high-specificity, likely unique content)
-    - Tier 2 (33%): Kalimat medium-length (balanced coverage)
-    - Tier 3 (34%): Uniform sampling across document (ensures all chapters covered)
-    """
-    # Reset budget penyisiran repo Indonesia untuk run ini (probe Tier-1 didahulukan).
-    # Dikunci agar konsisten dgn decrement ber-lock di fetch_probe_multi.
-    global _INDO_REPO_BUDGET
-    global _GOOGLE_NATIVE_BUDGET
-    with _INDO_REPO_LOCK:
-        _INDO_REPO_BUDGET = 15
-    with _GOOGLE_NATIVE_LOCK:
-        _GOOGLE_NATIVE_BUDGET = 5
-    with _FAILED_APIS_LOCK:
-        _FAILED_APIS.clear()
-
-    valid_sentences = [s for s in sentences if len(s.split()) >= 8]
-    if len(valid_sentences) <= max_probes:
-        probes = valid_sentences
-    else:
-        tier1_count = max_probes // 3
-        tier2_count = max_probes // 3
-        tier3_count = max_probes - tier1_count - tier2_count
-
-        sorted_by_len = sorted(valid_sentences, key=lambda s: len(s.split()), reverse=True)
-
-        tier1 = sorted_by_len[:tier1_count]
-
-        mid_start = len(sorted_by_len) // 4
-        mid_end = len(sorted_by_len) * 3 // 4
-        mid_candidates = [s for s in sorted_by_len[mid_start:mid_end] if s not in tier1]
-        if len(mid_candidates) >= tier2_count:
-            step = len(mid_candidates) / tier2_count
-            tier2 = [mid_candidates[int(i * step)] for i in range(tier2_count)]
-        else:
-            tier2 = mid_candidates
-
-        used = set(id(s) for s in tier1 + tier2)
-        uniform_candidates = [s for s in valid_sentences if id(s) not in used]
-        if len(uniform_candidates) >= tier3_count:
-            step = len(uniform_candidates) / tier3_count
-            tier3 = [uniform_candidates[int(i * step)] for i in range(tier3_count)]
-        else:
-            tier3 = uniform_candidates
-
-        probes = (tier1 + tier2 + tier3)[:max_probes]
-        
-    urls = set()
-    preloaded_corpus = {}
-    
-    print(f"[API] Meluncurkan Bot AI & Browser Crawler untuk {len(probes)} Fingerprints...")
-    
-    # USE_COHERE_EXPANDER (default "0"=MATI): blok Cohere->DDG ini bottleneck utama
-    # (Cohere trial 1 req/detik + 3 varian/probe x DDG yg sering kena rate-limit 429).
-    # Sumber utama tetap datang dari DOAJ/Crossref/OpenAlex/Semantic Scholar + DDG
-    # langsung di fase kedua (fetch_probe_multi). Nyalakan hanya bila butuh recall ekstra.
-    if os.environ.get("USE_COHERE_EXPANDER", "0") == "1":
-      try:
-        # ========================================================================
-        # COHERE QUERY-EXPANDER -> DUCKDUCKGO
-        # Perplexity/Gemini/Tavily quota habis & Google CSE ditutup permanen.
-        # Cohere web-search connector juga dihapus (15 Sep 2025). Yang tersisa &
-        # gratis: Cohere chat (command-a) sebagai peng-EKSPAN query. Tiap probe
-        # kita minta variasi frasa, lalu variasi itu dicari via DuckDuckGo (fetch_ddgs).
-        # Ini menambah recall sumber tanpa bergantung pada API yang sudah mati.
-        # ========================================================================
-        def fetch_expanded(args):
-            idx, probe = args
-            found = set()
-            for variant in cohere_expand_queries(probe, n=3):
-                try:
-                    v_urls, _ = fetch_ddgs(variant)
-                    for u in v_urls:
-                        if u and u.startswith('http'):
-                            found.add(u)
-                except Exception as e:
-                    print(f"[!] fetch_ddgs varian gagal: {e}")
-            return list(found)
-
-        # max_workers=2: hormati Cohere trial 1 req/detik + hindari DDG rate-limit
-        with concurrent.futures.ThreadPoolExecutor(max_workers=2) as executor:
-            futures_exp = {executor.submit(fetch_expanded, (i, p)): i for i, p in enumerate(probes)}
-            for i, future in enumerate(concurrent.futures.as_completed(futures_exp)):
-                if progress_cb:
-                    progress_cb(futures_exp[future] + 1, len(probes) + len(probes))
-                try:
-                    for u in future.result():
-                        urls.add(u)
-                except Exception as e:
-                    print(f"[!] expander future gagal: {e}")
-      except Exception as e:
-        print(f"[!] Cohere/DDG expander error: {e}")
-
-    # --- blok API mati di bawah dinonaktifkan (disimpan sbagai referensi histori) ---
-    print(f"[API] Mencari jurnal dari {len(probes)} sampel kalimat via Semantic Scholar, Crossref & DuckDuckGo...")
-    
-    # Akumulasi statistik per-API lintas semua probe
-    total_stats = {}
-    probes_done = 0
-    
-    # Gunakan max_workers=5 agar ScrapingBee dan ScraperAPI tidak menolak request karena melanggar batas concurrency Free Tier
-    with concurrent.futures.ThreadPoolExecutor(max_workers=8) as executor:
-        futures = [executor.submit(fetch_probe_multi, p) for p in probes]
-        for i, future in enumerate(concurrent.futures.as_completed(futures)):
-            if progress_cb:
-                progress_cb(i + 1, len(probes))
-            try:
-                preloaded, ddg_urls, stats = future.result()
-                
-                # Akumulasikan statistik
-                for api_name, count in stats.items():
-                    total_stats[api_name] = total_stats.get(api_name, 0) + count
-                
-                # Masukkan hasil API langsung ke Corpus (tanpa perlu web-scrape)
-                for u, t in preloaded.items():
-                    preloaded_corpus[u] = t
-                    
-                # Masukkan hasil DuckDuckGo ke antrian URL scraping
-                for u in ddg_urls:
-                    if u not in preloaded_corpus:
-                        urls.add(u)
-                    
-            except Exception as e:
-                print(f"[!] Peringatan di get_candidate_urls worker: {e}")
-            
-            probes_done += 1
-            # Cetak ringkasan progresif setiap 10 probe atau pada probe terakhir
-            if probes_done % 10 == 0 or probes_done == len(probes):
-                active = {k: v for k, v in total_stats.items() if v > 0}
-                parts = [f"{k}:{v}" for k, v in sorted(active.items(), key=lambda x: -x[1])]
-                total_found = sum(active.values())
-                print(f"[API] Probe {probes_done}/{len(probes)} -- {total_found} sumber ditemukan | {', '.join(parts)}")
-                
-    print(f"[API] Berhasil menarik {len(preloaded_corpus)} abstrak jurnal dan {len(urls)} link web publik.")
-    return list(urls), preloaded_corpus
-
-class AdaptiveThreadPool:
-    """Dynamic thread pool yang menyesuaikan ukuran berdasarkan rasio timeout."""
-    def __init__(self, min_workers=2, max_workers=8, cooldown=30):
-        self.min_workers = min_workers
-        self.max_workers = max_workers
-        self.current_workers = max_workers
-        self.cooldown = cooldown
-        self.recent_timeouts = []
-        self._last_adjust = 0.0
-
-    def get_workers(self):
-        now = __import__('time').time()
-        if now - self._last_adjust < self.cooldown:
-            return self.current_workers
-        self._last_adjust = now
-        if not self.recent_timeouts:
-            return self.current_workers
-        rate = sum(self.recent_timeouts) / len(self.recent_timeouts)
-        if rate > 0.3:
-            self.current_workers = max(self.min_workers, self.current_workers - 2)
-        elif rate < 0.1 and self.current_workers < self.max_workers:
-            self.current_workers += 1
-        self.recent_timeouts = []
-        return self.current_workers
-
-    def record_timeout(self, occurred):
-        self.recent_timeouts.append(1 if occurred else 0)
-        if len(self.recent_timeouts) > 20:
-            self.recent_timeouts.pop(0)
-
-
-
-def scrape_url(url):
-    """Mengekstrak teks mentah dari URL (Website atau PDF) menggunakan AbstractAPI Proxy untuk menembus WAF/Cloudflare"""
-    if not is_safe_url(url):
-        return url, "", 0
-    total_bytes = 0
-    # Banyak situs (Medium, repositori kampus) mengembalikan halaman kosong/blokir
-    # tanpa User-Agent browser. Header ini menaikkan keberhasilan & kelengkapan teks.
-    headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
-                      "(KHTML, like Gecko) Chrome/120.0 Safari/537.36",
-        "Accept-Language": "id-ID,id;q=0.9,en;q=0.8",
-    }
-    import os
-    if "bsi.ac.id" in url.lower():
-        bsi_cookie = os.environ.get("BSI_COOKIE", "")
-        if bsi_cookie:
-            headers["Cookie"] = bsi_cookie
-
-    try:
-        import urllib.parse
-        encoded_url = urllib.parse.quote(url)
-        abstract_key = os.environ.get("ABSTRACT_KEY", "")
-        res = None
-        if abstract_key:
-            proxy_url = f"https://scrape.abstractapi.com/v1/?api_key={abstract_key}&url={encoded_url}"
-            res = _get_session().get(proxy_url, timeout=_REQUEST_TIMEOUT, stream=True)
-            if res.status_code != 200:
-                try:
-                    res = _get_session().get(url, timeout=_REQUEST_TIMEOUT, verify=True, headers=headers, stream=True)
-                except requests.exceptions.SSLError:
-                    res = _get_session().get(url, timeout=_REQUEST_TIMEOUT, verify=False, headers=headers, stream=True)
-        else:
-            try:
-                res = _get_session().get(url, timeout=_REQUEST_TIMEOUT, verify=True, headers=headers, stream=True)
-            except requests.exceptions.SSLError:
-                res = _get_session().get(url, timeout=_REQUEST_TIMEOUT, verify=False, headers=headers, stream=True)
-            
-        if res and res.status_code == 200:
-            content_length = res.headers.get('Content-Length')
-            if content_length and int(content_length) > 20 * 1024 * 1024:
-                return url, "", total_bytes
-
-            content = b""
-            for chunk in res.iter_content(chunk_size=8192):
-                content += chunk
-                if len(content) > 20 * 1024 * 1024:
-                    break
-            
-            total_bytes += len(content)
-            res_text = content.decode(res.apparent_encoding or 'utf-8', errors='ignore')
-            import re
-            
-            # Deteksi jika file adalah PDF langsung
-            if 'application/pdf' in res.headers.get('Content-Type', '').lower() or url.lower().endswith('.pdf'):
-                import fitz
-                doc = fitz.open(stream=content, filetype="pdf")
-                text = ""
-                try:
-                    for page_num, page in enumerate(doc):
-                        if page_num >= 30: break
-                        text += page.get_text() + " "
-                finally:
-                    doc.close()
-                text = re.sub(r'\s+', ' ', text).strip()
-                return url, text, total_bytes
-            else:
-                # Parsing HTML biasa (Fast Scraping tanpa Deep PDF Crawl yang lambat)
-                soup = BeautifulSoup(res_text, 'html.parser')
-                for tag in soup(["script", "style", "nav", "footer", "header", "aside", "menu"]):
-                    tag.decompose()
-                text = soup.get_text(separator=' ')
-                text = re.sub(r'\s+', ' ', text).strip()
-                return url, text, total_bytes
-    except Exception as e:
-        pass
-    return url, "", total_bytes
-
-def scrape_all_candidates(urls, preloaded_corpus, progress_cb=None):
-    """Mengeksekusi multi-threading untuk mengunduh web, lalu digabung dengan preloaded_corpus (Jurnal API).
-    Bank lokal di-merge terlebih dahulu (cek lokal dulu, internet pelengkap)."""
-    corpus = preloaded_corpus.copy()
-
-    # BANK LOKAL (SQLite3): lookup instan via bank.db tanpa load memori raksasa
-    bank_urls = get_bank_urls()
-    found_urls = [u for u in urls if u in bank_urls]
-    if found_urls:
-        cached_texts = get_bank_texts(found_urls)
-        corpus.update(cached_texts)
-        print(f"[Bank] {len(cached_texts)} sumber ditemukan di bank.db lokal (skip scrape)")
-    
-    # Hapus URL yang sudah ada di bank / preloaded (tak perlu scrape ulang)
-    urls = [u for u in urls if u not in bank_urls and u not in corpus]
-
-    if not urls:
-        save_to_corpus_bank(corpus)
-        return corpus
-
-    print(f"[Scraper] Bot Crawler mulai mengunduh {len(urls)} sumber web publik...")
-    
-    # Abaikan InsecureRequestWarning saat scrape blog/kampus yang SSL-nya mati
-    from requests.packages.urllib3.exceptions import InsecureRequestWarning
-    requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
-    
-    import time
-    start_time = time.time()
-    total_downloaded_bytes = 0
-    # max_workers=8: High concurrency to speed up scraping without drastically modifying timeouts
-    failed_urls = []
-    with concurrent.futures.ThreadPoolExecutor(max_workers=8) as executor:
-        futures = {executor.submit(scrape_url, u): u for u in urls}
-        total = len(futures)
-        for i, future in enumerate(concurrent.futures.as_completed(futures)):
-            try:
-                url, text, downloaded_bytes = future.result()
-                total_downloaded_bytes += downloaded_bytes
-                if len(text) > 150: # Validasi panjang minimal teks
-                    corpus[url] = text
-                else:
-                    failed_urls.append(futures[future])
-            except Exception as e:
-                failed_urls.append(futures[future])
-                print(f"[!] Warning: API/Scraper error -> {e}")
-            
-            if progress_cb:
-                elapsed = time.time() - start_time
-                speed_mbps = (total_downloaded_bytes / (1024 * 1024)) / elapsed if elapsed > 0 else 0
-                if speed_mbps < 1.0:
-                    speed_kbps = (total_downloaded_bytes / 1024) / elapsed if elapsed > 0 else 0
-                    speed_str = f"{speed_kbps:.1f} KB/s"
-                else:
-                    speed_str = f"{speed_mbps:.2f} MB/s"
-                progress_cb(i + 1, total, speed_str)
-
-    # RETRY PASS: URL yang gagal (kosong/error) sering korban rate-limit sesaat, bukan
-    # benar-benar mati. Coba sekali lagi dengan konkurensi sangat rendah (4 worker).
-    if failed_urls:
-        print(f"[Scraper] Retry {len(failed_urls)} sumber yang gagal (konkurensi rendah)...")
-        with concurrent.futures.ThreadPoolExecutor(max_workers=4) as executor:
-            futures = {executor.submit(scrape_url, u): u for u in failed_urls}
-            for future in concurrent.futures.as_completed(futures):
-                try:
-                    url, text, downloaded_bytes = future.result()
-                    total_downloaded_bytes += downloaded_bytes
-                    if len(text) > 150:
-                        corpus[url] = text
-                except Exception:
-                    pass
-
-    # Simpan sumber baru ke bank lokal (makin kaya seiring waktu)
-    save_to_corpus_bank(corpus)
-    return corpus
-
+    # Grup 5: Repository & Ekspansi Sumber Indonesia (MORAREF, BASE, E-Thesis)
+    g5_pre, g5_norm, g5_stat = _fetch_group("ekspansi",
+        ("MORAREF", fetch_moraref),
+        ("BASE", fetch_base),
+        ("IndoEThesis", fetch_indonesian_ethesis),
+    )
+    preloaded.update(g5_pre); normal_urls.extend(g5_norm); stats.update(g5_stat)
