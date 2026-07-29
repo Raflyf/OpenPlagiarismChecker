@@ -1139,9 +1139,12 @@ def fetch_probe_multi(probe):
     ])
     preloaded.update(g4_pre); normal_urls.extend(g4_norm); stats.update(g4_stat)
     # Grup 5: Repository & Ekspansi Sumber Indonesia (MORAREF, BASE, E-Thesis)
-    g5_pre, g5_norm, g5_stat = _fetch_group("ekspansi",
+    g5_pre, g5_norm, g5_stat = _fetch_group("ekspansi", [
         ("MORAREF", fetch_moraref),
         ("BASE", fetch_base),
         ("IndoEThesis", fetch_indonesian_ethesis),
-    )
+    ])
     preloaded.update(g5_pre); normal_urls.extend(g5_norm); stats.update(g5_stat)
+
+    return preloaded, normal_urls, stats
+
