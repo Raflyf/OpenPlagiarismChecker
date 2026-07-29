@@ -247,6 +247,8 @@ Skor Total = (Kata Ter-match N-Gram + Kata Ter-match Semantic) / Total Kata Doku
 - **Dark Mode Halaman Report**: Menambahkan toggle dan tema Dark Mode interaktif di `report.html` yang tersinkronisasi otomatis dengan `index.html`.
 - **Fix Regresi `fetch_probe_multi` & Restoration `get_candidate_urls`**: Memperbaiki penanganan URL web publik dari Google/Garuda serta mengembalikan fungsi `get_candidate_urls` secara utuh.
 
+### v4.3 — Security Hardening & Stabilitas
+
 - **Thread-safety**: `check_cancelled()` di `server.py` & `shingling.py` kini dilindungi `RESULTS_DB_LOCK`, menghilangkan race condition pada akses `results_db`.
 - **Atomic Frozen Write**: Penulisan `frozen_corpus` pakai `os.replace(temp, final)` di `server.py` & `run_test_groundtruth.py` — cegah race & file korup saat 2 proses parallel.
 - **SSRF Hardening**: `is_safe_url()` di `web_scraper.py` diperkuat: blokir metadata endpoints (AWS/GCP/Azure), URL shortener, wildcard localhost (`127.x`), IP hex/octal, trailing dot hostname.
