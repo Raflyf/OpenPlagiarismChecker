@@ -19,6 +19,7 @@ load_dotenv()
 from flask import Flask, render_template, request, jsonify, send_file, session
 from werkzeug.utils import secure_filename
 import threading
+import subprocess
 from engine.extractor import extract_text_auto, get_sentences
 from engine.web_scraper import get_candidate_urls, scrape_all_candidates, load_corpus_bank
 from engine.shingling import calculate_similarity
@@ -32,6 +33,8 @@ import logging as _logging
 _logging.getLogger('werkzeug').setLevel(_logging.WARNING)
 # Security: Generate secure secret key for sessions
 app.config['SECRET_KEY'] = os.environ.get('FLASK_SECRET_KEY') or secrets.token_hex(32)
+app.config['SESSION_COOKIE_HTTPONLY'] = True
+app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
 # Gunakan absolute path agar direktori selalu berada di dalam folder app/ 
 base_dir = os.path.dirname(os.path.abspath(__file__))
 app.config['UPLOAD_FOLDER'] = os.path.join(base_dir, 'uploads')
@@ -125,9 +128,10 @@ INTERNET_MAX_PROBES = int(os.environ.get("INTERNET_MAX_PROBES", "100"))
 
 def process_document(file_id, filepath, original_filename, exclude_quotes=True, exclude_biblio=True, exclude_small=False, use_semantic=False, use_internet=True, force_scrape=False):
     def set_progress(pct, msg):
-        if file_id in results_db:
-            results_db[file_id]['progress'] = pct
-            results_db[file_id]['message'] = msg
+        with RESULTS_DB_LOCK:
+            if file_id in results_db:
+                results_db[file_id]['progress'] = pct
+                results_db[file_id]['message'] = msg
 
     def check_cancelled():
         with RESULTS_DB_LOCK:
@@ -352,8 +356,8 @@ def upload_file():
     if 'file' not in request.files:
         return jsonify({'error': 'No file part'}), 400
     
-    # Rate limiting
-    client_ip = request.remote_addr or request.headers.get('X-Forwarded-For', 'unknown')
+    # Rate limiting: gunakan remote_addr langsung, bukan X-Forwarded-For (bisa dipalsukan)
+    client_ip = request.remote_addr or 'unknown'
     allowed, remaining = _check_rate_limit(client_ip)
     if not allowed:
         return jsonify({'error': f'Rate limit terlampaui. Coba lagi dalam {remaining} detik.'}), 429
@@ -408,40 +412,43 @@ def upload_file():
 
 @app.route('/cancel/<file_id>', methods=['POST'])
 def cancel_process(file_id):
-    if file_id in results_db:
-        current_session = session.get('session_id')
-        if results_db[file_id].get('session_id') == current_session:
-            results_db[file_id]['cancel_requested'] = True
-            results_db[file_id]['status'] = 'cancelled'
-            results_db[file_id]['message'] = 'Proses dibatalkan oleh pengguna.'
-            print(f"[!] PROSES DIBATALKAN USER: {file_id}")
-            return jsonify({'success': True, 'message': 'Proses berhasil dibatalkan.'})
+    with RESULTS_DB_LOCK:
+        if file_id in results_db:
+            current_session = session.get('session_id')
+            if results_db[file_id].get('session_id') == current_session:
+                results_db[file_id]['cancel_requested'] = True
+                results_db[file_id]['status'] = 'cancelled'
+                results_db[file_id]['message'] = 'Proses dibatalkan oleh pengguna.'
+                print(f"[!] PROSES DIBATALKAN USER: {file_id}")
+                return jsonify({'success': True, 'message': 'Proses berhasil dibatalkan.'})
     return jsonify({'error': 'File tidak ditemukan atau akses ditolak'}), 400
 
 @app.route('/status/<file_id>')
 def status(file_id):
     # SECURITY FIX: Validate ownership before returning status
-    if file_id not in results_db:
-        return jsonify({'status': 'not_found'}), 404
-    
-    file_data = results_db[file_id]
-    current_session = session.get('session_id')
-    
-    # Check ownership
-    if file_data.get('session_id') != current_session:
-        return jsonify({'error': 'Unauthorized access'}), 403
-    
-    # Don't expose session_id to client
-    safe_data = {k: v for k, v in file_data.items() if k != 'session_id'}
-    return jsonify(safe_data)
+    with RESULTS_DB_LOCK:
+        if file_id not in results_db:
+            return jsonify({'status': 'not_found'}), 404
+        
+        file_data = results_db[file_id]
+        current_session = session.get('session_id')
+        
+        # Check ownership
+        if file_data.get('session_id') != current_session:
+            return jsonify({'error': 'Unauthorized access'}), 403
+        
+        # Don't expose session_id to client
+        safe_data = {k: v for k, v in file_data.items() if k != 'session_id'}
+        return jsonify(safe_data)
 
 @app.route('/report/<file_id>')
 def report(file_id):
     # SECURITY FIX: Validate ownership before showing report
-    if file_id not in results_db:
-        return "Laporan tidak ditemukan.", 404
-    
-    file_data = results_db[file_id]
+    with RESULTS_DB_LOCK:
+        if file_id not in results_db:
+            return "Laporan tidak ditemukan.", 404
+        
+        file_data = results_db[file_id]
     current_session = session.get('session_id')
     
     # Check ownership
@@ -471,22 +478,25 @@ def report(file_id):
 @app.route('/download/<file_id>')
 def download_report(file_id):
     # SECURITY FIX: Validate ownership before allowing download
-    if file_id not in results_db:
-        return "Laporan tidak ditemukan.", 404
-    
-    file_data = results_db[file_id]
-    current_session = session.get('session_id')
-    
-    # Check ownership
-    if file_data.get('session_id') != current_session:
-        return "Akses tidak diizinkan.", 403
+    with RESULTS_DB_LOCK:
+        if file_id not in results_db:
+            return "Laporan tidak ditemukan.", 404
+        
+        file_data = results_db[file_id]
+        current_session = session.get('session_id')
+        
+        # Check ownership
+        if file_data.get('session_id') != current_session:
+            return "Akses tidak diizinkan.", 403
+        
+        has_data = 'data' in file_data
+        filename = file_data['data'].get('filename', file_id) if has_data else file_id
     
     report_pdf_path = os.path.join(app.config['REPORT_FOLDER'], f"{file_id}_report.pdf")
     if os.path.exists(report_pdf_path):
         download_name = f"{file_id}_turnitin.pdf"
-        if 'data' in file_data:
-            original = file_data['data'].get('filename', file_id)
-            download_name = f"{original}_turnitin.pdf"
+        if has_data:
+            download_name = f"{filename}_turnitin.pdf"
         return send_file(report_pdf_path, as_attachment=True, download_name=download_name)
     return "PDF Report not found", 404
 
@@ -511,8 +521,8 @@ if __name__ == '__main__':
             pass
         
         # Eksekusi pemusnahan diri paksa dari tingkat OS untuk menghindari Ghost Process
-        os.system("taskkill /F /IM ngrok.exe >nul 2>&1")
-        os.system(f"taskkill /F /PID {os.getpid()} >nul 2>&1")
+        subprocess.run(["taskkill", "/F", "/IM", "ngrok.exe"], capture_output=True, shell=True)
+        subprocess.run(["taskkill", "/F", "/PID", str(os.getpid())], capture_output=True, shell=True)
         os._exit(0)
     
 
