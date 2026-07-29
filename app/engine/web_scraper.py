@@ -890,16 +890,7 @@ def call_api_safe_v2(api_name, fetch_func, probe):
 
 
 def _call_api_safe(api_name, fetch_func, probe):
-    with _FAILED_APIS_LOCK:
-        if api_name in _FAILED_APIS:
-            return [], []
-    try:
-        urls, texts = fetch_func(probe)
-        return urls, texts
-    except Exception:
-        with _FAILED_APIS_LOCK:
-            _FAILED_APIS.add(api_name)
-        return [], []
+    return call_api_safe_v2(api_name, fetch_func, probe)
 
 def fetch_probe_multi(probe):
     preloaded = {}
