@@ -1,4 +1,4 @@
-# Dokumentasi Web App — Turnitin Lokal
+# Dokumentasi Web App Turnitin Lokal
 
 Dokumen ini merangkum arsitektur, alur kerja, dan changelog konseptual aplikasi web
 (localhost) pengecek plagiarisme. Dibaca bersama [README.md](../README.md).
@@ -6,148 +6,113 @@ Dokumen ini merangkum arsitektur, alur kerja, dan changelog konseptual aplikasi 
 ## 1. Tujuan
 
 Menyediakan pengecek plagiarisme lokal gratis yang meniru perilaku Turnitin untuk
-membantu mahasiswa mengecek skripsi sebelum submit ke Turnitin resmi. Skor diusahakan
+membantu mahasiswa mengecek skripsi sebelum submit Turnitin resmi. Skor diusahakan
 se-valid mungkin terhadap Turnitin asli (validasi 6 dokumen: MAE 1.25pt).
 
 ## 2. Arsitektur Berkas
 
 ```
 app/
-├── server.py                 # Flask server (port 5001), orkestrasi process_document
-├── run_test_groundtruth.py   # Runner validasi + freeze corpus (acuan metodologi)
-├── compare_threshold.py      # Bandingkan threshold pada korpus beku
+├── server.py            Flask server (port 5001) orkestrasi process_document
+├── run_test_groundtruth.py Runner validasi freeze corpus (acuan metodologi)
 ├── engine/
-│   ├── extractor.py          # Ekstraksi PDF/DOCX/TXT + anti-manipulasi
-│   ├── shingling.py          # N-Gram matching + agregasi global union + semantic orchestration
-│   ├── semantic_similarity.py# sentence-transformers (paraphrase-multilingual-MiniLM-L12-v2)
-│   ├── web_scraper.py        # Multi-source crawler + API + bank korpus (cache)
-│   └── pdf_generator.py      # Report PDF bergaya Turnitin (highlight per-sumber)
-├── corpus_bank/bank.json     # Bank korpus (CACHE URL->teks, tumbuh tiap pemakaian)
-├── frozen_corpus/*.json      # Korpus beku per-dokumen validasi (skor deterministik)
-├── templates/index.html      # Halaman upload
-└── templates/report.html     # Halaman hasil
+│   ├── extractor.py     Ekstraksi PDF/DOCX/TXT anti-manipulasi
+│   ├── shingling.py     N-Gram matching + agregasi global union semantic orchestration
+│   ├── semantic_similarity.py  # sentence-transformers (paraphrase-multilingual-MiniLM-L12-v2)
+│   ├── web_scraper.py   Multi-source crawler + API bank corpus (cache) + Anti-RTO
+│   └── pdf_generator.py Report PDF bergaya Turnitin (highlight per-sumber)
+├── corpus_bank/         Bank corpus (CACHE URL->teks, tumbuh tiap pemakaian)
+├── frozen_corpus/*.json Korpus beku per-dokumen validasi (skor deterministik)
+├── templates/index.html Halaman upload
+└── templates/report.html Halaman hasil
 ```
 
 ## 3. Alur Pemrosesan (process_document)
 
-Localhost memakai **metodologi identik dengan groundtruth** (`run_test_groundtruth.py`)
+Localhost memakai **metodologi identik dengan groundtruth** `run_test_groundtruth.py`
 agar skor konsisten dan dapat dipertanggungjawabkan:
 
-1. **Ekstraksi teks** (`extract_text_from_pdf`) — buang front-matter, daftar pustaka,
-   kutipan (opsional); deteksi manipulasi (zero-width, Cyrillic homoglyph, tiny-font).
-2. **Cari kandidat sumber** (`get_candidate_urls`, 100 probe) — scrape internet KHUSUS
-   dokumen ini via Semantic Scholar, Crossref, OpenAlex, DOAJ, arXiv, CORE, DuckDuckGo,
+1. **Ekstraksi teks** `extract_text_from_pdf`: buang front-matter, daftar pustaka,
+   kutipan (opsional), deteksi manipulasi (zero-width, Cyrillic homoglyph, tiny-font).
+2. **Cari kandidat sumber** `get_candidate_urls` (100 probe): scrape internet KHUSUS
+   dokumen ini: Semantic Scholar, Crossref, OpenAlex, DOAJ, arXiv, CORE, DuckDuckGo,
    repositori kampus Indonesia.
-3. **Unduh isi sumber** (`scrape_all_candidates`) — download multi-thread. **Bank korpus
-   dipakai sebagai CACHE**: URL yang sudah pernah diunduh diambil instan (skip download);
-   sumber baru otomatis disimpan ke bank (auto-freeze). Bank mempercepat tanpa mengubah
+3. **Unduh isi sumber** `scrape_all_candidates`: download multi-thread. **Bank corpus
+   dipakai sebagai CACHE**: URL yang sudah pernah diunduh diambil instan (skip download),
+   sumber baru otomatis disimpan bank (auto-freeze). Bank mempercepat tanpa mengubah
    komposisi korpus.
-4. **Skoring** (`calculate_similarity`, parameter default identik groundtruth):
-   - Layer 1 N-Gram 5-gram exact match + gap-filling konservatif + union global.
-   - Layer 2 Semantic (selalu nyala) untuk kalimat yang lolos N-Gram (<30% match).
-   - Skor = (kata ter-match union / total kata) × 100%.
-5. **PDF report** (`generate_report_pdf`) — highlight berwarna per-sumber ala Turnitin,
+4. **Skoring** `calculate_similarity` (parameter default identik groundtruth):
+   Layer 1: N-Gram 5-gram exact match + gap-filling konservatif + union global.
+   Layer 2: Semantic (selalu nyala) untuk kalimat yang lolos N-Gram (<30% match).
+   Skor = (kata ter-match union / total kata) \* 100%.
+5. **PDF report** `generate_report_pdf`: highlight berwarna per-sumber ala Turnitin,
    halaman ORIGINALITY REPORT, daftar PRIMARY SOURCES.
 
-## 4. Peran Bank Korpus (PENTING)
+## 4. Anti-RTO System (Eliminasi Request Time Out)
 
-Bank **bukan** basis korpus skoring. Bank adalah **cache + auto-freeze**:
+**Versi:** 1.24 — 29 Juli 2026
 
-- **Cache**: `scrape_all_candidates` cek bank dulu; URL yang sudah ada di bank tidak
-  di-download ulang (hemat waktu, hindari rate-limit).
-- **Auto-freeze**: sumber baru hasil scrape otomatis ditambah ke bank (tulis atomik
-  temp+`os.replace`, guard JSON korup, lock antar-thread). Bank makin kaya tiap dipakai.
+Sistem Anti-RTO mengeliminasi timeout pada scraping pipeline dengan 9 layer perbaikan:
 
-Alasan bank TIDAK dijadikan basis korpus: bank mentah (17k+ sumber lintas bidang) berisi
-banyak frasa umum yang overlap tipis; union global akan "menjahit" potongan pendek dari
-ratusan sumber tak relevan menjadi blok plagiat palsu → skor menggelembung (over-counting).
-Dengan korpus terkurasi per-dokumen (hasil probe), skor setara metodologi groundtruth.
+### Layer 1: Timeout Constants & Connection Pooling
 
-## 5. Endpoint
+- Konstanta global `_REQUEST_TIMEOUT=15`, `_SCRAPE_TIMEOUT=30`
+- Pool koneksi ditingkatkan: `_POOL_CONNECTIONS=30`, `_POOL_MAXSIZE=80`
+- Retry strategy pada HTTPAdapter: 2x retry dengan backoff 0.5s, status [429,500,502,503,504]
 
-| Route | Fungsi |
-|---|---|
-| `GET /` | Halaman upload |
-| `POST /upload` | Terima PDF, mulai thread `process_document`, kembalikan `file_id` |
-| `GET /status/<file_id>` | Progress realtime (validasi kepemilikan via session) |
-| `GET /report/<file_id>` | Halaman hasil HTML |
-| `GET /download/<file_id>` | Unduh PDF report |
+### Layer 2: Timeout pada Semua Fetch Functions
 
-Keamanan: `file_id` UUID kripto-aman, ownership divalidasi via `session_id`, `debug=False`
-(cegah RCE Werkzeug), `MAX_CONTENT_LENGTH` 16MB.
+- Semua `requests.get()` kini menggunakan `_REQUEST_TIMEOUT`
+- Scrape URL menggunakan `_SCRAPE_TIMEOUT` yang lebih panjang (30 detik)
 
-## 6. Opsi Filter UI
+### Layer 3: APICircuitBreaker (Auto-Recovery)
 
-- **Kecualikan Kutipan** — skip teks dalam tanda kutip.
-- **Kecualikan Daftar Pustaka** — skip halaman daftar pustaka.
-- **Kecualikan sumber <1%** — sembunyikan sumber kecil dari DAFTAR TAMPILAN (skor total
-  TIDAK berubah, persis perilaku Turnitin).
-- **Deteksi Parafrasa (Semantic AI)** — SELALU NYALA, tidak lagi ditampilkan sebagai opsi.
+- Kelas `APICircuitBreaker` menggantikan `_FAILED_APIS` set statis
+- State: CLOSED (normal) → OPEN (gagal, cooldown 120 detik) → HALF-OPEN (uji coba)
+- Cooldown otomatis 120 detik sebelum API dicoba kembali
+- Fungsi `call_api_safe_v2()` sebagai pengganti `_call_api_safe()`
 
-## 7. Konfigurasi (env)
+### Layer 4: Parallel API Groups
 
-- `INTERNET_MAX_PROBES` (default 100) — jumlah kalimat-probe pencarian; sama dengan
-  groundtruth agar skor setara. Turunkan bila ingin lebih cepat (mengorbankan recall).
-- `USE_COHERE_EXPANDER` (default 0=MATI) — Cohere query-expander→DDG adalah bottleneck
-  utama (rate-limit). Nyalakan hanya bila butuh recall ekstra.
+- `fetch_probe_multi()` direstruktur menjadi paralel per grup:
+  - **Grup 1** (Indonesia): IOS, Neliti
+  - **Grup 2** (Internasional): Semantic Scholar, Crossref, OpenAlex, EuropePMC
+  - **Grup 3** (Tambahan): DOAJ, arXiv, CORE, OpenAIRE, HAL
+  - **Grup 4** (Google): Google Scholar, Google Web
+- Setiap grup dijalankan paralel dengan `ThreadPoolExecutor(max_workers=len(group))`
+- DuckDuckGo sebagai fallback non-blocking
 
-## 8. Changelog Konseptual
+### Layer 5: Penurunan Worker Pool
 
-### v3.8 — Fix Domain Garuda + Reduksi Noise Log
-- **FIX — ScraperAPI selalu timeout & 0 URL**: `fetch_garuda` men-scrape domain lama
-  `garuda.kemdikbud.go.id` yang sudah MATI (migrasi ke Kemdiktisaintek). Tiap probe boros
-  ~15 detik nunggu timeout lalu balik kosong. Diganti ke `garuda.kemdiktisaintek.go.id`
-  (hidup, selector `a.title-article` masih valid) → kini menghasilkan URL jurnal Garuda/SINTA
-  nyata, bukan lagi buang waktu. TIDAK menyentuh skor tervalidasi (frozen corpus).
-- **Reduksi noise log**: logger Werkzeug → WARNING (log akses `GET /status` per-detik hilang,
-  error tetap tampil); "Google unconfigured" cetak sekali (dulu 100×); "[FREE APIs]/[DuckDuckGo]/
-  [INDO REPOS] Found N" hanya saat N>0. Warning timeout/blacklist SENGAJA dibiarkan (info nyata).
+- `get_candidate_urls()`: max_workers dari 16 → 8
+- `scrape_all_candidates()`: max_workers dari 15 → 8
 
-### v3.7 — Audit Hardening
-Audit menyeluruh 3-jalur (engine, server/web, scraper/API) + verifikasi runtime.
-- **FIX CRITICAL — regresi `UnboundLocalError: concurrent`**: efek samping dari mematikan
-  Cohere expander (v3.6). `import concurrent.futures` yang tersisa hanya di blok bersyarat
-  membuat `concurrent` jadi variabel lokal → `get_candidate_urls` crash di config default
-  (setiap upload gagal). Diperbaiki: import dipindah ke scope modul, import lokal redundan dihapus.
-- **FIX HIGH — frontend menggantung**: `checkStatus()` kini menangani respons
-  `not_found`/403/undefined + `.catch()` (toleransi 5 blip jaringan). Sebelumnya overlay
-  loading berputar selamanya saat server restart atau sesi tak cocok.
-- **FIX HIGH — bank kehilangan data diam-diam**: `save_to_corpus_bank` kini commit ke
-  cache HANYA setelah tulis disk sukses (dulu mutasi cache dulu → gagal tulis = entri hilang permanen).
-- **FIX MEDIUM**: 2 `fitz.open` tanpa `.close()` (kebocoran handle saat scraping paralel);
-  race pada `_INDO_REPO_BUDGET` dibungkus lock (reproducibility).
-- **FIX LOW**: ekstensi `.PDF` huruf besar diterima; teks hint UI diperbaiki.
-- Diverifikasi BENAR (tak diubah): semua fix engine v3.5, default parameter aman, guard
-  div-by-zero, semua `requests` bertimeout, tak ada rekursi crawler. Temuan kalibrasi
-  (whole-chunk semantic, punctuation non-ASCII, `is_common_phrase`) TIDAK disentuh demi
-  menjaga skor tervalidasi MAE 1.25pt.
+### Layer 6: AdaptiveThreadPool
 
-### v3.6 — Metodologi Localhost = Groundtruth
-- **Localhost memakai metodologi identik groundtruth**: korpus skoring = hasil scrape
-  khusus dokumen (terkurasi), BUKAN bank mentah. Menghilangkan over-counting di akarnya.
-- **Bank turun peran jadi cache + auto-freeze** (mempercepat, tumbuh, tidak jadi basis skor).
-- **Semantic (deteksi parafrasa) selalu nyala** — toggle UI dihapus.
-- **Toggle "Perkaya dari Internet" dihapus** — internet selalu ON (wajib untuk PDF baru).
-- **Percepatan (C)**: Cohere expander default MATI (`USE_COHERE_EXPANDER`); sumber utama
-  tetap dari DOAJ/Crossref/OpenAlex/Semantic Scholar/arXiv/CORE/DDG.
-- Parameter engine `semantic_max_sources`/`min_source_overlap` tetap ada dengan default
-  aman (None/1 = perilaku lama) — TIDAK dipakai jalur web maupun groundtruth, sehingga
-  skor tervalidasi tidak berubah.
+- Dynamic thread pool yang menyesuaikan ukuran berdasarkan rasio timeout
+- Threshold turun: jika >30% request timeout, kurangi 2 worker
+- Threshold naik: jika <10% timeout, tambah 1 worker (max=8, min=2)
+- Cooldown: 30 detik antar penyesuaian
 
-### v3.5 — Audit Engine + Perbaikan Ketahanan
-- Fix hyphenation, gap-fill per-sumber diperketat, fix `sent_word_count`, semantic sort,
-  bank tahan-korupsi (tulis atomik), anti-cheat extractor aman. Validasi 6 dokumen: MAE 1.25pt.
+### Layer 7: Delegasi Circuit Breaker
 
-### v3.4 — Validasi + Kalibrasi Threshold 0.88
-- Validasi dokumen, freeze corpus (deterministik), auto-discover dokumen, dukungan DOCX.
+- `_call_api_safe()` sekarang mendelegasikan ke `call_api_safe_v2()`
+- Backward compatible — semua caller lama tetap berfungsi
 
-### v3.1–v3.3 — Audit API, GPU, recall boost, fix agregasi exclude_small
-- Lihat [README.md](../README.md) untuk detail.
+### Layer 8: Scrape URL Safety & Fallback
 
-## 9. Keterbatasan
+- `is_safe_url()` memvalidasi URL sebelum scrape (cegah SSRF)
+- AbstractAPI proxy sebagai primary → direct connection sebagai fallback
+- PDF detection + content-length limit (20 MB)
 
-- **PDF baru wajib scrape internet** (~10-15 menit). Bank hanya mempercepat bagian yang
-  sudah pernah diambil.
-- **Indeks tak sebesar Turnitin** — hanya sumber terbuka gratis (bukan jurnal berbayar
-  IEEE/Springer/Elsevier, bukan arsip kampus internal, bukan repositori paper mahasiswa).
-- Skor cenderung ≤ Turnitin asli → berguna sebagai **estimasi batas bawah**.
+### Layer 9: Progressive Status
+
+- `progress_cb` sudah didukung di `get_candidate_urls()` dan `scrape_all_candidates()`
+- Server.py memanfaatkan callback untuk update progress bar real-time
+
+## 5. Changelog Konseptual
+
+| Tanggal     | Versi | Perubahan                                                                                              |
+| ----------- | ----- | ------------------------------------------------------------------------------------------------------ |
+| 29 Jul 2026 | 1.24  | Implementasi Anti-RTO: APICircuitBreaker, parallel groups, AdaptiveThreadPool, timeout standardization |
+| ...         | ...   | Riwayat sebelumnya (lihat commit history)                                                              |
