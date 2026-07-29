@@ -323,12 +323,8 @@ def calculate_similarity(doc_text, corpus, exclude_small=False, use_semantic=Fal
     
     if use_semantic and corpus:
         if semantic_threshold == "auto":
-            if ngram_similarity < 12.0:
-                semantic_threshold = 0.87
-            elif ngram_similarity < 14.0:
-                semantic_threshold = 0.89
-            else:
-                semantic_threshold = 0.88
+            # Threshold universal yang stabil & bebas overfitting untuk paraphrase-multilingual-MiniLM-L12-v2
+            semantic_threshold = 0.88
         print("\n[!] ===== STARTING SEMANTIC SIMILARITY CHECK =====")
         print(f"[!] Threshold: {semantic_threshold}, Total sentences: {len(doc_spans)}")
         
