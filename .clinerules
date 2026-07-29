@@ -1,0 +1,7 @@
+# Cline Execution Rules
+
+- ALWAYS use standard Cline tool formatting (execute_command, read_file, write_to_file, list_files, search_files, etc.).
+- NEVER output raw tags like antAction, bash, or command in plain text. Always use Cline's native tools.
+- When you need to run a terminal command, use the execute_command tool.
+- When you need to read a file, use the read_file tool.
+- When you need to write or edit a file, use the write_to_file or replace_in_file tool.

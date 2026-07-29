@@ -16,6 +16,22 @@ import json as _json
 import threading as _threading
 import ipaddress as _ipaddress
 
+# Thread-local HTTP session untuk connection pooling (reuse koneksi TCP)
+_thread_local = _threading.local()
+
+def _get_session():
+    """Mendapatkan requests.Session untuk thread saat ini (thread-safe)."""
+    if not hasattr(_thread_local, "session"):
+        _thread_local.session = requests.Session()
+        _thread_local.session.headers.update({
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+        })
+        # Setel adapter dengan pool besar untuk koneksi paralel
+        adapter = requests.adapters.HTTPAdapter(pool_connections=20, pool_maxsize=50)
+        _thread_local.session.mount('https://', adapter)
+        _thread_local.session.mount('http://', adapter)
+    return _thread_local.session
+
 _BANK_JSON_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "corpus_bank", "bank.json")
 _BANK_DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "corpus_bank", "bank.db")
 _bank_lock = _threading.Lock()  # lindungi mutasi DB dari race antar-thread
@@ -1122,17 +1138,17 @@ def scrape_url(url):
         res = None
         if abstract_key:
             proxy_url = f"https://scrape.abstractapi.com/v1/?api_key={abstract_key}&url={encoded_url}"
-            res = requests.get(proxy_url, timeout=8, stream=True)
+            res = _get_session().get(proxy_url, timeout=8, stream=True)
             if res.status_code != 200:
                 try:
-                    res = requests.get(url, timeout=8, verify=True, headers=headers, stream=True)
+                    res = _get_session().get(url, timeout=8, verify=True, headers=headers, stream=True)
                 except requests.exceptions.SSLError:
-                    res = requests.get(url, timeout=8, verify=False, headers=headers, stream=True)
+                    res = _get_session().get(url, timeout=8, verify=False, headers=headers, stream=True)
         else:
             try:
-                res = requests.get(url, timeout=8, verify=True, headers=headers, stream=True)
+                res = _get_session().get(url, timeout=8, verify=True, headers=headers, stream=True)
             except requests.exceptions.SSLError:
-                res = requests.get(url, timeout=8, verify=False, headers=headers, stream=True)
+                res = _get_session().get(url, timeout=8, verify=False, headers=headers, stream=True)
             
         if res and res.status_code == 200:
             content_length = res.headers.get('Content-Length')
