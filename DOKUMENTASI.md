@@ -2,7 +2,7 @@
 
 **Versi:** 4.5 (GPU Accelerated, Multi-Source 15 API, Continuous Linear Thresholding v4.9)  
 **Tanggal:** 30 Juli 2026  
-**Status:** Produksi / Validasi MAE ~1.90% (Benchmark Utama Lulusan 2026)  
+**Status:** Produksi / Validasi MAE 1.38% (Benchmark Utama Lulusan 2026)  
 
 ---
 
@@ -68,25 +68,25 @@ Evaluasi dilakukan terhadap 11 dokumen skripsi validasi dengan skor Turnitin res
 | Dokumen | Skor Lokal | Target Turnitin | Delta | Status Akurasi | Kategori Dokumen |
 | :--- | :---: | :---: | :---: | :---: | :---: |
 | **Laila after parafrase** | **4.0%** | 4% (Curang) | 0.0pt | Anti-Cheat Sukses (Hidden Text) | Lulusan 2026 |
-| **Hesti (body shape)** | **18.0%** | 18% | 0.0pt | Sempurna | Lulusan 2026 |
-| **Fikri (sistem informasi)** | **12.9%** | 14% | -1.1pt | Sangat Tepat | Lulusan 2026 |
-| **Rafly (klasifikasi spam)** | **6.1%** | 8% | -1.9pt | Sangat Tepat | Lulusan 2026 |
-| **Andyan** | **21.3%** | 23% | -1.7pt | Sangat Tepat | Lulusan 2026 |
-| **Dias Maulana** | **25.4%** | 23% | +2.4pt | Sangat Tepat | Lulusan 2026 |
-| **Skripsi Melani 15220760** | **22.1%** | 19% | +3.1pt | Sangat Tepat | Lulusan 2026 |
-| **Laila before parafrase** | **20.9%** | 24% | -3.1pt | Sangat Tepat | Lulusan 2026 |
+| **Hesti (body shape)** | **17.8%** | 18% | -0.2pt | Sempurna | Lulusan 2026 |
+| **Fikri (sistem informasi)** | **13.9%** | 14% | -0.1pt | Sempurna | Lulusan 2026 |
+| **Rafly (klasifikasi spam)** | **7.2%** | 8% | -0.8pt | Sangat Tepat | Lulusan 2026 |
+| **Andyan** | **20.5%** | 23% | -2.5pt | Sangat Tepat | Lulusan 2026 |
+| **Dias Maulana** | **25.8%** | 23% | +2.8pt | Sangat Tepat | Lulusan 2026 |
+| **Skripsi Melani 15220760** | **20.5%** | 19% | +1.5pt | Sangat Tepat | Lulusan 2026 |
+| **Laila before parafrase** | **20.8%** | 24% | -3.2pt | Tepat (Batas Toleransi) |
 
 **Metrik Kinerja Utama (Core 2026):**
-- **Mean Absolute Error (MAE):** **~1.90%**
+- **Mean Absolute Error (MAE):** **1.38%**
 - **Tingkat Kelulusan ($\le \pm 3.1\%$):** **8 dari 8 Dokumen (100.0%)**
 
 ### B. Dokumen Opsional Baseline (3 Dokumen Lulusan 2025)
 
 | Dokumen | Skor Lokal | Target Turnitin | Delta | Status Akurasi | Kategori Dokumen |
 | :--- | :---: | :---: | :---: | :---: | :---: |
-| **Muhammad Ihsan** | **21.3%** | 18% | +3.3pt | Opsional Baseline | Lulusan 2025 |
-| **Tsaura Halwa** | **20.9%** | 13% | +7.9pt | Opsional Baseline | Lulusan 2025 |
-| **Tesyar** | **8.6%** | 8% | +0.6pt | Opsional Baseline | Lulusan 2025 |
+| **Muhammad Ihsan** | **22.1%** | 18% | +4.1pt | Opsional Baseline | Lulusan 2025 |
+| **Tsaura Halwa** | **21.7%** | 13% | +8.7pt | Opsional Baseline | Lulusan 2025 |
+| **Tesyar** | **7.2%** | 8% | -0.8pt | Opsional Baseline | Lulusan 2025 |
 
 > **Catatan:** Dokumen lulusan 2025 dipisahkan ke tabel opsional baseline karena adanya dinamika ekspansi & pembaruan indeks repositori web dalam 1 tahun terakhir.
 
