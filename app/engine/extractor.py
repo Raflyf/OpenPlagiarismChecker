@@ -57,8 +57,7 @@ def _extract_visible_text(doc):
                         if bbox:
                             hidden_spans.append((page_index, tuple(bbox)))
                         continue
-                    # Tambahkan spasi di akhir setiap span agar kata tidak menempel saat span tersembunyi dihapus di tengah kalimat
-                    visible_parts.append(span_text + " ")
+                    visible_parts.append(span_text)
                 visible_parts.append(" ")
             visible_parts.append(" ")
     return "".join(visible_parts), hidden_word_count, any_dropped, hidden_spans
@@ -151,8 +150,7 @@ def _extract_visible_docx(doc):
                 hidden_word_count += len(text.split())
                 any_dropped = True
             else:
-                # Tambahkan spasi untuk menghindari kata menempel
-                visible_parts.append(text + " ")
+                visible_parts.append(text)
                 
     for p in doc.paragraphs:
         process_runs(p.runs)
