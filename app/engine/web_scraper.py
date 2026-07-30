@@ -11,8 +11,8 @@ from concurrent.futures import ThreadPoolExecutor
 warnings.filterwarnings("ignore", category=XMLParsedAsHTMLWarning)
 
 # --- Konstanta Timeout & Pool Global ---
-_REQUEST_TIMEOUT = 15           # timeout default semua fetch API (detik)
-_SCRAPE_TIMEOUT = 30            # timeout scrape URL lebih panjang (download konten)
+_REQUEST_TIMEOUT = 8            # timeout default semua fetch API (detik) — turun dari 15s
+_SCRAPE_TIMEOUT = 12            # timeout scrape URL (detik) — turun dari 30s
 _POOL_CONNECTIONS = 30          # koneksi maks per host
 _POOL_MAXSIZE = 80              # max total koneksi pool
 
@@ -1022,7 +1022,7 @@ def fetch_google_search_native(probe):
 class APICircuitBreaker:
     _FAILED_APIS = {}
     _LOCK = __import__('threading').Lock()
-    COOLDOWN = 120
+    COOLDOWN = 60  # turun dari 120s agar API yang recover cepat bisa dipakai lagi
 
     @classmethod
     def is_available(cls, api_name):
@@ -1095,47 +1095,29 @@ def fetch_probe_multi(probe):
                             group_normal.append(u)
         return group_preloaded, group_normal, group_stats
 
-    # Grup 1: API Akademik Indonesia (prioritas)
-    g1_pre, g1_norm, g1_stat = _fetch_group("indonesia", [
+    # SINGLE WAVE: Semua API ditembak serentak dalam 1 gelombang paralel.
+    # API mati (tanpa key) sudah early-return di fungsinya masing-masing.
+    # OpenAIRE & HAL dihapus (Eropa/Prancis, tidak relevan untuk skripsi Indonesia, sering RTO).
+    all_apis = [
+        # Indonesia (prioritas)
         ("OneSearchID", fetch_onesearch_id),
         ("Neliti", fetch_neliti),
-        ("Garuda", fetch_garuda),
-    ])
-    preloaded.update(g1_pre); normal_urls.extend(g1_norm); stats.update(g1_stat)
-
-    # Grup 2: API Akademik Internasional
-    g2_pre, g2_norm, g2_stat = _fetch_group("internasional", [
+        ("MORAREF", fetch_moraref),
+        ("IndoEThesis", fetch_indonesian_ethesis),
+        # Internasional
         ("SemanticScholar", fetch_semantic_scholar),
         ("Crossref", fetch_crossref),
         ("OpenAlex", fetch_openalex),
         ("EuropePMC", fetch_europe_pmc),
-    ])
-    preloaded.update(g2_pre); normal_urls.extend(g2_norm); stats.update(g2_stat)
-
-    # Grup 3: API Akademik Tambahan
-    g3_pre, g3_norm, g3_stat = _fetch_group("tambahan", [
+        # Tambahan
         ("DOAJ", fetch_doaj),
         ("arXiv", fetch_arxiv),
-        ("CORE", fetch_core),
-        ("OpenAIRE", fetch_openaire),
-        ("HAL", fetch_hal),
-    ])
-    preloaded.update(g3_pre); normal_urls.extend(g3_norm); stats.update(g3_stat)
-
-    # Grup 4: Google Scholar + Google Web + DuckDuckGo
-    g4_pre, g4_norm, g4_stat = _fetch_group("google", [
-        ("GoogleScholar", fetch_google_scholar),
-        ("GoogleWeb", fetch_google_web),
-        ("DuckDuckGo", fetch_ddgs),
-    ])
-    preloaded.update(g4_pre); normal_urls.extend(g4_norm); stats.update(g4_stat)
-    # Grup 5: Repository & Ekspansi Sumber Indonesia (MORAREF, BASE, E-Thesis)
-    g5_pre, g5_norm, g5_stat = _fetch_group("ekspansi", [
-        ("MORAREF", fetch_moraref),
         ("BASE", fetch_base),
-        ("IndoEThesis", fetch_indonesian_ethesis),
-    ])
-    preloaded.update(g5_pre); normal_urls.extend(g5_norm); stats.update(g5_stat)
+        # Search Engine
+        ("DuckDuckGo", fetch_ddgs),
+    ]
+    g_pre, g_norm, g_stat = _fetch_group("all", all_apis)
+    preloaded.update(g_pre); normal_urls.extend(g_norm); stats.update(g_stat)
 
     return preloaded, normal_urls, stats
 
@@ -1248,7 +1230,7 @@ def get_candidate_urls(sentences, max_probes=100, progress_cb=None):
     probes_done = 0
     
     # Gunakan max_workers=5 agar ScrapingBee dan ScraperAPI tidak menolak request karena melanggar batas concurrency Free Tier
-    with concurrent.futures.ThreadPoolExecutor(max_workers=8) as executor:
+    with concurrent.futures.ThreadPoolExecutor(max_workers=12) as executor:
         futures = [executor.submit(fetch_probe_multi, p) for p in probes]
         for i, future in enumerate(concurrent.futures.as_completed(futures)):
             if progress_cb:
@@ -1340,17 +1322,17 @@ def scrape_url(url):
         res = None
         if abstract_key:
             proxy_url = f"https://scrape.abstractapi.com/v1/?api_key={abstract_key}&url={encoded_url}"
-            res = _get_session().get(proxy_url, timeout=_REQUEST_TIMEOUT, stream=True)
+            res = _get_session().get(proxy_url, timeout=_SCRAPE_TIMEOUT, stream=True)
             if res.status_code != 200:
                 try:
-                    res = _get_session().get(url, timeout=_REQUEST_TIMEOUT, verify=True, headers=headers, stream=True)
+                    res = _get_session().get(url, timeout=_SCRAPE_TIMEOUT, verify=True, headers=headers, stream=True)
                 except requests.exceptions.SSLError:
-                    res = _get_session().get(url, timeout=_REQUEST_TIMEOUT, verify=False, headers=headers, stream=True)
+                    res = _get_session().get(url, timeout=_SCRAPE_TIMEOUT, verify=False, headers=headers, stream=True)
         else:
             try:
-                res = _get_session().get(url, timeout=_REQUEST_TIMEOUT, verify=True, headers=headers, stream=True)
+                res = _get_session().get(url, timeout=_SCRAPE_TIMEOUT, verify=True, headers=headers, stream=True)
             except requests.exceptions.SSLError:
-                res = _get_session().get(url, timeout=_REQUEST_TIMEOUT, verify=False, headers=headers, stream=True)
+                res = _get_session().get(url, timeout=_SCRAPE_TIMEOUT, verify=False, headers=headers, stream=True)
             
         if res and res.status_code == 200:
             content_length = res.headers.get('Content-Length')
