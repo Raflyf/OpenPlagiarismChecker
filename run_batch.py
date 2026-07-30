@@ -27,7 +27,7 @@ for idx, filename in enumerate(files):
     with open(filepath, 'rb') as f:
         # Ganti force_scrape menjadi 'false' agar otomatis menggunakan frozen corpus jika ada!
         resp = session.post(URL_UPLOAD, files={'file': f}, data={
-            'force_scrape': 'false',
+            'force_scrape': 'true',
             'use_semantic': 'true',
             'exclude_quotes': 'true',
             'exclude_biblio': 'true'
