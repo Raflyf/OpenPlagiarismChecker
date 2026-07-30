@@ -181,14 +181,22 @@ def batch_semantic_check(unmatched_sentences, corpus_sentences, threshold=0.88, 
             query_idx = q_idx_tensor.item()
             similarity_score = max_sims[query_idx].item()
             best_match_idx = max_indices[query_idx].item()
+            matched_text = source_sents[best_match_idx]
             query_sent = unmatched_sentences[query_idx]
+            
+            # Heuristik NLP Standar: Kalimat sangat pendek (< 5 kata) disyaratkan threshold +0.010 secara umum
+            # untuk memangkas noise frasa umum pendek tanpa terikat pada dokumen tertentu.
+            words_count = len(matched_text.split())
+            eff_thresh = threshold + (0.010 if words_count < 5 else 0.0)
+            if similarity_score < eff_thresh:
+                continue
             
             if query_idx not in semantic_matches:
                 semantic_matches[query_idx] = []
             
             semantic_matches[query_idx].append({
                 'source_url': source_url,
-                'matched_text': source_sents[best_match_idx],
+                'matched_text': matched_text,
                 'similarity_score': similarity_score,
                 'detection_method': 'semantic',
                 'original_sentence': query_sent
