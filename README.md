@@ -10,17 +10,17 @@ Diuji terhadap 11 dokumen nyata yang sudah punya skor Turnitin asli sebagai grou
 
 | Dokumen                  | Skor Lokal | Target Turnitin | Delta  | Status            |
 | ------------------------ | ---------- | --------------- | ------ | ----------------- |
-| Muhammad Ihsan           | 21.1%      | 18%             | +3.1pt | Sangat Tepat      |
-| Rafly (klasifikasi spam) | 7.9%       | 8%              | -0.1pt | Sempurna          |
-| Melani                   | 19.9%      | 19%             | +0.9pt | Sangat Tepat      |
-| Fikri (sistem informasi) | 14.1%      | 14%             | +0.1pt | Sempurna          |
 | Laila after parafrase    | 20.1%      | 4% (Curang)     | n/a    | Anti-Cheat Sukses |
-| Dias Maulana             | 25.5%      | 23%             | +2.5pt | Sangat Tepat      |
-| Laila before parafrase   | 22.4%      | 24%             | -1.6pt | Sangat Tepat      |
+| Rafly (klasifikasi spam) | 7.9%       | 8%              | -0.1pt | Sempurna          |
 | Tesyar                   | 11.1%      | 8%              | +3.1pt | Sangat Tepat      |
-| Hesti (body shape)       | 18.1%      | 18%             | +0.1pt | Sempurna          |
-| Andyan                   | 17.5%      | 23%             | -5.5pt | Aman              |
 | Tsaura Halwa             | 17.4%      | 13%             | +4.4pt | Sangat Tepat      |
+| Fikri (sistem informasi) | 14.1%      | 14%             | +0.1pt | Sempurna          |
+| Muhammad Ihsan           | 21.1%      | 18%             | +3.1pt | Sangat Tepat      |
+| Hesti (body shape)       | 18.1%      | 18%             | +0.1pt | Sempurna          |
+| Melani                   | 19.9%      | 19%             | +0.9pt | Sangat Tepat      |
+| Dias Maulana             | 25.5%      | 23%             | +2.5pt | Sangat Tepat      |
+| Andyan                   | 17.5%      | 23%             | -5.5pt | Aman              |
+| Laila before parafrase   | 22.4%      | 24%             | -1.6pt | Sangat Tepat      |
 
 **Rata-rata error absolut (MAE): ~2.14 poin persentase.** Menggunakan kombinasi _N-Gram 5-Gram Exact Match_ dan _Semantic Paraphrase_ dengan **Continuous Global Linear Threshold** (anti-overfitting) yang sangat ketat, mesin ini terbukti berhasil mereplikasi logika pemeringkatan Turnitin sekaligus secara cerdas membongkar manipulasi teks (Trik Teks Putih / _Hidden Text_).
 ## Keterbatasan (Penting Dibaca)
