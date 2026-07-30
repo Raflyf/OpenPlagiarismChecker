@@ -57,39 +57,47 @@ GOOGLE_CX_ID=CX_ID_ANDA_DISINI
 ### Step 4: Test
 
 Restart server:
+
 ```bash
 python plagiarism_checker/app/server.py
 ```
 
 Upload PDF test. Di terminal, Anda akan melihat:
+
 ```
 [Google Custom Search] Found 15 results
 [FREE APIs] Found 15 URLs from free API fallbacks
 ```
 
 Jika muncul error:
+
 ```
 [!] Google Custom Search API belum dikonfigurasi!
 ```
+
 Berarti Anda belum mengganti `YOUR_CX_ID_HERE` di code.
 
 ## 🔧 Troubleshooting
 
 ### Error: "API key not valid"
+
 - Pastikan API key sudah di-enable untuk Custom Search API
 - Pastikan tidak ada spasi atau karakter extra saat copy-paste
 
 ### Error: "Daily Limit Exceeded"
+
 - Anda sudah pakai 10,000 queries hari ini
 - Tunggu sampai besok (reset 00:00 Pacific Time)
 - Atau buat API key baru di project lain
 
 ### Error: "Invalid CX ID"
+
 - CX ID harus format: `xxxxxxxxxxxxxx:yyyyyyyyyyy` (ada titik dua)
 - Pastikan tidak ada spasi atau karakter extra
 - Pastikan "Search the entire web" = ON di Custom Search Engine settings
 
 ### Tidak ada hasil / 0 URLs
+
 - Pastikan "Search the entire web" = **ON** (paling sering diabaikan!)
 - Jika OFF, CSE hanya search max 10 situs yang Anda tentukan
 - Cara cek: Buka https://programmablesearchengine.google.com/ > Pilih engine > Setup > Scroll ke "Sites to search"
@@ -97,16 +105,20 @@ Berarti Anda belum mengganti `YOUR_CX_ID_HERE` di code.
 ## 💰 Biaya & Quota
 
 ### Free Tier (Cukup untuk 99% kasus)
+
 - **10,000 queries/day** gratis
 - Jika sistem cek 50 fingerprints/dokumen × 2 query variations = 100 queries/dokumen
 - Berarti bisa cek **100 dokumen/hari** secara gratis!
 
 ### Paid Tier (Jika perlu lebih)
+
 - Setelah 10k queries, $5 per 1000 queries tambahan
 - Maksimum 10k queries/day untuk paid juga (total 20k/day)
 
 ### Load Balancing dengan Multiple API Keys
+
 Jika butuh lebih dari 10k/day:
+
 1. Buat 3-5 Google Cloud projects berbeda
 2. Buat API key di setiap project
 3. Gunakan 1 CX ID yang sama untuk semua
@@ -115,6 +127,7 @@ Jika butuh lebih dari 10k/day:
 6. Total quota: 10k × jumlah API keys
 
 Contoh (3 keys = 30k queries/day):
+
 ```python
 google_api_keys = [
     'AIzaSyAbc123...',  # Project 1 - 10k/day
@@ -126,16 +139,19 @@ google_api_keys = [
 ## 🎯 Expected Results
 
 Dengan Google Custom Search API aktif, setiap dokumen akan mendapat:
+
 - **15-20 URLs tambahan** dari Google Custom Search
 - **Total sumber meningkat 20-30%** dibanding sebelumnya
 - **Akurasi deteksi plagiarism meningkat** karena coverage lebih luas
 
 ### Sebelum (tanpa Google CSE):
+
 ```
 [API] Berhasil menarik 629 abstrak jurnal dan 701 link web publik
 ```
 
 ### Sesudah (dengan Google CSE):
+
 ```
 [Google Custom Search] Found 15 results  ← BARU!
 [FREE APIs] Found 15 URLs from free API fallbacks  ← BARU!
