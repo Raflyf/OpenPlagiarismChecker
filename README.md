@@ -22,8 +22,7 @@ Diuji terhadap 11 dokumen nyata yang sudah punya skor Turnitin asli sebagai grou
 | Andyan                   | 16.0%      | 23%             | -7.0pt | Aman              |
 | Tsaura Halwa             | 15.0%      | 13%             | +2.0pt | Sangat Tepat      |
 
-**Rata-rata error absolut (MAE): ~2.10 poin persentase.** Menggunakan kombinasi _N-Gram 5-Gram Exact Match_ dan _Semantic Paraphrase_ dengan **Syarat Ganda** yang sangat ketat, mesin ini terbukti berhasil mereplikasi logika pemeringkatan Turnitin sekaligus secara cerdas membongkar manipulasi teks (Trik Teks Putih / _Hidden Text_).
-
+**Rata-rata error absolut (MAE): ~2.36 poin persentase.** Menggunakan kombinasi _N-Gram 5-Gram Exact Match_ dan _Semantic Paraphrase_ dengan **Continuous Global Linear Threshold** (anti-overfitting) yang sangat ketat, mesin ini terbukti berhasil mereplikasi logika pemeringkatan Turnitin sekaligus secara cerdas membongkar manipulasi teks (Trik Teks Putih / _Hidden Text_).
 ## Keterbatasan (Penting Dibaca)
 
 ### Kenapa skor bisa berbeda dari Turnitin asli:
@@ -34,7 +33,7 @@ Diuji terhadap 11 dokumen nyata yang sudah punya skor Turnitin asli sebagai grou
 
 ### Akurasi skor yang bisa diharapkan:
 
-- Skor lokal memiliki tingkat akurasi yang sangat tinggi dengan selisih rata-rata (MAE) hanya **~2.10%** dari Turnitin asli.
+- Skor lokal memiliki tingkat akurasi yang sangat tinggi dengan selisih rata-rata (MAE) hanya **~2.36%** dari Turnitin asli.
 - Terkadang skor bisa sedikit **lebih tinggi** (karena algoritma _semantic_ mendeteksi parafrasa tingkat tinggi yang mungkin terlewat oleh Turnitin) atau sedikit **lebih rendah** (jika sumber aslinya berasal dari jurnal berbayar/database tertutup).
 - **Fluktuasi Saat Scraping Ulang**: Jika Anda memproses ulang dokumen yang sama dengan memaksa _scrape_ ulang dari internet (tanpa korpus beku), skor mungkin akan sedikit berubah-ubah. Ini sangat wajar karena bergantung pada stabilitas jaringan dan respons server kampus di detik tersebut (beberapa situs mungkin _timeout_), namun hasil skornya dijamin tidak akan jauh berbeda.
 - **Kesimpulan**: Alat ini sangat bisa diandalkan. Jika skor di sini sudah di bawah batas aman (misal <20%), maka kemungkinan besar di Turnitin asli juga akan aman.
@@ -237,7 +236,15 @@ Skor Total = (Kata Ter-match N-Gram + Kata Ter-match Semantic) / Total Kata Doku
 
 ## Changelog
 
-### v4.4 (Current) — Ekspansi Sumber Indonesia (MORAREF, BASE, E-Thesis PTN) & Dark Mode
+### v4.5 (Current) — Continuous Global Linear Thresholding & 70+ Kampus Indonesia
+
+- **Continuous Global Linear Threshold (Anti-Overfitting)**: Menggantikan sistem threshold kaku dengan formula matematika berkelanjutan (0.8600 - 0.8850) berdasarkan kepadatan *N-Gram Exact Match*. Memastikan model tetap kebal dari deteksi *overfitting* dan lebih konsisten di segala jenis dokumen.
+- **Ekspansi Masif Repositori 70+ Kampus Indonesia**: Memperluas *scraper* khusus (E-Thesis) dari hanya 6 PTN menjadi 70+ Universitas di Indonesia, meliputi UI, UGM, ITB, UNAIR, UNDIP, IPB, Universitas Telkom, Binus, Gunadarma, UIN/IAIN/STAIN se-Nusantara, dan banyak lagi.
+- **PyTorch CUDA / VRAM Optimization**: Mengunci eksekusi *Sentence Transformers* menggunakan modul lokal PyTorch `2.6.0+cu124` dengan proteksi VRAM agar lebih stabil pada GPU lokal.
+- **Integrasi API Alternatif (Internet Archive Scholar & Scilit)**: Menambahkan 2 sumber raksasa tambahan sebagai *fallback* ketika API akademik utama sedang melambat.
+- **Pembaruan Konfigurasi Google Custom Search**: Menyederhanakan penanganan *Google CSE* dan `.env` yang otomatis melakukan bypass instan saat API Google ditolak (Error 403 / *Billing*).
+
+### v4.4 — Ekspansi Sumber Indonesia (MORAREF, BASE, E-Thesis PTN) & Dark Mode
 
 - **Grup 5 Ekspansi Sumber (MORAREF, BASE, IndoEThesis)**: Mengintegrasikan 3 mesin pencari akademik baru dalam `fetch_probe_multi` secara paralel:
   - **MORAREF Kemenag**: Portal jurnal keagamaan UIN/IAIN/STAIN dengan *dual-approach* (REST API + OAI-PMH XML fallback).
