@@ -211,7 +211,7 @@ def process_document(file_id, filepath, original_filename, exclude_quotes=True, 
         if check_cancelled(): return
         set_progress(85, "Menghitung kemiripan (Algoritma N-Gram)...")
         print("[!] Menghitung similaritas dengan algoritma N-Gram Shingling...")
-        # PARAMETER IDENTIK GROUNDTRUTH: hanya semantic_threshold=0.88. TANPA
+        # PARAMETER IDENTIK GROUNDTRUTH: hanya semantic_threshold="auto". TANPA
         # semantic_max_sources/min_source_overlap -> engine berperilaku persis seperti
         # run_test_groundtruth.py, sehingga skor dokumen tervalidasi konsisten saat
         # dites di localhost (korpus sama-sama terkurasi, bukan bank mentah).
@@ -230,7 +230,7 @@ def process_document(file_id, filepath, original_filename, exclude_quotes=True, 
             print("[!] Menghitung skor kedua (jika hidden text lolos)...")
             _, fooled_sim, _ = calculate_similarity(
                 raw_text, corpus, exclude_small, use_semantic=use_semantic,
-                semantic_threshold=0.88, semantic_max_sources=10)
+                semantic_threshold="auto", semantic_max_sources=10)
             fooled_similarity = round(fooled_sim)
             print(f"[!] Skor tertipu (hidden text lolos): {fooled_similarity}%")
 
