@@ -13,6 +13,15 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 FOLDER = os.path.join(BASE_DIR, "before_turnitin")
 if not os.path.exists(FOLDER):
     FOLDER = os.path.join(BASE_DIR, "app", "before_turnitin")
+import socket
+try:
+    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    s.connect(("8.8.8.8", 80))
+    local_ip = s.getsockname()[0]
+    s.close()
+except:
+    local_ip = "127.0.0.1"
+
 URL_UPLOAD = "http://127.0.0.1:5001/upload"
 URL_STATUS = "http://127.0.0.1:5001/status/"
 
@@ -28,7 +37,8 @@ for idx, filename in enumerate(files):
 
     session = requests.Session()
     with open(filepath, 'rb') as f:
-        # Ganti force_scrape menjadi 'false' agar otomatis menggunakan frozen corpus jika ada!
+        # Gunakan force_scrape='false' agar menggunakan frozen_corpus yg sudah terkumpul,
+        # sehingga pengujian threshold baru lebih cepat dan konsisten.
         resp = session.post(URL_UPLOAD, files={'file': f}, data={
             'force_scrape': 'false',
             'use_semantic': 'true',
