@@ -461,40 +461,26 @@ def fetch_google_web(probe):
     return urls_found, []
 
 def fetch_garuda(probe):
-    """Mencari Portal Jurnal Nasional (Garuda Kemdikbud/SINTA) via ScraperAPI Proxy"""
+    """Mencari Portal Jurnal Nasional (Garuda Kemdikbud/SINTA) — direct scrape tanpa proxy.
+    Server Garuda tidak punya proteksi anti-bot level Cloudflare, cukup request langsung."""
     urls_found = []
     try:
         import urllib.parse
-        # Potong jadi 8 kata saja. 15 kata terlalu spesifik
         short_probe = " ".join(probe.split()[:8])
         query = urllib.parse.quote(short_probe)
-        # Domain lama garuda.kemdikbud.go.id MATI (ConnectionError) sejak migrasi
-        # Kemdikbud -> Kemdiktisaintek. Domain baru garuda.kemdiktisaintek.go.id hidup
-        # (HTTP 200), selector a.title-article & path /documents tetap sama.
         target_url = f"https://garuda.kemdiktisaintek.go.id/documents?q={query}"
-        
-        import os
-        scraperapi_key = os.environ.get("SCRAPERAPI_KEY", "")
-        if not scraperapi_key: return [], []
-        api_url = "https://api.scraperapi.com/"
-        params = {
-            "api_key": scraperapi_key,
-            "url": target_url,
-            "render": "false"
-        }
-        res = requests.get(api_url, params=params, timeout=20)
+        headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
+        res = _get_session().get(target_url, timeout=_REQUEST_TIMEOUT, headers=headers, verify=False)
         if res.status_code == 200:
-            html = res.text
-            from bs4 import BeautifulSoup
-            soup = BeautifulSoup(html, 'html.parser')
+            soup = BeautifulSoup(res.text, 'html.parser')
             for a_tag in soup.select('a.title-article'):
                 if 'href' in a_tag.attrs:
                     url = a_tag['href']
                     if not url.startswith('http'):
                         url = "https://garuda.kemdiktisaintek.go.id" + url
                     urls_found.append(url)
-    except Exception as e:
-        print(f"[!] Warning: API/Scraper error -> {e}")
+    except Exception:
+        pass
     return urls_found, []
 
 def fetch_ddgs(probe):
@@ -934,6 +920,43 @@ def fetch_base(probe):
         pass
     return urls_found, texts_found
 
+def fetch_pubmed(probe):
+    """Mencari publikasi biomedis di PubMed/NCBI (30M+ paper, gratis, tanpa API key).
+    Menggunakan NCBI E-Utilities (ESearch + ESummary) — sumber resmi pemerintah AS."""
+    urls_found = []
+    texts_found = []
+    try:
+        short_probe = " ".join(probe.split()[:10])
+        # ESearch: cari PMID berdasarkan query
+        esearch_url = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi"
+        params = {"db": "pubmed", "term": short_probe, "retmax": 5, "retmode": "json"}
+        res = _get_session().get(esearch_url, params=params, timeout=_REQUEST_TIMEOUT)
+        if res.status_code != 200:
+            return urls_found, texts_found
+        pmids = res.json().get("esearchresult", {}).get("idlist", [])
+        if not pmids:
+            return urls_found, texts_found
+        # ESummary: ambil metadata (title + abstract snippet)
+        esummary_url = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esummary.fcgi"
+        params = {"db": "pubmed", "id": ",".join(pmids), "retmode": "json"}
+        res = _get_session().get(esummary_url, params=params, timeout=_REQUEST_TIMEOUT)
+        if res.status_code == 200:
+            data = res.json().get("result", {})
+            for pmid in pmids:
+                item = data.get(pmid, {})
+                if not isinstance(item, dict):
+                    continue
+                title = item.get("title", "")
+                source = item.get("source", "")
+                combined = f"{title}. {source}"
+                url = f"https://pubmed.ncbi.nlm.nih.gov/{pmid}/"
+                if title and len(combined) > 40:
+                    urls_found.append(url)
+                    texts_found.append(combined)
+    except Exception:
+        pass
+    return urls_found, texts_found
+
 def fetch_indonesian_ethesis(probe):
     """Mencari skripsi/tesis dari 8 repositori universitas negeri, swasta & UIN aktif se-Indonesia.
     Target: Undip, Unair, UMS, UNY, UIN Sunan Kalijaga Yogya, UIN Ar-Raniry Aceh, UNP Padang, UIN Jakarta.
@@ -1102,6 +1125,7 @@ def fetch_probe_multi(probe):
         # Indonesia (prioritas)
         ("OneSearchID", fetch_onesearch_id),
         ("Neliti", fetch_neliti),
+        ("Garuda", fetch_garuda),
         ("MORAREF", fetch_moraref),
         ("IndoEThesis", fetch_indonesian_ethesis),
         # Internasional
@@ -1109,11 +1133,13 @@ def fetch_probe_multi(probe):
         ("Crossref", fetch_crossref),
         ("OpenAlex", fetch_openalex),
         ("EuropePMC", fetch_europe_pmc),
+        ("PubMed", fetch_pubmed),
         # Tambahan
         ("DOAJ", fetch_doaj),
         ("arXiv", fetch_arxiv),
         ("BASE", fetch_base),
         # Search Engine
+        ("GoogleNative", fetch_google_search_native),
         ("DuckDuckGo", fetch_ddgs),
     ]
     g_pre, g_norm, g_stat = _fetch_group("all", all_apis)
