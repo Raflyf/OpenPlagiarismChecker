@@ -323,10 +323,9 @@ def calculate_similarity(doc_text, corpus, exclude_small=False, use_semantic=Fal
     
     if use_semantic and corpus:
         if semantic_threshold == "auto":
-            # Formulasi Linier Kontinyu Global Murni yang Ditunning Ulang (v4.6):
-            # Threshold ber-skala mulus dari 0.8525 (pada N-Gram 0%) hingga 0.8800 (pada N-Gram 27.5%+)
-            # Base 0.8525 dibutuhkan untuk menyelamatkan dokumen dengan N-Gram rendah seperti Andyan agar bisa menangkap parafrasa ekstensif.
-            thresh_val = 0.8525 + min(0.0275, (ngram_similarity / 100.0) * 0.1000)
+            # Menggunakan formula Tunning (v4.5) yang sebelumnya menghasilkan MAE 2.14%
+            # Namun tetap dengan dataset raksasa (Frozen Corpus >6000 sumber)
+            thresh_val = 0.8600 + min(0.0250, (ngram_similarity / 100.0) * 0.1000)
             semantic_threshold = round(thresh_val, 4)
         print("\n[!] ===== STARTING SEMANTIC SIMILARITY CHECK =====")
         print(f"[!] Threshold: {semantic_threshold}, Total sentences: {len(doc_spans)}")
