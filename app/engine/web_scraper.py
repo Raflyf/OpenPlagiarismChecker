@@ -11,7 +11,7 @@ from concurrent.futures import ThreadPoolExecutor
 warnings.filterwarnings("ignore", category=XMLParsedAsHTMLWarning)
 
 # --- Konstanta Timeout & Pool Global ---
-_REQUEST_TIMEOUT = 8            # timeout default semua fetch API (detik) — turun dari 15s
+_REQUEST_TIMEOUT = 10           # timeout default semua fetch API (detik) — kompromi: cepat vs server kampus lambat
 _SCRAPE_TIMEOUT = 12            # timeout scrape URL (detik) — turun dari 30s
 _POOL_CONNECTIONS = 30          # koneksi maks per host
 _POOL_MAXSIZE = 80              # max total koneksi pool
