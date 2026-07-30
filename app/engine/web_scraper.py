@@ -1255,8 +1255,8 @@ def get_candidate_urls(sentences, max_probes=100, progress_cb=None):
     total_stats = {}
     probes_done = 0
     
-    # Gunakan max_workers=5 agar ScrapingBee dan ScraperAPI tidak menolak request karena melanggar batas concurrency Free Tier
-    with concurrent.futures.ThreadPoolExecutor(max_workers=12) as executor:
+    # Maksimalkan thread CPU ke 32 worker agar API paralel berjalan lebih agresif
+    with concurrent.futures.ThreadPoolExecutor(max_workers=32) as executor:
         futures = [executor.submit(fetch_probe_multi, p) for p in probes]
         for i, future in enumerate(concurrent.futures.as_completed(futures)):
             if progress_cb:
@@ -1429,9 +1429,9 @@ def scrape_all_candidates(urls, preloaded_corpus, progress_cb=None):
     import time
     start_time = time.time()
     total_downloaded_bytes = 0
-    # max_workers=8: High concurrency to speed up scraping without drastically modifying timeouts
+    # Maksimalkan ke 32 thread untuk mengunduh ratusan/ribuan URL web secara sangat agresif
     failed_urls = []
-    with concurrent.futures.ThreadPoolExecutor(max_workers=8) as executor:
+    with concurrent.futures.ThreadPoolExecutor(max_workers=32) as executor:
         futures = {executor.submit(scrape_url, u): u for u in urls}
         total = len(futures)
         for i, future in enumerate(concurrent.futures.as_completed(futures)):
@@ -1459,8 +1459,8 @@ def scrape_all_candidates(urls, preloaded_corpus, progress_cb=None):
     # RETRY PASS: URL yang gagal (kosong/error) sering korban rate-limit sesaat, bukan
     # benar-benar mati. Coba sekali lagi dengan konkurensi sangat rendah (4 worker).
     if failed_urls:
-        print(f"[Scraper] Retry {len(failed_urls)} sumber yang gagal (konkurensi rendah)...")
-        with concurrent.futures.ThreadPoolExecutor(max_workers=4) as executor:
+        print(f"[Scraper] Retry {len(failed_urls)} sumber yang gagal (konkurensi sedang)...")
+        with concurrent.futures.ThreadPoolExecutor(max_workers=8) as executor:
             futures = {executor.submit(scrape_url, u): u for u in failed_urls}
             for future in concurrent.futures.as_completed(futures):
                 try:
