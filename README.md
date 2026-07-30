@@ -10,10 +10,17 @@ Diuji terhadap 11 dokumen nyata yang sudah punya skor Turnitin asli sebagai grou
 
 | Dokumen                  | Skor Lokal | Target Turnitin | Delta  | Status            |
 | ------------------------ | ---------- | --------------- | ------ | ----------------- |
-| Laila after parafrase    | 20.1%      | 4% (Curang)     | n/a    | Anti-Cheat Sukses |
-| Rafly (klasifikasi spam) | 7.9%       | 8%              | -0.1pt | Sempurna          |
-| Tesyar                   | 11.1%      | 8%              | +3.1pt | Sangat Tepat      |
-| Tsaura Halwa             | 17.4%      | 13%             | +4.4pt | Sangat Tepat      |
+| Laila after parafrase    | 18.0%      | 4% (Curang)     | n/a    | Anti-Cheat Sukses |
+| Melani                   | 19.0%      | 19%             |  0.0pt | Sempurna          |
+| Hesti (body shape)       | 17.0%      | 18%             | -1.0pt | Sempurna          |
+| Fikri (sistem informasi) | 13.0%      | 14%             | -1.0pt | Sempurna          |
+| Muhammad Ihsan           | 19.0%      | 18%             | +1.0pt | Sempurna          |
+| Tesyar                   | 9.0%       | 8%              | +1.0pt | Sempurna          |
+| Dias Maulana             | 24.0%      | 23%             | +1.0pt | Sempurna          |
+| Rafly (klasifikasi spam) | 6.0%       | 8%              | -2.0pt | Sangat Tepat      |
+| Andyan                   | 18.0%      | 23%             | -5.0pt | Aman              |
+| Laila before parafrase   | 19.0%      | 24%             | -5.0pt | Aman              |
+| Tsaura Halwa             | 18.0%      | 13%             | +5.0pt | Aman              |
 | Fikri (sistem informasi) | 14.1%      | 14%             | +0.1pt | Sempurna          |
 | Muhammad Ihsan           | 21.1%      | 18%             | +3.1pt | Sangat Tepat      |
 | Hesti (body shape)       | 18.1%      | 18%             | +0.1pt | Sempurna          |
@@ -22,7 +29,7 @@ Diuji terhadap 11 dokumen nyata yang sudah punya skor Turnitin asli sebagai grou
 | Andyan                   | 17.5%      | 23%             | -5.5pt | Aman              |
 | Laila before parafrase   | 22.4%      | 24%             | -1.6pt | Sangat Tepat      |
 
-**Rata-rata error absolut (MAE): ~2.14 poin persentase.** Menggunakan kombinasi _N-Gram 5-Gram Exact Match_ dan _Semantic Paraphrase_ dengan **Continuous Global Linear Threshold** (anti-overfitting) yang sangat ketat, mesin ini terbukti berhasil mereplikasi logika pemeringkatan Turnitin sekaligus secara cerdas membongkar manipulasi teks (Trik Teks Putih / _Hidden Text_).
+**Rata-rata error absolut (MAE): ~2.20% poin persentase.** Menggunakan kombinasi _N-Gram 5-Gram Exact Match_ dan _Semantic Paraphrase_ dengan **Continuous Global Linear Threshold** (anti-overfitting) yang sangat ketat, mesin ini terbukti berhasil mereplikasi logika pemeringkatan Turnitin sekaligus secara cerdas membongkar manipulasi teks (Trik Teks Putih / _Hidden Text_).
 ## Keterbatasan (Penting Dibaca)
 
 ### Kenapa skor bisa berbeda dari Turnitin asli:
