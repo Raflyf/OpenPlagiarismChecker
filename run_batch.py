@@ -27,7 +27,7 @@ for idx, filename in enumerate(files):
     with open(filepath, 'rb') as f:
         # Ganti force_scrape menjadi 'false' agar otomatis menggunakan frozen corpus jika ada!
         resp = session.post(URL_UPLOAD, files={'file': f}, data={
-            'force_scrape': 'true',
+            'force_scrape': 'false',
             'use_semantic': 'true',
             'exclude_quotes': 'true',
             'exclude_biblio': 'true'
@@ -42,42 +42,59 @@ for idx, filename in enumerate(files):
     print(f"    [OK] file_id={file_id}")
 
     # Polling status
-    max_retries = 600  # 10 menit (1 detik per poll)
+    max_retries = 600  # 10 menit
+    completed_flag = False
     for attempt in range(max_retries):
-        status_resp = session.get(URL_STATUS + file_id)
-        if status_resp.status_code == 200:
-            status_data = status_resp.json()
-            status = status_data.get('status', 'unknown')
-            progress = status_data.get('progress', 0)
-            message = status_data.get('message', '')
-            if progress is not None and message:
-                # Pad spasi agar menghapus karakter sisa dari pesan sebelumnya
-                print(f"    [{progress:>3}%] {message:<60}", end='\r', flush=True)
+        try:
+            status_resp = session.get(URL_STATUS + file_id, timeout=5)
+            if status_resp.status_code == 200:
+                status_data = status_resp.json()
+                status = status_data.get('status', 'unknown')
+                progress = status_data.get('progress', 0)
+                message = status_data.get('message', '')
+                if progress is not None and message:
+                    print(f"    [{progress:>3}%] {message:<60}", end='\r', flush=True)
 
-            if status == 'completed':
-                score = status_data.get('data', {}).get('total_similarity', 'N/A')
-                print(f"\n    [SELESAI] Hasil Similarity: {score}%")
-                results.append({
-                    'file': filename,
-                    'score': f"{score}%",
-                    'file_id': file_id
-                })
-                break
-            elif status in ('error', 'cancelled'):
-                msg = status_data.get('message', 'Unknown error')
-                print(f"\n    [ERROR] {msg}")
-                results.append({
-                    'file': filename,
-                    'score': 'ERROR',
-                    'file_id': file_id,
-                    'error': msg
-                })
-                break
-        time.sleep(1)
+                if status == 'completed':
+                    score = status_data.get('data', {}).get('total_similarity', 'N/A')
+                    print(f"\n    [SELESAI] Hasil Similarity: {score}%")
+                    results.append({
+                        'file': filename,
+                        'score': f"{score}%",
+                        'file_id': file_id
+                    })
+                    completed_flag = True
+                    break
+                elif status in ('error', 'cancelled'):
+                    msg = status_data.get('message', 'Unknown error')
+                    print(f"\n    [ERROR] {msg}")
+                    results.append({
+                        'file': filename,
+                        'score': 'ERROR',
+                        'file_id': file_id,
+                        'error': msg
+                    })
+                    completed_flag = True
+                    break
+            else:
+                print(f"    [!] Polling HTTP {status_resp.status_code}... retrying ({attempt+1}/{max_retries})   ", end='\r', flush=True)
+        except Exception as err:
+            print(f"    [!] Menunggu koneksi server ({attempt+1}/{max_retries})...   ", end='\r', flush=True)
+        time.sleep(2)
+        
+    if not completed_flag:
+        print(f"\n    [TIMEOUT] Gagal mendapat respon selesai setelah {max_retries} detik.")
+        results.append({
+            'file': filename,
+            'score': 'TIMEOUT',
+            'file_id': file_id
+        })
 
 print("\n" + "="*80)
-print("HASIL BATCH PROCESSING")
+print(f"{'HASIL BATCH PROCESSING':^80}")
 print("="*80)
+print(f"{'NAMA FILE':<60} | {'HASIL SIMILARITY':<15}")
+print("-" * 80)
 for r in results:
     print(f"{r['file'][:58]:<60} | {r['score']:<15}")
 print("="*80)
