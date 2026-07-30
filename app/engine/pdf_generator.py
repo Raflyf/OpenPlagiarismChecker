@@ -80,6 +80,14 @@ def generate_report_pdf(original_pdf_path, output_pdf_path, data):
             if biblio_started:
                 continue
                 
+            # --- DETEKSI DAFTAR ISI / DAFTAR TABEL / DAFTAR LAMPIRAN ---
+            # Jika halaman memiliki 10 titik beruntun (dot leader: ".........." atau ". . . .")
+            # atau secara eksplisit memiliki judul Daftar Isi dkk, maka JANGAN warnai halaman tersebut.
+            if re.search(r'(?:\.\s*){10,}', page.get_text()):
+                continue
+            if re.search(r'\b(daftar isi|daftar tabel|daftar gambar|daftar lampiran)\b', page_text_nospace):
+                continue
+                
             # Simpan semua kotak warna di halaman ini untuk mencegah overlap
             highlighted_rects = []
             blocked_overlaps_count = 0
@@ -107,10 +115,16 @@ def generate_report_pdf(original_pdf_path, output_pdf_path, data):
                 found_any = False
                 first_rect = None
                 
+                # Fungsi pembantu untuk mencegah highlight pada spasi kosong / newline
+                def is_valid_quad(q):
+                    return bool(page.get_textbox(q.rect).strip())
+                
                 # Coba cari seluruh kalimat dengan quads (dukung line-breaks)
                 text_instances = page.search_for(text, quads=True)
                 if text_instances:
                     for inst in text_instances:
+                        if not is_valid_quad(inst):
+                            continue
                         if is_overlapping(inst.rect):
                             blocked_overlaps_count += 1
                             continue
@@ -136,6 +150,8 @@ def generate_report_pdf(original_pdf_path, output_pdf_path, data):
                             
                         insts = page.search_for(chunk, quads=True)
                         for inst in insts:
+                            if not is_valid_quad(inst):
+                                continue
                             if is_overlapping(inst.rect):
                                 blocked_overlaps_count += 1
                                 continue
@@ -152,6 +168,8 @@ def generate_report_pdf(original_pdf_path, output_pdf_path, data):
                     chunk = " ".join(words)
                     insts = page.search_for(chunk, quads=True)
                     for inst in insts:
+                        if not is_valid_quad(inst):
+                            continue
                         if is_overlapping(inst.rect):
                             blocked_overlaps_count += 1
                             continue
