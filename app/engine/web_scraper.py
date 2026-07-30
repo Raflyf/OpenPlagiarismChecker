@@ -1034,7 +1034,7 @@ def fetch_google_search_native(probe):
         # Hindari query terlalu panjang yang bisa ditolak Google
         short_probe = " ".join(probe.split()[:15])
         query = f'"{short_probe}"'
-        print(f"[Google Search] Probe: {short_probe[:50]}...")
+        # print(f"[Google Search] Probe: {short_probe[:50]}...")
         # advanced=False mempercepat eksekusi (hanya butuh URL)
         for url in search(query, num_results=3, sleep_interval=1.5, advanced=False):
             urls_found.append(url)
