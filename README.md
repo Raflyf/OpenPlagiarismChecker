@@ -2,7 +2,7 @@
 
 Alat pengecek plagiarisme lokal gratis yang meniru perilaku Turnitin: mendeteksi kecocokan teks (_N-Gram exact match_) dan parafrasa (_semantic similarity_) terhadap sumber-sumber akademik terbuka di internet. Dibangun untuk membantu mahasiswa yang terkendala biaya mengecek plagiarisme skripsi sebelum submit ke Turnitin resmi kampus.
 
-**Bukan pengganti Turnitin** tapi memberikan estimasi skor yang **sangat akurat dan mendekati** Turnitin asli (selisih rata-rata / MAE hanya **~2.28%** pada benchmark utama lulusan 2026). Gunakan alat ini untuk mengecek dan memperbaiki draf dokumen secara gratis sebelum submit ke Turnitin resmi kampus.
+**Bukan pengganti Turnitin** tapi memberikan estimasi skor yang **sangat akurat dan mendekati** Turnitin asli (selisih rata-rata / MAE hanya **~1.90%** pada benchmark utama lulusan 2026). Gunakan alat ini untuk mengecek dan memperbaiki draf dokumen secara gratis sebelum submit ke Turnitin resmi kampus.
 
 ## Hasil Validasi (11 Dokumen vs Turnitin Asli)
 
@@ -51,7 +51,7 @@ Diuji terhadap 11 dokumen nyata yang sudah memiliki skor Turnitin asli sebagai _
 
 ### Akurasi skor yang bisa diharapkan:
 
-- Skor lokal memiliki tingkat akurasi yang sangat tinggi dengan selisih rata-rata (MAE) hanya **~1.91%** dari Turnitin asli untuk berkas angkatan terbaru (2026).
+- Skor lokal memiliki tingkat akurasi yang sangat tinggi dengan selisih rata-rata (MAE) hanya **~1.90%** dari Turnitin asli untuk berkas angkatan terbaru (2026).
 - Terkadang skor bisa sedikit **lebih tinggi** (karena algoritma _semantic_ mendeteksi parafrasa tingkat tinggi yang mungkin terlewat oleh Turnitin) atau sedikit **lebih rendah** (jika sumber aslinya berasal dari jurnal berbayar/database tertutup).
 - **Fluktuasi Saat Scraping Ulang**: Jika Anda memproses ulang dokumen yang sama dengan memaksa _scrape_ ulang dari internet (tanpa korpus beku), skor mungkin akan sedikit berubah-ubah. Ini sangat wajar karena bergantung pada stabilitas jaringan dan respons server kampus di detik tersebut (beberapa situs mungkin _timeout_), namun hasil skornya dijamin tidak akan jauh berbeda.
 - **Kesimpulan**: Alat ini sangat bisa diandalkan. Jika skor di sini sudah di bawah batas aman (misal <20%), maka kemungkinan besar di Turnitin asli juga akan aman.
@@ -213,7 +213,7 @@ Skor Total = (Kata Ter-match N-Gram + Kata Ter-match Semantic) / Total Kata Doku
 
 ## Limitasi Desain (Trade-off)
 
-- **Semantic Layer (Penandaan Kalimat Utuh)**: Ketika _semantic match_ ditemukan pada sebuah _chunk_ (maksimal 40 kata), seluruh kata di dalam _chunk_ tersebut ditandai sebagai plagiat. Hal ini dapat menyebabkan sedikit _over-estimation_ pada kalimat panjang yang sebagian diparafrasa. Namun, hal ini dikompensasi oleh _Continuous Global Linear Thresholding_ yang terkalibrasi presisi ($0.8515 - 0.8765$), sehingga secara keseluruhan (MAE ~1.85%) tetap terjaga akurasinya.
+- **Semantic Layer (Penandaan Kalimat Utuh)**: Ketika _semantic match_ ditemukan pada sebuah _chunk_ (maksimal 40 kata), seluruh kata di dalam _chunk_ tersebut ditandai sebagai plagiat. Hal ini dapat menyebabkan sedikit _over-estimation_ pada kalimat panjang yang sebagian diparafrasa. Namun, hal ini dikompensasi oleh _Continuous Global Linear Thresholding_ yang terkalibrasi presisi ($0.8515 - 0.8765$), sehingga secara keseluruhan (MAE ~1.90%) tetap terjaga akurasinya.
 
 ---
 
