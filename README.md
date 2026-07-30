@@ -174,6 +174,7 @@ Cukup unduh / clone repositori ini, lalu jalankan script 1-click sesuai sistem o
 plagiarism_checker/
 ├── app/
 │   ├── server.py                 # Flask server (port 5001 / 5000)
+│   ├── run_batch.py              # Batch Uploader & Runner evaluasi
 │   ├── run_test_groundtruth.py   # Runner validasi + freeze corpus
 │   ├── calibrate_threshold.py    # Sweep threshold semantic
 │   ├── before_turnitin/          # Dokumen uji + target Turnitin

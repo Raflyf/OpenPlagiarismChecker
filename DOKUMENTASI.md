@@ -126,5 +126,5 @@ Sistem secara otomatis mendeteksi kecurangan manipulasi dokumen (seperti penggun
 
 Untuk menjalankan evaluasi batch penuh di lingkungan GPU CUDA:
 ```powershell
-D:/skripsi/skripsi_spam/Code_Spam_Email/.venv/Scripts/python.exe run_batch.py
+D:/skripsi/skripsi_spam/Code_Spam_Email/.venv/Scripts/python.exe app/run_batch.py
 ```
