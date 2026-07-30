@@ -323,9 +323,10 @@ def calculate_similarity(doc_text, corpus, exclude_small=False, use_semantic=Fal
     
     if use_semantic and corpus:
         if semantic_threshold == "auto":
-            # Formulasi Linier Kontinyu Global Murni (Bebas Overfitting - Valid Matematika):
-            # Threshold ber-skala mulus dari 0.8600 (pada N-Gram 0%) hingga 0.8850 (pada N-Gram 25%+)
-            thresh_val = 0.8600 + min(0.0250, (ngram_similarity / 100.0) * 0.1000)
+            # Formulasi Linier Kontinyu Global Murni yang Ditunning Ulang (v4.6):
+            # Threshold ber-skala mulus dari 0.8550 (pada N-Gram 0%) hingga 0.8800 (pada N-Gram 25%+)
+            # Ini akan memberikan boost 3-4% untuk mengompensasi hilangnya dokumen karena dataset yang terlalu masif (8000+ sources).
+            thresh_val = 0.8550 + min(0.0250, (ngram_similarity / 100.0) * 0.1000)
             semantic_threshold = round(thresh_val, 4)
         print("\n[!] ===== STARTING SEMANTIC SIMILARITY CHECK =====")
         print(f"[!] Threshold: {semantic_threshold}, Total sentences: {len(doc_spans)}")
@@ -361,7 +362,7 @@ def calculate_similarity(doc_text, corpus, exclude_small=False, use_semantic=Fal
             # 2. 50 sumber non-overlap dari corpus untuk menangkap parafrasa berat dari dokumen baru/luar
             ngram_urls = [s['url'] for s in sorted_sources if s.get('percentage', 0) > 0.0]
             ngram_set = set(ngram_urls)
-            non_overlap_urls = [u for u in corpus.keys() if u not in ngram_set][:50]
+            non_overlap_urls = [u for u in corpus.keys() if u not in ngram_set][:100]
             
             candidate_urls = ngram_urls + non_overlap_urls
             if semantic_max_sources is not None:
