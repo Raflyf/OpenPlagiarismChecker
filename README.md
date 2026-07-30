@@ -2,7 +2,7 @@
 
 Alat pengecek plagiarisme lokal gratis yang meniru perilaku Turnitin: mendeteksi kecocokan teks (N-Gram exact match) dan parafrasa (semantic similarity) terhadap sumber-sumber akademik terbuka di internet. Dibangun untuk membantu mahasiswa yang terkendala biaya mengecek plagiarisme skripsi sebelum submit ke Turnitin resmi kampus.
 
-**Bukan pengganti Turnitin** tapi memberikan estimasi skor yang **sangat akurat dan mendekati** Turnitin asli (selisih rata-rata hanya ~2.10%). Gunakan alat ini untuk mengecek dan memperbaiki draf dokumen secara gratis sebelum submit ke Turnitin resmi kampus.
+**Bukan pengganti Turnitin** tapi memberikan estimasi skor yang **sangat akurat dan mendekati** Turnitin asli (selisih rata-rata hanya ~2.14%). Gunakan alat ini untuk mengecek dan memperbaiki draf dokumen secara gratis sebelum submit ke Turnitin resmi kampus.
 
 ## Hasil Validasi (11 Dokumen vs Turnitin Asli)
 
@@ -72,7 +72,7 @@ Web localhost memakai **metodologi identik** dengan runner validasi (`run_test_g
 
 - Kalimat yang TIDAK terdeteksi N-Gram (<30% match) dicek ulang
 - Menggunakan model `paraphrase-multilingual-MiniLM-L12-v2` (dukung bahasa Indonesia)
-- Threshold otomatis Signal-to-Noise Adaptive (0.87 / 0.89 / 0.88) dikalibrasi terhadap 11 dokumen ground truth
+- Threshold otomatis menggunakan sistem Continuous Global Linear (0.8600 - 0.8850) anti-overfitting dikalibrasi terhadap 11 dokumen ground truth
 - GPU auto-detect (CUDA); fallback CPU
 - Tidak ada double counting — hanya menambah kata yang belum terdeteksi N-Gram
 - **Selalu aktif** (tidak ada opsi mematikan di UI)
@@ -228,11 +228,11 @@ Skor Total = (Kata Ter-match N-Gram + Kata Ter-match Semantic) / Total Kata Doku
 
 - Setiap kata dihitung **sekali** meskipun cocok dengan banyak sumber (union, bukan sum)
 - `exclude_small` hanya memfilter **daftar tampilan** sumber per-dokumen, TIDAK memengaruhi skor total — persis perilaku Turnitin
-- Threshold semantic otomatis Signal-to-Noise 3-Tier Auto-Thresholding (0.87 / 0.89 / 0.88) dikalibrasi terhadap 11 dokumen ground truth (4-24%)
+- Threshold semantic otomatis menggunakan sistem Continuous Global Linear Thresholding (0.8600 - 0.8850) yang dikalibrasi secara dinamis terhadap 11 dokumen ground truth (4-24%)
 
 ## Limitasi Desain (Trade-off)
 
-- **Semantic Layer (Penandaan Kalimat Utuh)**: Ketika _semantic match_ ditemukan pada sebuah _chunk_ (maksimal 40 kata), seluruh kata di dalam _chunk_ tersebut ditandai sebagai plagiat. Hal ini dapat menyebabkan sedikit _over-estimation_ pada kalimat panjang yang sebagian diparafrasa. Namun, hal ini dikompensasi oleh _3-Tier Auto-Thresholding_ yang sangat ketat (0.87 - 0.89), sehingga secara keseluruhan (MAE 1.45%) tetap terjaga akurasinya.
+- **Semantic Layer (Penandaan Kalimat Utuh)**: Ketika _semantic match_ ditemukan pada sebuah _chunk_ (maksimal 40 kata), seluruh kata di dalam _chunk_ tersebut ditandai sebagai plagiat. Hal ini dapat menyebabkan sedikit _over-estimation_ pada kalimat panjang yang sebagian diparafrasa. Namun, hal ini dikompensasi oleh _Continuous Global Linear Thresholding_ yang sangat ketat (0.8600 - 0.8850), sehingga secara keseluruhan (MAE 2.14%) tetap terjaga akurasinya.
 
 ## Changelog
 
