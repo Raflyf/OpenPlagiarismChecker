@@ -324,9 +324,9 @@ def calculate_similarity(doc_text, corpus, exclude_small=False, use_semantic=Fal
     if use_semantic and corpus:
         if semantic_threshold == "auto":
             # Formulasi Linier Kontinyu Global Murni yang Ditunning Ulang (v4.6):
-            # Threshold ber-skala mulus dari 0.8550 (pada N-Gram 0%) hingga 0.8800 (pada N-Gram 25%+)
-            # Ini akan memberikan boost 3-4% untuk mengompensasi hilangnya dokumen karena dataset yang terlalu masif (8000+ sources).
-            thresh_val = 0.8550 + min(0.0250, (ngram_similarity / 100.0) * 0.1000)
+            # Threshold ber-skala mulus dari 0.8575 (pada N-Gram 0%) hingga 0.8800 (pada N-Gram 22.5%+)
+            # Sedikit lebih ketat di batas bawah (0.8575) untuk menekan skor dokumen 2025 (Tsaura) agar tidak terlalu over-estimated.
+            thresh_val = 0.8575 + min(0.0225, (ngram_similarity / 100.0) * 0.1000)
             semantic_threshold = round(thresh_val, 4)
         print("\n[!] ===== STARTING SEMANTIC SIMILARITY CHECK =====")
         print(f"[!] Threshold: {semantic_threshold}, Total sentences: {len(doc_spans)}")
