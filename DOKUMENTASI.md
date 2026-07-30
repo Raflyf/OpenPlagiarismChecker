@@ -42,7 +42,7 @@ Untuk memproses puluhan ribu kalimat sumber secara *real-time*, sistem dioptimal
 - **Environment Virtualenv:** `D:/skripsi/skripsi_spam/Code_Spam_Email/.venv/Scripts/python.exe`
 - **Spesifikasi PyTorch:** `2.6.0+cu124` dengan CUDA Compute Capability (NVIDIA RTX 3050 Laptop GPU).
 - **VRAM Matriks Vectorization:** Perhitungan *cosine similarity* dilakukan 100% secara paralel penuh di VRAM GPU (`util.pytorch_cos_sim`), meningkatkan kecepatan pemrosesan 20x hingga 30x lipat dibanding CPU.
-- **Memory Guard:** Variabel lingkungan `SEMANTIC_MAX_BATCH` (default 2000) membatasi jumlah embedding per-batch untuk mencegah kehabisan memori VRAM GPU.
+- **Memory Guard:** Variabel lingkungan `SEMANTIC_MAX_BATCH` (default 30000) membatasi jumlah embedding per-batch untuk mencegah kehabisan memori VRAM GPU.
 
 ---
 
@@ -122,7 +122,16 @@ Sistem secara otomatis mendeteksi kecurangan manipulasi dokumen (seperti penggun
 
 ---
 
-## 7. Panduan Menjalankan Evaluasi & Batch Test
+## 7. Keamanan Privasi Data (Zero Data Leak)
+
+Sistem memastikan bahwa privasi dokumen pengguna aman 100% saat diakses di Web UI localhost atau jaringan publik:
+- **Isolasi Sesi Kriptografis (`session_id`)**: Setiap laporan yang dihasilkan dikunci secara ketat dan hanya dapat diakses oleh browser pengunggah aslinya. URL hasil tidak bisa dibuka oleh pengguna/IP lain, mencegah terjadinya kebocoran data (*data leak*).
+- **Disk Caching Resilient**: Metadata laporan disimpan ke disk JSON sementara, memastikan hasil pemeriksaan tidak hilang ketika pengguna tidak sengaja me-*refresh* atau menekan F5 di halaman hasil.
+- **Pemusnahan Otomatis (Self-Destruct)**: *Background thread* bertugas secara diam-diam memusnahkan seluruh file PDF, metadata JSON, dan rekam memori pengguna yang berusia lebih dari 2 jam, guna menjaga keamanan dan mengosongkan disk.
+
+---
+
+## 8. Panduan Menjalankan Evaluasi & Batch Test
 
 Untuk menjalankan evaluasi batch penuh di lingkungan GPU CUDA:
 ```powershell

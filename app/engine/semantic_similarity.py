@@ -14,8 +14,8 @@ _model = None
 
 # Memory guard: max embeddings in VRAM/RAM per batch
 # Model 'paraphrase-multilingual-MiniLM-L12-v2' ~500MB, embeddings ~384 dims
-# Batasi batch agar tidak OOM pada GPU 4-8GB atau RAM rendah
-_MAX_EMBEDDINGS_PER_BATCH = int(os.environ.get("SEMANTIC_MAX_BATCH", "2000"))
+# Default dinaikkan menjadi 10000 agar komputasi di GPU (mis. RTX 3050 4GB) jauh lebih optimal.
+_MAX_EMBEDDINGS_PER_BATCH = int(os.environ.get("SEMANTIC_MAX_BATCH", "30000"))
 
 def get_model(force_cpu=False):
     """
@@ -117,8 +117,9 @@ def batch_semantic_check(unmatched_sentences, corpus_sentences, threshold=0.88, 
     
     model = get_model()
     # Jika CUDA tersedia, tingkatkan batch_size untuk memaksimalkan VRAM & GPU paralelism
+    # Ditingkatkan menjadi 512 untuk memompa performa GPU RTX secara optimal (VRAM < 3.5GB)
     if torch.cuda.is_available() and not getattr(model, 'force_cpu', False):
-        batch_size = max(batch_size, 128)
+        batch_size = max(batch_size, 512)
         
     print(f"[!] Performing semantic similarity check on {len(unmatched_sentences)} unmatched sentences (batch_size={batch_size})...")
     

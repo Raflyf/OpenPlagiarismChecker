@@ -255,13 +255,18 @@ def process_document(file_id, filepath, original_filename, exclude_quotes=True, 
             'message': 'Selesai.',
             'data': data
         })
-        # Disk cache result json agar laporan tetap aman jika halaman ter-refresh
         try:
             result_json_path = os.path.join(app.config['REPORT_FOLDER'], f"{file_id}_result.json")
             with open(result_json_path, "w", encoding="utf-8") as f:
                 json.dump({'status': 'completed', 'data': data, 'session_id': results_db[file_id].get('session_id')}, f, ensure_ascii=False)
         except Exception as e:
             print(f"[!] Gagal simpan cache JSON laporan: {e}")
+            
+        # [MEMORY CLEANUP] Paksa Garbage Collector berjalan agar RAM dikembalikan ke Windows
+        import gc
+        del corpus
+        gc.collect()
+        
         print(f"[!] Selesai. Hasil: {total_similarity}%")
     except Exception as e:
         import traceback
