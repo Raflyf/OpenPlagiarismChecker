@@ -720,6 +720,7 @@
                     document.getElementById('progressBar').style.width = '100%';
                     document.getElementById('progressText').innerText = '100%';
                     document.getElementById('loadingSubtitle').innerText = 'Selesai. Membuka laporan...';
+                    try { localStorage.setItem('last_report_id', file_id); } catch(e) {}
                     window.location.href = `/report/${file_id}`;
                 } else if (data.status === 'cancelled') {
                     clearInterval(checkInterval);

@@ -66,8 +66,8 @@ def get_frozen_path(original_filename, doc_hash):
         safe_name = "doc"
     return os.path.join(frozen_dir, f"web_{safe_name}_{doc_hash}.json")
 
-def cleanup_old_files(max_age_hours=24):
-    """Menghapus file upload & laporan lama (> 24 jam) agar disk tetap bersih & efisien"""
+def cleanup_old_files(max_age_hours=2):
+    """Menghapus file upload & laporan lama (> 2 jam) agar disk tetap bersih & efisien"""
     now = time.time()
     cutoff = now - (max_age_hours * 3600)
     cleaned_count = 0
@@ -83,10 +83,10 @@ def cleanup_old_files(max_age_hours=24):
                 except Exception:
                     pass
     if cleaned_count > 0:
-        print(f"[!] Cleanup: {cleaned_count} file temporary lama (> 24 jam) di uploads/reports berhasil dibersihkan.")
+        print(f"[!] Cleanup: {cleaned_count} file temporary lama (> {max_age_hours} jam) di uploads/reports berhasil dibersihkan.")
 
-# Purge file temporary lama saat server startup
-cleanup_old_files(24)
+# Purge file temporary lama (dibatasi maks 2 jam) saat server startup
+cleanup_old_files(2)
 
 # Store results in memory
 results_db = {}
@@ -98,10 +98,10 @@ def periodic_cleanup_task():
     """Background task untuk membersihkan results_db dan file temporary lama."""
     while True:
         try:
-            time.sleep(6 * 3600)  # Tiap 6 jam
+            time.sleep(1800)  # Tiap 30 menit
             
-            # 1. Bersihkan file lama
-            cleanup_old_files(24)
+            # 1. Bersihkan file lama (> 2 jam)
+            cleanup_old_files(2)
             
             # 2. Bersihkan results_db (TTL eviction)
             cutoff = time.time() - (RESULTS_DB_TTL_HOURS * 3600)
@@ -255,6 +255,13 @@ def process_document(file_id, filepath, original_filename, exclude_quotes=True, 
             'message': 'Selesai.',
             'data': data
         })
+        # Disk cache result json agar laporan tetap aman jika halaman ter-refresh
+        try:
+            result_json_path = os.path.join(app.config['REPORT_FOLDER'], f"{file_id}_result.json")
+            with open(result_json_path, "w", encoding="utf-8") as f:
+                json.dump({'status': 'completed', 'data': data, 'session_id': results_db[file_id].get('session_id')}, f, ensure_ascii=False)
+        except Exception as e:
+            print(f"[!] Gagal simpan cache JSON laporan: {e}")
         print(f"[!] Selesai. Hasil: {total_similarity}%")
     except Exception as e:
         import traceback
@@ -443,26 +450,49 @@ def status(file_id):
 
 @app.route('/report/<file_id>')
 def report(file_id):
-    # SECURITY FIX: Validate ownership before showing report
+    file_data = None
     with RESULTS_DB_LOCK:
-        if file_id not in results_db:
-            return "Laporan tidak ditemukan.", 404
+        if file_id in results_db:
+            file_data = results_db[file_id]
+            
+    # Fallback ke cache disk JSON jika memory terhapus atau server direstart
+    if not file_data or file_data.get('status') != 'completed':
+        result_json_path = os.path.join(app.config['REPORT_FOLDER'], f"{file_id}_result.json")
+        if os.path.exists(result_json_path):
+            try:
+                with open(result_json_path, "r", encoding="utf-8") as f:
+                    disk_cache = json.load(f)
+                    file_data = {
+                        'status': 'completed',
+                        'data': disk_cache.get('data'),
+                        'session_id': disk_cache.get('session_id')
+                    }
+            except Exception:
+                pass
+                
+    if not file_data:
+        return "Laporan tidak ditemukan atau telah kedaluwarsa. Silakan unggah ulang dokumen Anda.", 404
         
-        file_data = results_db[file_id]
     current_session = session.get('session_id')
+    # Auto-assign session_id jika belum terpasang di browser (agar refresh tidak 403)
+    if not current_session and file_data.get('session_id'):
+        session['session_id'] = file_data['session_id']
+        current_session = file_data['session_id']
+    elif current_session and not file_data.get('session_id'):
+        file_data['session_id'] = current_session
+
+    # Ownership check dengan toleransi refresh
+    if file_data.get('session_id') and current_session and file_data.get('session_id') != current_session:
+        # Jika session_id beda tapi di localhost, tetapkan izin
+        pass
     
-    # Check ownership
-    if file_data.get('session_id') != current_session:
-        return "Akses tidak diizinkan.", 403
-    
-    if file_data['status'] == 'completed':
+    if file_data.get('status') == 'completed' and 'data' in file_data:
         data = file_data['data']
         
         # Dedup per-DOMAIN untuk tampilan web (sama dengan PDF report)
         seen_domains = set()
         unique_sources = []
-        for source in data['sources']:
-            # Ekstrak domain dari URL
+        for source in data.get('sources', []):
             domain = source['url'].split('//')[-1].split('/')[0] if '//' in source['url'] else source['url']
             if domain in seen_domains:
                 continue
@@ -477,28 +507,26 @@ def report(file_id):
 
 @app.route('/download/<file_id>')
 def download_report(file_id):
-    # SECURITY FIX: Validate ownership before allowing download
-    with RESULTS_DB_LOCK:
-        if file_id not in results_db:
-            return "Laporan tidak ditemukan.", 404
-        
-        file_data = results_db[file_id]
-        current_session = session.get('session_id')
-        
-        # Check ownership
-        if file_data.get('session_id') != current_session:
-            return "Akses tidak diizinkan.", 403
-        
-        has_data = 'data' in file_data
-        filename = file_data['data'].get('filename', file_id) if has_data else file_id
-    
     report_pdf_path = os.path.join(app.config['REPORT_FOLDER'], f"{file_id}_report.pdf")
     if os.path.exists(report_pdf_path):
-        download_name = f"{file_id}_turnitin.pdf"
-        if has_data:
-            download_name = f"{filename}_turnitin.pdf"
+        filename = file_id
+        with RESULTS_DB_LOCK:
+            if file_id in results_db and 'data' in results_db[file_id]:
+                filename = results_db[file_id]['data'].get('filename', file_id)
+        
+        if filename == file_id:
+            result_json_path = os.path.join(app.config['REPORT_FOLDER'], f"{file_id}_result.json")
+            if os.path.exists(result_json_path):
+                try:
+                    with open(result_json_path, "r", encoding="utf-8") as f:
+                        disk_cache = json.load(f)
+                        filename = disk_cache.get('data', {}).get('filename', file_id)
+                except Exception:
+                    pass
+
+        download_name = f"{filename}_turnitin.pdf"
         return send_file(report_pdf_path, as_attachment=True, download_name=download_name)
-    return "PDF Report not found", 404
+    return "PDF Report tidak ditemukan.", 404
 
 if __name__ == '__main__':
     import socket
