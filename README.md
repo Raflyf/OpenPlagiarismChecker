@@ -11,15 +11,13 @@ Diuji terhadap 11 dokumen nyata yang sudah punya skor Turnitin asli sebagai grou
 | Dokumen                  | Skor Lokal | Target Turnitin | Delta  | Status            |
 | ------------------------ | ---------- | --------------- | ------ | ----------------- |
 | Laila after parafrase    | 18.0%      | 4% (Curang)     | n/a    | Anti-Cheat Sukses |
-| Melani                   | 19.0%      | 19%             |  0.0pt | Sempurna          |
-| Hesti (body shape)       | 17.0%      | 18%             | -1.0pt | Sempurna          |
-| Fikri (sistem informasi) | 13.0%      | 14%             | -1.0pt | Sempurna          |
-| Muhammad Ihsan           | 19.0%      | 18%             | +1.0pt | Sempurna          |
-| Tesyar                   | 9.0%       | 8%              | +1.0pt | Sempurna          |
-| Dias Maulana             | 24.0%      | 23%             | +1.0pt | Sempurna          |
+| Hesti (body shape)       | 18.0%      | 18%             |  0.0pt | Sempurna          |
 | Rafly (klasifikasi spam) | 6.0%       | 8%              | -2.0pt | Sangat Tepat      |
-| Andyan                   | 18.0%      | 23%             | -5.0pt | Aman              |
-| Laila before parafrase   | 19.0%      | 24%             | -5.0pt | Aman              |
+| Andyan                   | 21.0%      | 23%             | -2.0pt | Sangat Tepat      |
+| Skripsi Melani 15220760  | 22.0%      | 19%             | +3.0pt | Sangat Tepat      |
+| Dias Maulana             | 25.0%      | 23%             | +2.0pt | Sangat Tepat      |
+| Fikri (sistem informasi) | 13.0%      | 14%             | -1.0pt | Sangat Tepat      |
+| Laila before parafrase   | 20.0%      | 24%             | -4.0pt | Sangat Tepat      |
 | Tsaura Halwa             | 18.0%      | 13%             | +5.0pt | Aman              |
 | Fikri (sistem informasi) | 14.1%      | 14%             | +0.1pt | Sempurna          |
 | Muhammad Ihsan           | 21.1%      | 18%             | +3.1pt | Sangat Tepat      |
