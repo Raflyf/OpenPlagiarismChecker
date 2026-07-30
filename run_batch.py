@@ -57,10 +57,17 @@ for idx, filename in enumerate(files):
 
                 if status == 'completed':
                     score = status_data.get('data', {}).get('total_similarity', 'N/A')
-                    print(f"\n    [SELESAI] Hasil Similarity: {score}%")
+                    fooled_score = status_data.get('data', {}).get('fooled_similarity')
+                    
+                    if fooled_score is not None:
+                        score_str = f"{score}% (Terkecoh: {fooled_score}%)"
+                    else:
+                        score_str = f"{score}%"
+                        
+                    print(f"\n    [SELESAI] Hasil Similarity: {score_str}")
                     results.append({
                         'file': filename,
-                        'score': f"{score}%",
+                        'score': score_str,
                         'file_id': file_id
                     })
                     completed_flag = True
@@ -93,8 +100,8 @@ for idx, filename in enumerate(files):
 print("\n" + "="*80)
 print(f"{'HASIL BATCH PROCESSING':^80}")
 print("="*80)
-print(f"{'NAMA FILE':<60} | {'HASIL SIMILARITY':<15}")
-print("-" * 80)
+print(f"{'NAMA FILE':<60} | {'HASIL SIMILARITY':<25}")
+print("-" * 88)
 for r in results:
-    print(f"{r['file'][:58]:<60} | {r['score']:<15}")
+    print(f"{r['file'][:58]:<60} | {r['score']:<25}")
 print("="*80)
