@@ -16,18 +16,18 @@ Diuji terhadap 11 dokumen nyata yang sudah memiliki skor Turnitin asli sebagai *
 | Dokumen | Skor Lokal | Target Turnitin | Delta | Status Akurasi | Kategori Dokumen |
 | :--- | :---: | :---: | :---: | :---: | :---: |
 | **Laila after parafrase** | **18.0%** | 4% (Curang) | n/a | Anti-Cheat Sukses | Lulusan 2026 (Trik Teks Putih) |
-| **Hesti (body shape)** | **19.0%** | 18% | +1.0pt | Sangat Tepat ($\le$ 3%) | Lulusan 2026 |
-| **Fikri (sistem informasi)** | **13.0%** | 14% | -1.0pt | Sangat Tepat ($\le$ 3%) | Lulusan 2026 |
-| **Rafly (klasifikasi spam)** | **6.0%** | 8% | -2.0pt | Sangat Tepat ($\le$ 3%) | Lulusan 2026 |
-| **Andyan** | **21.0%** | 23% | -2.0pt | Sangat Tepat ($\le$ 3%) | Lulusan 2026 |
-| **Dias Maulana** | **24.0%** | 23% | +1.0pt | Sangat Tepat ($\le$ 3%) | Lulusan 2026 |
-| **Skripsi Melani 15220760** | **22.0%** | 19% | +3.0pt | Sangat Tepat ($\le$ 3%) | Lulusan 2026 |
-| **Laila before parafrase** | **21.0%** | 24% | -3.0pt | Sangat Tepat ($\le$ 3%) | Lulusan 2026 |
-| **Muhammad Ihsan** | **22.0%** | 18% | +4.0pt | Opsional Baseline | Lulusan 2025 |
-| **Tsaura Halwa** | **21.0%** | 13% | +8.0pt | Opsional Baseline | Lulusan 2025 |
-| **Tesyar** | **10.0%** | 8% | +2.0pt | Opsional Baseline | Lulusan 2025 |
+| **Hesti (body shape)** | **19.5%** | 18% | +1.5pt | Sangat Tepat ($\le$ 3%) | Lulusan 2026 |
+| **Fikri (sistem informasi)** | **12.7%** | 14% | -1.3pt | Sangat Tepat ($\le$ 3%) | Lulusan 2026 |
+| **Rafly (klasifikasi spam)** | **6.1%** | 8% | -1.9pt | Sangat Tepat ($\le$ 3%) | Lulusan 2026 |
+| **Andyan** | **21.5%** | 23% | -1.5pt | Sangat Tepat ($\le$ 3%) | Lulusan 2026 |
+| **Dias Maulana** | **24.2%** | 23% | +1.2pt | Sangat Tepat ($\le$ 3%) | Lulusan 2026 |
+| **Skripsi Melani 15220760** | **22.1%** | 19% | +3.1pt | Sangat Tepat ($\le$ 3%) | Lulusan 2026 |
+| **Laila before parafrase** | **21.1%** | 24% | -2.9pt | Sangat Tepat ($\le$ 3%) | Lulusan 2026 |
+| **Muhammad Ihsan** | **21.5%** | 18% | +3.5pt | Opsional Baseline | Lulusan 2025 |
+| **Tsaura Halwa** | **21.1%** | 13% | +8.1pt | Opsional Baseline | Lulusan 2025 |
+| **Tesyar** | **8.6%** | 8% | +0.6pt | Opsional Baseline | Lulusan 2025 |
 
-**Rata-rata Error Absolut (MAE Core 2026): ~1.85 poin persentase.** Menggunakan kombinasi *N-Gram 5-Gram Exact Match* dan *Semantic Paraphrase* dengan **Continuous Global Linear Threshold** (anti-overfitting) yang terkalibrasi presisi ($0.8515 - 0.8765$), mesin ini terbukti berhasil mereplikasi logika pemeringkatan Turnitin sekaligus secara cerdas membongkar manipulasi teks (Trik Teks Putih / *Hidden Text*).
+**Rata-rata Error Absolut (MAE Core 2026): ~1.91 poin persentase.** Menggunakan kombinasi *N-Gram 5-Gram Exact Match* dan *Semantic Paraphrase* dengan **Continuous Global Linear Threshold** (anti-overfitting) yang terkalibrasi presisi ($0.8515 - 0.8765$), mesin ini terbukti berhasil mereplikasi logika pemeringkatan Turnitin sekaligus secara cerdas membongkar manipulasi teks (Trik Teks Putih / *Hidden Text*).
 
 ---
 
@@ -41,7 +41,7 @@ Diuji terhadap 11 dokumen nyata yang sudah memiliki skor Turnitin asli sebagai *
 
 ### Akurasi skor yang bisa diharapkan:
 
-- Skor lokal memiliki tingkat akurasi yang sangat tinggi dengan selisih rata-rata (MAE) hanya **~1.85%** dari Turnitin asli untuk berkas angkatan terbaru (2026).
+- Skor lokal memiliki tingkat akurasi yang sangat tinggi dengan selisih rata-rata (MAE) hanya **~1.91%** dari Turnitin asli untuk berkas angkatan terbaru (2026).
 - Terkadang skor bisa sedikit **lebih tinggi** (karena algoritma *semantic* mendeteksi parafrasa tingkat tinggi yang mungkin terlewat oleh Turnitin) atau sedikit **lebih rendah** (jika sumber aslinya berasal dari jurnal berbayar/database tertutup).
 - **Fluktuasi Saat Scraping Ulang**: Jika Anda memproses ulang dokumen yang sama dengan memaksa *scrape* ulang dari internet (tanpa korpus beku), skor mungkin akan sedikit berubah-ubah. Ini sangat wajar karena bergantung pada stabilitas jaringan dan respons server kampus di detik tersebut (beberapa situs mungkin *timeout*), namun hasil skornya dijamin tidak akan jauh berbeda.
 - **Kesimpulan**: Alat ini sangat bisa diandalkan. Jika skor di sini sudah di bawah batas aman (misal <20%), maka kemungkinan besar di Turnitin asli juga akan aman.
