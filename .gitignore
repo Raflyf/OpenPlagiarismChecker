@@ -31,3 +31,9 @@ Tooling skill lokal
 
 Config editor lokal
 .vscode/
+
+Scratch and debug files
+scratch_*.py
+test_out.txt
+diff.txt
+debug_out.txt
