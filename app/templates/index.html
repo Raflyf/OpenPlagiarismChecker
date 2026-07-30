@@ -268,7 +268,8 @@
             color: #f3f4f6;
         }
         
-        body.dark-mode .card {
+        body.dark-mode .card,
+        body.dark-mode .recent-result-box {
             background-color: #1f2937;
             box-shadow: 0 10px 30px rgba(0,0,0,0.5);
             border: 1px solid #374151;
@@ -467,6 +468,15 @@
             </button>
         </div>
     </div>
+    
+    <!-- Recent Result History -->
+    <div class="recent-result-box card" id="recentResultBox" style="display: none; margin-top: 25px; padding: 25px; text-align: center;">
+        <h3 class="section-title" style="margin-top: 0; margin-bottom: 10px;">Riwayat Pengecekan Terakhir (Tersimpan di Browser)</h3>
+        <p class="upload-subtitle" style="margin-bottom: 15px; font-size: 13px;">Anda memiliki hasil analisis dokumen yang sudah selesai diproses.</p>
+        <button onclick="openLastReport()" class="btn btn-blue" style="margin: 0 auto; justify-content: center; width: 100%; max-width: 250px;">
+            Buka Laporan Terakhir
+        </button>
+    </div>
 </div>
 
 <div class="loading-overlay" id="loadingOverlay">
@@ -510,7 +520,20 @@
             document.body.classList.add('dark-mode');
             updateThemeIcon(true);
         }
+        
+        // Show recent report if exists
+        const lastReportId = localStorage.getItem('last_report_id');
+        if (lastReportId) {
+            document.getElementById('recentResultBox').style.display = 'block';
+        }
     });
+
+    function openLastReport() {
+        const lastReportId = localStorage.getItem('last_report_id');
+        if (lastReportId) {
+            window.location.href = `/report/${lastReportId}`;
+        }
+    }
 
     function selectFrozenOption(choice) {
         const lblFrozen = document.getElementById('lblFrozen');

@@ -244,15 +244,12 @@ def clean_text(text, exclude_quotes=True, exclude_biblio=True):
     text = re.sub(r'\s+', ' ', text).strip()
 
     # [1] Exclude Front Matter (Cover, Pengesahan, Daftar Isi) - Turnitin Behavior
-    # PENTING: "BAB I" pertama biasanya muncul di DAFTAR ISI (diikuti dot-leader "....." dan
-    # nomor halaman), BUKAN heading bab asli. Kita cari kemunculan yang diikuti KONTEN nyata,
-    # bukan titik-titik daftar isi.
     upper_text = text.upper()
 
-    # Pola heading bab asli: "BAB I" / "BAB 1" diikuti KONTEN nyata, bukan dot-leader
-    # daftar isi. Cari SEMUA kemunculan lalu ambil yang bukan bagian daftar isi.
+    # Pola heading bab asli: "BAB I" / "BAB 1" diikuti KONTEN nyata (PENDAHULUAN).
+    # Regex ini lebih presisi karena mencegah Lembar Konsultasi / Abstrak yang sekadar menyebut "BAB I".
     chosen_idx = -1
-    for m in re.finditer(r'BAB\s+(?:I|1)\b', upper_text):
+    for m in re.finditer(r'(?:BAB|CHAPTER)\s+(?:I|1)[\s:.\n]*(?:PENDAHULUAN|INTRODUCTION)\b', upper_text):
         idx = m.start()
         # Ambil 40 karakter setelah match untuk cek apakah ini entri daftar isi
         tail = text[m.end():m.end() + 40]
@@ -263,13 +260,16 @@ def clean_text(text, exclude_quotes=True, exclude_biblio=True):
             chosen_idx = idx
             break
 
-    # Fallback: jika semua kemunculan tampak seperti TOC, pakai kemunculan terakhir di 40%
-    # awal dokumen (heading asli selalu setelah daftar isi).
+    # Fallback: jika regex spesifik gagal (sangat jarang), gunakan regex lama
     if chosen_idx == -1:
-        candidates = [m.start() for m in re.finditer(r'BAB\s+(?:I|1)\b', upper_text)
-                      if m.start() < len(text) * 0.4]
-        if candidates:
-            chosen_idx = candidates[-1]
+        for m in re.finditer(r'BAB\s+(?:I|1)\b', upper_text):
+            idx = m.start()
+            tail = text[m.end():m.end() + 40]
+            dot_ratio = tail.count('.') / max(len(tail), 1)
+            is_toc_entry = dot_ratio > 0.3 or bool(re.match(r'[\s\.]*\d{1,3}\s*$', tail[:15]))
+            if not is_toc_entry:
+                chosen_idx = idx
+                break
 
     if chosen_idx != -1 and chosen_idx < len(text) * 0.4:
         text = text[chosen_idx:]

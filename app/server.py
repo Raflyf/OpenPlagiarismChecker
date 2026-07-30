@@ -479,17 +479,17 @@ def report(file_id):
         return "Laporan tidak ditemukan atau telah kedaluwarsa. Silakan unggah ulang dokumen Anda.", 404
         
     current_session = session.get('session_id')
-    # Auto-assign session_id jika belum terpasang di browser (agar refresh tidak 403)
-    if not current_session and file_data.get('session_id'):
-        session['session_id'] = file_data['session_id']
-        current_session = file_data['session_id']
-    elif current_session and not file_data.get('session_id'):
-        file_data['session_id'] = current_session
 
-    # Ownership check dengan toleransi refresh
-    if file_data.get('session_id') and current_session and file_data.get('session_id') != current_session:
-        # Jika session_id beda tapi di localhost, tetapkan izin
-        pass
+    # Ownership check yang ketat (Strict Authorization)
+    # Menolak akses jika sesi pengunjung berbeda dengan sesi pembuat laporan
+    if file_data.get('session_id') and file_data.get('session_id') != current_session:
+        error_html = """
+        <div style="font-family: sans-serif; max-width: 600px; margin: 100px auto; padding: 30px; border-radius: 10px; background: #fee2e2; border: 1px solid #ef4444; text-align: center;">
+            <h2 style="color: #b91c1c; margin-top: 0;">AKSES DITOLAK</h2>
+            <p style="color: #7f1d1d; font-size: 15px;">URL laporan ini bersifat privat dan dikunci ke sesi browser pengguna lain. Anda tidak memiliki izin untuk membukanya.</p>
+        </div>
+        """
+        return error_html, 403
     
     if file_data.get('status') == 'completed' and 'data' in file_data:
         data = file_data['data']
@@ -512,22 +512,42 @@ def report(file_id):
 
 @app.route('/download/<file_id>')
 def download_report(file_id):
+    current_session = session.get('session_id')
+    file_data = None
+    
+    with RESULTS_DB_LOCK:
+        if file_id in results_db:
+            file_data = results_db[file_id]
+            
+    # Fallback ke cache disk JSON jika memory terhapus
+    if not file_data:
+        result_json_path = os.path.join(app.config['REPORT_FOLDER'], f"{file_id}_result.json")
+        if os.path.exists(result_json_path):
+            try:
+                with open(result_json_path, "r", encoding="utf-8") as f:
+                    disk_cache = json.load(f)
+                    file_data = {
+                        'session_id': disk_cache.get('session_id'),
+                        'data': disk_cache.get('data')
+                    }
+            except Exception:
+                pass
+
+    # Ownership check yang ketat (Strict Authorization)
+    if file_data and file_data.get('session_id') and file_data.get('session_id') != current_session:
+        error_html = """
+        <div style="font-family: sans-serif; max-width: 600px; margin: 100px auto; padding: 30px; border-radius: 10px; background: #fee2e2; border: 1px solid #ef4444; text-align: center;">
+            <h2 style="color: #b91c1c; margin-top: 0;">AKSES DITOLAK</h2>
+            <p style="color: #7f1d1d; font-size: 15px;">PDF ini bersifat privat dan dikunci ke sesi browser pengguna lain. Anda tidak memiliki izin untuk mengunduhnya.</p>
+        </div>
+        """
+        return error_html, 403
+
     report_pdf_path = os.path.join(app.config['REPORT_FOLDER'], f"{file_id}_report.pdf")
     if os.path.exists(report_pdf_path):
         filename = file_id
-        with RESULTS_DB_LOCK:
-            if file_id in results_db and 'data' in results_db[file_id]:
-                filename = results_db[file_id]['data'].get('filename', file_id)
-        
-        if filename == file_id:
-            result_json_path = os.path.join(app.config['REPORT_FOLDER'], f"{file_id}_result.json")
-            if os.path.exists(result_json_path):
-                try:
-                    with open(result_json_path, "r", encoding="utf-8") as f:
-                        disk_cache = json.load(f)
-                        filename = disk_cache.get('data', {}).get('filename', file_id)
-                except Exception:
-                    pass
+        if file_data and 'data' in file_data:
+            filename = file_data['data'].get('filename', file_id)
 
         download_name = f"{filename}_turnitin.pdf"
         return send_file(report_pdf_path, as_attachment=True, download_name=download_name)
