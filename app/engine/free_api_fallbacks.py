@@ -209,25 +209,121 @@ def search_duckduckgo_html(query, max_results=10):
 
     return urls_found, texts_found
 
+def search_moraref(query, max_results=10):
+    """
+    Search MORAREF Kemenag (Kementerian Agama RI)
+    Mengakses portal jurnal ilmiah seluruh UIN/IAIN/STAIN se-Indonesia
+    """
+    urls, texts = [], []
+    try:
+        short_q = " ".join(query.split()[:8])
+        url = "https://moraref.kemenag.go.id/api/v1/journal/search"
+        resp = requests.get(url, params={"q": short_q, "limit": max_results}, timeout=6)
+        if resp.status_code == 200:
+            data = resp.json()
+            items = data.get("data", []) if isinstance(data, dict) else []
+            for item in items:
+                link = item.get("url") or item.get("link")
+                title = item.get("title", "")
+                abstract = item.get("abstract", "") or item.get("description", "")
+                if link and link not in urls:
+                    urls.append(link)
+                    texts.append(f"{title}. {abstract}")
+    except Exception:
+        pass
+    return urls, texts
+
+def search_base_academic(query, max_results=10):
+    """
+    Search BASE (Bielefeld Academic Search Engine)
+    Database 300 juta+ publikasi ilmiah open access via OAI-PMH gratis.
+    """
+    urls, texts = [], []
+    try:
+        short_q = " ".join(query.split()[:8])
+        url = "https://api.base-search.net/cgi-bin/BaseHttpSearchInterface.fcgi"
+        params = {"func": "PerformSearch", "query": short_q, "format": "json", "hits": max_results}
+        resp = requests.get(url, params=params, timeout=6)
+        if resp.status_code == 200:
+            data = resp.json()
+            docs = data.get("response", {}).get("docs", [])
+            for d in docs:
+                link = d.get("dcunqualifiedlink") or (d.get("dclink", [""])[0] if d.get("dclink") else None)
+                title = d.get("dctitle", "")
+                abstract = d.get("dcdescription", "")
+                if link and link not in urls:
+                    urls.append(link)
+                    texts.append(f"{title}. {abstract}")
+    except Exception:
+        pass
+    return urls, texts
+
+def search_internet_archive(query, max_results=10):
+    """
+    Search Internet Archive Scholar (35M+ publikasi ilmiah & skripsi terdigitalisasi)
+    """
+    urls, texts = [], []
+    try:
+        short_q = " ".join(query.split()[:8])
+        url = "https://archive.org/advancedsearch.php"
+        params = {
+            "q": f"{short_q} mediatype:texts",
+            "fl[]": "identifier,title,description",
+            "rows": max_results,
+            "page": 1,
+            "output": "json"
+        }
+        resp = requests.get(url, params=params, timeout=6)
+        if resp.status_code == 200:
+            docs = resp.json().get("response", {}).get("docs", [])
+            for d in docs:
+                ident = d.get("identifier")
+                title = d.get("title", "")
+                desc = d.get("description", "")
+                if ident:
+                    link = f"https://archive.org/details/{ident}"
+                    if link not in urls:
+                        urls.append(link)
+                        texts.append(f"{title}. {desc}")
+    except Exception:
+        pass
+    return urls, texts
+
+def search_scilit(query, max_results=10):
+    """
+    Search Scilit API (MDPI Academic Aggregator - 160M+ paper)
+    """
+    urls, texts = [], []
+    try:
+        short_q = " ".join(query.split()[:8])
+        url = f"https://www.scilit.net/api/v1/articles/search?q={short_q}"
+        resp = requests.get(url, timeout=6)
+        if resp.status_code == 200:
+            data = resp.json()
+            articles = data.get("articles", []) if isinstance(data, dict) else []
+            for a in articles:
+                link = a.get("url") or a.get("doi_url")
+                title = a.get("title", "")
+                abstract = a.get("abstract", "")
+                if link and link not in urls:
+                    urls.append(link)
+                    texts.append(f"{title}. {abstract}")
+    except Exception:
+        pass
+    return urls, texts
+
 def search_with_fallbacks(query, use_cache=True):
     """
-    Search menggunakan Google Custom Search API dengan caching,
-    serta otomatis fallback ke DuckDuckGo HTML jika Google belum disetup.
-    
-    Returns:
-        tuple: (list of URLs, list of text snippets)
+    Search menggunakan gabungan seluruh API & Provider Akademik:
+    Google CSE -> MORAREF -> BASE -> Internet Archive -> Scilit -> DuckDuckGo
     """
-    
-    # Check cache first
     if use_cache:
         cached_urls, cached_texts = get_cached_results(query, max_age_hours=24)
         if cached_urls:
             return cached_urls, cached_texts
     
-    # Shorten query jika terlalu panjang (Google CSE limit 2048 chars)
     short_query = ' '.join(query.split()[:20])
     
-    # Google Custom Search API credentials
     import os
     google_env = os.environ.get('GOOGLE_API_KEYS', '')
     google_api_keys = google_env.split(',') if google_env else []
@@ -239,23 +335,55 @@ def search_with_fallbacks(query, use_cache=True):
     is_configured = bool(google_api_keys) and bool(cx_id)
     
     if is_configured:
-        # Try each API key with load balancing
         for api_key in google_api_keys:
             try:
                 urls, texts = search_google_custom(short_query, api_key, cx_id, max_results=15)
                 all_urls.extend(urls)
                 all_texts.extend(texts)
-                
                 if len(all_urls) >= 10:
-                    break  # Cukup, jangan buang quota
-                    
+                    break
             except Exception as e:
                 print(f"[!] Google API key error: {e}")
                 continue
     
-    # Fallback ke DuckDuckGo jika Google tidak dikonfigurasi atau gagal
+    # Fallback 1: MORAREF Kemenag API (Jurnal UIN/IAIN/STAIN)
     if not all_urls:
-            
+        try:
+            m_urls, m_texts = search_moraref(short_query, max_results=10)
+            all_urls.extend(m_urls)
+            all_texts.extend(m_texts)
+        except Exception:
+            pass
+
+    # Fallback 2: BASE Academic Search Engine (300M+ Records)
+    if not all_urls:
+        try:
+            b_urls, b_texts = search_base_academic(short_query, max_results=10)
+            all_urls.extend(b_urls)
+            all_texts.extend(b_texts)
+        except Exception:
+            pass
+
+    # Fallback 3: Internet Archive Scholar (35M+ Papers)
+    if not all_urls:
+        try:
+            ia_urls, ia_texts = search_internet_archive(short_query, max_results=10)
+            all_urls.extend(ia_urls)
+            all_texts.extend(ia_texts)
+        except Exception:
+            pass
+
+    # Fallback 4: Scilit MDPI Aggregator (160M+ Papers)
+    if not all_urls:
+        try:
+            s_urls, s_texts = search_scilit(short_query, max_results=10)
+            all_urls.extend(s_urls)
+            all_texts.extend(s_texts)
+        except Exception:
+            pass
+
+    # Fallback 5: DuckDuckGo HTML Web Search
+    if not all_urls:
         try:
             urls, texts = search_duckduckgo_html(short_query, max_results=15)
             all_urls.extend(urls)
@@ -263,7 +391,6 @@ def search_with_fallbacks(query, use_cache=True):
         except Exception as e:
             print(f"[!] Fallback DuckDuckGo error: {e}")
             
-    # Cache results
     if use_cache and all_urls:
         save_to_cache(query, all_urls, all_texts)
     

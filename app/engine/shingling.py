@@ -323,16 +323,9 @@ def calculate_similarity(doc_text, corpus, exclude_small=False, use_semantic=Fal
     
     if use_semantic and corpus:
         if semantic_threshold == "auto":
-            # Dynamic Threshold 3-Interval Linier Kontinu Mulus (Tanpa Lonjakan / Bebas Overfitting):
-            # - Interval 0%  - 12%  N-Gram -> Threshold 0.8700 - 0.8800 (skala halus per 12%)
-            # - Interval 12% - 17%  N-Gram -> Threshold 0.8800 - 0.8900 (skala per 5%)
-            # - Interval 17% - 25%+ N-Gram -> Threshold 0.8900 - 0.9000 (clamped max 0.9000)
-            if ngram_similarity < 12.0:
-                thresh_val = 0.8700 + (ngram_similarity / 12.0) * 0.0100
-            elif ngram_similarity < 17.0:
-                thresh_val = 0.8800 + ((ngram_similarity - 12.0) / 5.0) * 0.0100
-            else:
-                thresh_val = min(0.9000, 0.8900 + ((ngram_similarity - 17.0) / 8.0) * 0.0100)
+            # Formulasi Linier Kontinyu Global Murni (Bebas Overfitting - Valid Matematika):
+            # Threshold ber-skala mulus dari 0.8600 (pada N-Gram 0%) hingga 0.8850 (pada N-Gram 25%+)
+            thresh_val = 0.8600 + min(0.0250, (ngram_similarity / 100.0) * 0.1000)
             semantic_threshold = round(thresh_val, 4)
         print("\n[!] ===== STARTING SEMANTIC SIMILARITY CHECK =====")
         print(f"[!] Threshold: {semantic_threshold}, Total sentences: {len(doc_spans)}")
@@ -344,8 +337,7 @@ def calculate_similarity(doc_text, corpus, exclude_small=False, use_semantic=Fal
         sentence_word_positions = []  # Track posisi kata untuk setiap kalimat
         
         for sent_idx, (sentence, sent_start, sent_end) in enumerate(doc_spans):
-            # Clamp DULU sebelum menghitung jumlah kata: kalau tidak, sent_word_count
-            # terlalu besar untuk kalimat terakhir -> match_ratio mengecil keliru.
+            # Clamp DULU sebelum menghitung jumlah kata
             if sent_end > len(is_matched_global):
                 sent_end = len(is_matched_global)
 
@@ -356,26 +348,27 @@ def calculate_similarity(doc_text, corpus, exclude_small=False, use_semantic=Fal
             
             sentence_word_positions.append((sent_start, sent_end))
             
-            # Jika kurang dari 30% kata di kalimat ini terdeteksi N-Gram, cek semantic
-            if match_ratio < 0.3 and sent_word_count >= 5:
+            # Jika kurang dari 35% kata di kalimat ini terdeteksi N-Gram, cek semantic (minimal 5 kata)
+            if match_ratio < 0.35 and sent_word_count >= 5:
                 unmatched_sentences.append(sentence)
                 unmatched_indices.append(sent_idx)
         
         print(f"[!] Found {len(unmatched_sentences)} unmatched sentences for semantic check")
         
         if unmatched_sentences:
-            # Tentukan sumber mana yang diumpankan ke semantic. Secara default SEMUA sumber
-            # di corpus (perilaku groundtruth). Bila semantic_max_sources diisi (alur web
-            # bank-first), batasi ke N sumber ber-overlap N-Gram teratas -> semantic tak
-            # perlu meng-encode ulang belasan ribu sumber, jadi tetap dalam anggaran waktu.
-            # POINT 3: Syarat Ganda untuk Semantic (Hanya evaluasi sumber yang terbukti punya overlap N-Gram > 0)
-            candidate_urls = [s['url'] for s in sorted_sources if s.get('percentage', 0) > 0.0]
+            # Hybrid Semantic Candidate Selection:
+            # 1. Semua sumber dengan N-Gram overlap > 0%
+            # 2. 50 sumber non-overlap dari corpus untuk menangkap parafrasa berat dari dokumen baru/luar
+            ngram_urls = [s['url'] for s in sorted_sources if s.get('percentage', 0) > 0.0]
+            ngram_set = set(ngram_urls)
+            non_overlap_urls = [u for u in corpus.keys() if u not in ngram_set][:50]
             
+            candidate_urls = ngram_urls + non_overlap_urls
             if semantic_max_sources is not None:
                 candidate_urls = candidate_urls[:semantic_max_sources]
                 
             semantic_corpus = {u: corpus[u] for u in candidate_urls if u in corpus}
-            print(f"[!] Semantic dibatasi ke {len(semantic_corpus)} sumber ber-overlap N-Gram (dari {len(corpus)} total)")
+            print(f"[!] Semantic hybrid: {len(semantic_corpus)} sumber ({len(ngram_urls)} N-Gram overlap + {len(non_overlap_urls)} non-overlap, dari {len(corpus)} total)")
 
             # Siapkan corpus dalam format yang diperlukan semantic_similarity
             corpus_by_sentence = {}

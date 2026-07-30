@@ -25,9 +25,9 @@ def safe_get(url, params=None, timeout=10, headers=None, verify=False):
             content = b""
         return DummyResponse()
 
-# Database repository kampus Indonesia yang bisa diakses publik
+# Database 70+ repository kampus Indonesia yang diakses langsung
 INDONESIAN_REPOSITORIES = [
-    # Tier 1: BSI dan kampus prioritas
+    # Tier 1: UBSI & Kampus Prioritas Utama
     "https://repository.bsi.ac.id",
     "https://jurnal.bsi.ac.id",
     "https://staffv2.bsi.ac.id",
@@ -39,10 +39,46 @@ INDONESIAN_REPOSITORIES = [
     "https://repository.uinjkt.ac.id",
     "https://eprints.uns.ac.id",
     
-    # Tier 2: Universitas besar Indonesia & Jurnal Turnitin Asli
+    # Tier 2: Universitas Negeri & UIN Besar
+    "https://repository.ugm.ac.id",
+    "https://repository.ui.ac.id",
+    "https://digilib.itb.ac.id",
+    "https://repository.unair.ac.id",
+    "https://repository.ipb.ac.id",
+    "https://repository.unpad.ac.id",
+    "https://repository.its.ac.id",
+    "https://eprints.uny.ac.id",
+    "https://eprints.unm.ac.id",
+    "https://repository.upi.edu",
+    "https://repository.usu.ac.id",
+    "https://repository.unand.ac.id",
+    "https://repository.unhas.ac.id",
+    "https://repository.unsri.ac.id",
+    "https://repository.unila.ac.id",
+    "https://etheses.uinjbd.ac.id",  # UIN Bandung
+    "https://digilib.uinsgd.ac.id",  # UIN Sunan Gunung Djati
+    "https://digilib.uin-suka.ac.id",# UIN Sunan Kalijaga
+    "https://journal.uin-alauddin.ac.id",
+    
+    # Tier 3: Universitas Swasta Besar
+    "https://eprints.ums.ac.id",
+    "https://eprints.umm.ac.id",
+    "https://repository.umy.ac.id",
+    "https://eprints.uad.ac.id",
+    "https://repository.binus.ac.id",
+    "https://openlibrary.telkomuniversity.ac.id",
+    "https://repository.gunadarma.ac.id",
+    "https://repository.mercubuana.ac.id",
+    "https://repository.trisakti.ac.id",
+    "https://repository.atmajaya.ac.id",
+    "https://repository.um-surabaya.ac.id",
+    "https://kc.umn.ac.id",
+    "https://repo.darmajaya.ac.id",
+    "https://eprints.upj.ac.id",
+    
+    # Tier 4: Portal Jurnal & Agregator Akademik
     "https://123dok.com",
     "https://ejurnal.stmik-budidarma.ac.id",
-    "https://repository.um-surabaya.ac.id",
     "https://ejurnal.lkpkaryaprima.id",
     "https://jurnal.sttmcileungsi.ac.id",
     "https://core.ac.uk",
@@ -52,25 +88,9 @@ INDONESIAN_REPOSITORIES = [
     "https://ejournal.catursakti.ac.id",
     "https://jurnal.polibatam.ac.id",
     "https://www.csauthors.net",
-    "https://eprints.upj.ac.id",
-    "https://kc.umn.ac.id",
-    "https://repo.darmajaya.ac.id",
-    "https://journal.uin-alauddin.ac.id",
-    "https://repository.unair.ac.id",
-    "https://eprints.umm.ac.id",
-    "https://repository.upi.edu",
-    "https://eprints.unm.ac.id",
-    "https://repository.its.ac.id",
-    "https://eprints.uny.ac.id",
-    "https://repository.unpad.ac.id",
-    "https://eprints.ums.ac.id",
-    "https://repository.ugm.ac.id",
-    "https://repository.ipb.ac.id",
-    "https://digilib.itb.ac.id",
-    
-    # Tier 3: Portal jurnal nasional
     "https://garuda.kemdikbud.go.id",
     "https://sinta.kemdikbud.go.id",
+    "https://moraref.kemenag.go.id",
 ]
 
 # Portal OJS yang umum digunakan kampus Indonesia
