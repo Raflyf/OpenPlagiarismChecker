@@ -236,13 +236,12 @@ Skor Total = (Kata Ter-match N-Gram + Kata Ter-match Semantic) / Total Kata Doku
 
 ## Changelog
 
-### v4.5 (Current) — Continuous Global Linear Thresholding & 70+ Kampus Indonesia
+### v4.5 (Current) — Continuous Global Linear Thresholding, 70+ Kampus Indonesia & 15 API Paralel
 
 - **Continuous Global Linear Threshold (Anti-Overfitting)**: Menggantikan sistem threshold kaku dengan formula matematika berkelanjutan (0.8600 - 0.8850) berdasarkan kepadatan *N-Gram Exact Match*. Memastikan model tetap kebal dari deteksi *overfitting* dan lebih konsisten di segala jenis dokumen.
 - **Ekspansi Masif Repositori 70+ Kampus Indonesia**: Memperluas *scraper* khusus (E-Thesis) dari hanya 6 PTN menjadi 70+ Universitas di Indonesia, meliputi UI, UGM, ITB, UNAIR, UNDIP, IPB, Universitas Telkom, Binus, Gunadarma, UIN/IAIN/STAIN se-Nusantara, dan banyak lagi.
 - **PyTorch CUDA / VRAM Optimization**: Mengunci eksekusi *Sentence Transformers* menggunakan modul lokal PyTorch `2.6.0+cu124` dengan proteksi VRAM agar lebih stabil pada GPU lokal.
-- **Integrasi API Alternatif (Internet Archive Scholar & Scilit)**: Menambahkan 2 sumber raksasa tambahan sebagai *fallback* ketika API akademik utama sedang melambat.
-- **Pembaruan Konfigurasi Google Custom Search**: Menyederhanakan penanganan *Google CSE* dan `.env` yang otomatis melakukan bypass instan saat API Google ditolak (Error 403 / *Billing*).
+- **Optimasi Kecepatan Scraping & 15 API Paralel**: Menggabungkan seluruh API menjadi 1 gelombang paralel dengan 12 worker dan timeout ketat (10 detik). Menambahkan 3 sumber baru secara *direct* (tanpa API key): **Garuda Kemdiktisaintek (Direct Scrape)**, **PubMed/NCBI E-Utilities**, dan **Google Search Native** (`googlesearch-python`). Total 15 API akademik aktif tanpa risiko RTO panjang.
 
 ### v4.4 — Ekspansi Sumber Indonesia (MORAREF, BASE, E-Thesis PTN) & Dark Mode
 
