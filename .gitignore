@@ -33,6 +33,8 @@ Config editor lokal
 .vscode/
 
 Scratch and debug files
+temp_scratch/
+*_old.py
 scratch_*.py
 test_out.txt
 diff.txt
