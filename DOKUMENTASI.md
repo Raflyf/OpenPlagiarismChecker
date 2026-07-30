@@ -48,9 +48,10 @@ Untuk memproses puluhan ribu kalimat sumber secara *real-time*, sistem dioptimal
 
 ## 3. Formulasi Kontinyu Global (Anti-Overfitting v4.9)
 
-Untuk menjamin generalisasi sistem pada dokumen baru tanpa manipulasi atau *overfitting* per-dokumen, threshold pencocokan semantik ditentukan menggunakan **Formulasi Linier Kontinyu Global v4.9**:
+Untuk menjamin generalisasi sistem pada dokumen baru tanpa manipulasi atau overfitting per-dokumen, threshold pencocokan semantik ditentukan menggunakan Formulasi Linier Kontinyu Global v4.9 dipadukan dengan **Dynamic Length Penalty**:
 
-$$\text{Semantic Threshold} = 0.8515 + \min\left(0.0250, \frac{\text{N-Gram Similarity}}{100} \times 0.0900\right)$$
+$$\text{Base Threshold} = 0.8515 + (\max(0, 500 - \text{Total Kata}) \times 0.00005)$$
+$$\text{Final Semantic Threshold} = \text{Base Threshold} + \min\left(0.0250, \frac{\text{N-Gram Similarity}}{100} \times 0.0900\right)$$
 
 Rentang thresholding bergerak secara otomatis antara **$0.8515 - 0.8765$** berdasarkan kepadatan N-Gram Exact Match.
 
