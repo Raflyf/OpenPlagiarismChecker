@@ -521,17 +521,33 @@
             updateThemeIcon(true);
         }
         
-        // Show recent report if exists
+        // Show recent report if exists and less than 5 minutes old
         const lastReportId = localStorage.getItem('last_report_id');
-        if (lastReportId) {
-            document.getElementById('recentResultBox').style.display = 'block';
+        const lastReportTime = localStorage.getItem('last_report_time');
+        if (lastReportId && lastReportTime) {
+            // 300,000 ms = 5 minutes
+            if (Date.now() - parseInt(lastReportTime) < 300000) {
+                document.getElementById('recentResultBox').style.display = 'block';
+            } else {
+                localStorage.removeItem('last_report_id');
+                localStorage.removeItem('last_report_time');
+            }
         }
     });
 
     function openLastReport() {
         const lastReportId = localStorage.getItem('last_report_id');
-        if (lastReportId) {
-            window.location.href = `/report/${lastReportId}`;
+        const lastReportTime = localStorage.getItem('last_report_time');
+        
+        if (lastReportId && lastReportTime) {
+            if (Date.now() - parseInt(lastReportTime) < 300000) {
+                window.location.href = `/report/${lastReportId}`;
+            } else {
+                alert("Laporan sudah kedaluwarsa (lebih dari 5 menit).");
+                localStorage.removeItem('last_report_id');
+                localStorage.removeItem('last_report_time');
+                document.getElementById('recentResultBox').style.display = 'none';
+            }
         }
     }
 
@@ -743,7 +759,10 @@
                     document.getElementById('progressBar').style.width = '100%';
                     document.getElementById('progressText').innerText = '100%';
                     document.getElementById('loadingSubtitle').innerText = 'Selesai. Membuka laporan...';
-                    try { localStorage.setItem('last_report_id', file_id); } catch(e) {}
+                    try { 
+                        localStorage.setItem('last_report_id', file_id); 
+                        localStorage.setItem('last_report_time', Date.now());
+                    } catch(e) {}
                     window.location.href = `/report/${file_id}`;
                 } else if (data.status === 'cancelled') {
                     clearInterval(checkInterval);
