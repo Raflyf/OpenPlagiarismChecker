@@ -24,6 +24,7 @@ from engine.extractor import extract_text_auto, get_sentences
 from engine.web_scraper import get_candidate_urls, scrape_all_candidates, load_corpus_bank
 from engine.shingling import calculate_similarity
 from engine.pdf_generator import generate_report_pdf
+from engine.supabase_client import save_job_status_supabase, get_job_status_supabase
 
 app = Flask(__name__)
 # Redam log akses HTTP Werkzeug (mis. "GET /status/... 200" tiap detik dari polling
@@ -132,6 +133,9 @@ def process_document(file_id, filepath, original_filename, exclude_quotes=True, 
             if file_id in results_db:
                 results_db[file_id]['progress'] = pct
                 results_db[file_id]['message'] = msg
+                session_id = results_db[file_id].get('session_id', '')
+                status = results_db[file_id].get('status', 'processing')
+                save_job_status_supabase(file_id, session_id, status, pct, msg)
 
     def check_cancelled():
         with RESULTS_DB_LOCK:
@@ -255,6 +259,7 @@ def process_document(file_id, filepath, original_filename, exclude_quotes=True, 
             'message': 'Selesai.',
             'data': data
         })
+        save_job_status_supabase(file_id, results_db[file_id].get('session_id', ''), 'completed', 100, 'Selesai.', data)
         try:
             result_json_path = os.path.join(app.config['REPORT_FOLDER'], f"{file_id}_result.json")
             with open(result_json_path, "w", encoding="utf-8") as f:
@@ -460,20 +465,28 @@ def report(file_id):
         if file_id in results_db:
             file_data = results_db[file_id]
             
-    # Fallback ke cache disk JSON jika memory terhapus atau server direstart
+    # Fallback ke Supabase / cache disk JSON jika memory terhapus atau server direstart
     if not file_data or file_data.get('status') != 'completed':
-        result_json_path = os.path.join(app.config['REPORT_FOLDER'], f"{file_id}_result.json")
-        if os.path.exists(result_json_path):
-            try:
-                with open(result_json_path, "r", encoding="utf-8") as f:
-                    disk_cache = json.load(f)
-                    file_data = {
-                        'status': 'completed',
-                        'data': disk_cache.get('data'),
-                        'session_id': disk_cache.get('session_id')
-                    }
-            except Exception:
-                pass
+        supa_job = get_job_status_supabase(file_id)
+        if supa_job and supa_job.get('status') == 'completed' and supa_job.get('result_json'):
+            file_data = {
+                'status': 'completed',
+                'data': supa_job.get('result_json'),
+                'session_id': supa_job.get('session_id')
+            }
+        else:
+            result_json_path = os.path.join(app.config['REPORT_FOLDER'], f"{file_id}_result.json")
+            if os.path.exists(result_json_path):
+                try:
+                    with open(result_json_path, "r", encoding="utf-8") as f:
+                        disk_cache = json.load(f)
+                        file_data = {
+                            'status': 'completed',
+                            'data': disk_cache.get('data'),
+                            'session_id': disk_cache.get('session_id')
+                        }
+                except Exception:
+                    pass
                 
     if not file_data:
         return "Laporan tidak ditemukan atau telah kedaluwarsa. Silakan unggah ulang dokumen Anda.", 404

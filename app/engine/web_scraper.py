@@ -21,6 +21,11 @@ import sqlite3 as _sqlite3
 import json as _json
 import threading as _threading
 import ipaddress as _ipaddress
+from engine.supabase_client import (
+    get_bank_urls_supabase,
+    get_bank_texts_supabase,
+    save_to_corpus_bank_supabase
+)
 
 # Thread-local HTTP session untuk connection pooling (reuse koneksi TCP)
 _thread_local = _threading.local()
@@ -75,7 +80,11 @@ def init_bank_db():
         conn.close()
 
 def get_bank_urls():
-    """Mengembalikan set URL yang tersimpan di bank.db (hemat RAM, ~1-2MB)."""
+    """Mengembalikan set URL yang tersimpan di Supabase/bank.db (hemat RAM)."""
+    supa_urls = get_bank_urls_supabase()
+    if supa_urls is not None and len(supa_urls) > 0:
+        return supa_urls
+    
     init_bank_db()
     conn = _sqlite3.connect(_BANK_DB_PATH)
     cur = conn.cursor()
@@ -85,21 +94,25 @@ def get_bank_urls():
     return urls
 
 def get_bank_texts(target_urls):
-    """Mengambil teks spesifik HANYA untuk target_urls dari bank.db."""
+    """Mengambil teks spesifik HANYA untuk target_urls dari Supabase/bank.db."""
     if not target_urls:
         return {}
-    init_bank_db()
-    conn = _sqlite3.connect(_BANK_DB_PATH)
-    cur = conn.cursor()
-    result = {}
-    target_list = list(target_urls)
-    for i in range(0, len(target_list), 500):
-        batch = target_list[i:i+500]
-        placeholders = ",".join("?" for _ in batch)
-        cur.execute(f"SELECT url, text FROM corpus WHERE url IN ({placeholders})", batch)
-        for url, text in cur.fetchall():
-            result[url] = text
-    conn.close()
+        
+    result = get_bank_texts_supabase(target_urls)
+    missing_urls = set(target_urls) - set(result.keys())
+    
+    if missing_urls:
+        init_bank_db()
+        conn = _sqlite3.connect(_BANK_DB_PATH)
+        cur = conn.cursor()
+        target_list = list(missing_urls)
+        for i in range(0, len(target_list), 500):
+            batch = target_list[i:i+500]
+            placeholders = ",".join("?" for _ in batch)
+            cur.execute(f"SELECT url, text FROM corpus WHERE url IN ({placeholders})", batch)
+            for url, text in cur.fetchall():
+                result[url] = text
+        conn.close()
     return result
 
 def load_corpus_bank():
@@ -113,9 +126,14 @@ def load_corpus_bank():
     return data
 
 def save_to_corpus_bank(new_corpus):
-    """Simpan sumber baru ke bank.db SQLite (atomik & thread-safe)."""
+    """Simpan sumber baru ke Supabase & bank.db SQLite (atomik & thread-safe)."""
     if not new_corpus:
         return
+        
+    # 1. Simpan ke Supabase Cloud
+    save_to_corpus_bank_supabase(new_corpus)
+    
+    # 2. Simpan ke SQLite lokal sebagai backup cache
     init_bank_db()
     with _bank_lock:
         try:

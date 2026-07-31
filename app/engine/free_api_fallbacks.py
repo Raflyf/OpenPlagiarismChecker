@@ -15,6 +15,7 @@ from pathlib import Path
 
 import sqlite3
 import threading
+from engine.supabase_client import get_cached_results_supabase, save_to_cache_supabase
 
 _CACHE_DB_PATH = Path(__file__).parent / '.search_cache.db'
 _cache_lock = threading.Lock()
@@ -31,9 +32,15 @@ def get_cache_key(query):
     return hashlib.md5(query.encode('utf-8')).hexdigest()
 
 def get_cached_results(query, max_age_hours=2160):
-    """Ambil hasil dari SQLite3 cache jika masih fresh (default: 90 hari / 2160 jam)"""
+    """Ambil hasil dari Supabase/SQLite3 cache jika masih fresh"""
     try:
         q_hash = get_cache_key(query)
+        # 1. Coba ambil dari Supabase
+        supa_res = get_cached_results_supabase(q_hash)
+        if supa_res and isinstance(supa_res, dict):
+            return supa_res.get('urls', []), supa_res.get('texts', [])
+            
+        # 2. Fallback ke SQLite3 lokal
         cutoff = time.time() - (max_age_hours * 3600)
         with _cache_lock:
             conn = _get_cache_conn()
@@ -49,10 +56,16 @@ def get_cached_results(query, max_age_hours=2160):
     return None, None
 
 def save_to_cache(query, urls, texts):
-    """Simpan hasil ke SQLite3 cache (atomik, thread-safe, single-file)"""
+    """Simpan hasil ke Supabase & SQLite3 cache (atomik, thread-safe)"""
     try:
         q_hash = get_cache_key(query)
-        data_str = json.dumps({'urls': urls, 'texts': texts}, ensure_ascii=False)
+        results_dict = {'urls': urls, 'texts': texts}
+        
+        # 1. Simpan ke Supabase Cloud
+        save_to_cache_supabase(q_hash, "search_engine", results_dict)
+        
+        # 2. Simpan ke SQLite lokal
+        data_str = json.dumps(results_dict, ensure_ascii=False)
         with _cache_lock:
             conn = _get_cache_conn()
             conn.execute("INSERT OR REPLACE INTO cache (query_hash, data, timestamp) VALUES (?, ?, ?)",
