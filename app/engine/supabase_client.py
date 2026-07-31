@@ -9,20 +9,24 @@ import urllib.parse
 import requests
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-ENV_PATH = os.path.join(BASE_DIR, "..", ".env")
+ENV_PATHS = [
+    os.path.join(BASE_DIR, "..", "..", ".env"),
+    os.path.join(BASE_DIR, "..", ".env")
+]
 
 def _load_env():
     env_vars = {}
-    if os.path.exists(ENV_PATH):
-        try:
-            with open(ENV_PATH, "r", encoding="utf-8") as f:
-                for line in f:
-                    line = line.strip()
-                    if line and not line.startswith("#") and "=" in line:
-                        k, v = line.split("=", 1)
-                        env_vars[k.strip()] = v.strip()
-        except Exception:
-            pass
+    for p in ENV_PATHS:
+        if os.path.exists(p):
+            try:
+                with open(p, "r", encoding="utf-8") as f:
+                    for line in f:
+                        line = line.strip()
+                        if line and not line.startswith("#") and "=" in line:
+                            k, v = line.split("=", 1)
+                            env_vars[k.strip()] = v.strip()
+            except Exception:
+                pass
     return env_vars
 
 _env = _load_env()
