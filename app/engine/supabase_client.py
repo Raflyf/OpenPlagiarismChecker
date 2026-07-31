@@ -53,15 +53,41 @@ def is_supabase_configured():
 # --- 1. Corpus Bank Supabase Functions ---
 
 def get_bank_urls_supabase():
-    """Mengambil seluruh daftar URL yang tersimpan di Supabase corpus_bank."""
+    """Mengambil seluruh daftar URL yang tersimpan di Supabase corpus_bank secara paralel (support >90.000 URL)."""
     if not is_supabase_configured():
         return None
     try:
-        url = f"{SUPABASE_URL}/rest/v1/corpus_bank?select=url"
-        resp = _session.get(url, timeout=6.0)
-        if resp.status_code == 200:
-            rows = resp.json()
-            return set(r['url'] for r in rows if 'url' in r)
+        import concurrent.futures
+        base_url = f"{SUPABASE_URL}/rest/v1/corpus_bank?select=url"
+        
+        def fetch_chunk(offset):
+            try:
+                resp = _session.get(f"{base_url}&limit=1000&offset={offset}", timeout=6.0)
+                if resp.status_code == 200:
+                    rows = resp.json()
+                    return [r['url'] for r in rows if 'url' in r]
+            except Exception:
+                pass
+            return []
+
+        # Panggil batch pertama untuk cek total/keberadaan data
+        first_batch = fetch_chunk(0)
+        if not first_batch:
+            return set()
+            
+        all_urls = set(first_batch)
+        if len(first_batch) < 1000:
+            return all_urls
+
+        # Jika > 1000 data, jalankan thread-pool parallel hingga 120.000 URL
+        offsets = range(1000, 120000, 1000)
+        with concurrent.futures.ThreadPoolExecutor(max_workers=16) as executor:
+            for chunk in executor.map(fetch_chunk, offsets):
+                if not chunk:
+                    break
+                all_urls.update(chunk)
+                
+        return all_urls
     except Exception as e:
         print(f"[Supabase] Warning get_bank_urls: {e}")
     return None
