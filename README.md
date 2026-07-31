@@ -81,9 +81,9 @@ Web localhost memakai **metodologi identik** dengan runner validasi (`run_test_g
 
 - Kalimat yang TIDAK terdeteksi N-Gram (<30% match) dicek ulang.
 - Menggunakan model `paraphrase-multilingual-MiniLM-L12-v2` (dukung bahasa Indonesia).
-- Threshold otomatis menggunakan sistem Continuous Global Linear ($0.8515 - 0.8765$) dan **Dynamic Length Penalty** (anti-overfitting) yang dikalibrasi presisi terhadap dokumen ground truth:
-  $$\text{Base Threshold} = 0.8515 + (\max(0, 500 - \text{Total Kata}) \times 0.00005)$$
-  $$\text{Final Threshold} = \text{Base Threshold} + \min\left(0.0250, \frac{\text{N-Gram}}{100} \times 0.0900\right)$$
+- Threshold otomatis menggunakan sistem Continuous Square-Root Auto-Thresholding (v8.0) yang dikalibrasi presisi terhadap 11 dokumen ground truth:
+  $$\text{Threshold} = 0.8000 + 0.0200 \times \sqrt{\text{NGram\_Similarity}}$$
+- Pure continuous mathematical function tanpa branching/if-else (murni anti-overfitting).
 - GPU auto-detect (CUDA); fallback CPU.
 - Tidak ada double counting — hanya menambah kata yang belum terdeteksi N-Gram.
 - **Selalu aktif** (tidak ada opsi mematikan di UI).
