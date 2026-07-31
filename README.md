@@ -16,26 +16,26 @@ Diuji terhadap 11 dokumen nyata yang sudah memiliki skor Turnitin asli sebagai _
 
 ### 1. Benchmark Utama (8 Dokumen Lulusan 2026 Terbaru)
 
-| Dokumen | Skor Lokal | Target Turnitin | Delta | Status Akurasi | Kategori Dokumen |
-| :--- | :---: | :---: | :---: | :---: | :---: |
-| **Laila after parafrase** | **4.0%** | 4% (Curang) | 0.0pt | Anti-Cheat Sukses (Hidden Text) | Lulusan 2026 |
-| **Hesti (body shape)** | **17.8%** | 18% | -0.2pt | Sempurna | Lulusan 2026 |
-| **Fikri (sistem informasi)** | **13.9%** | 14% | -0.1pt | Sempurna | Lulusan 2026 |
-| **Rafly (klasifikasi spam)** | **7.2%** | 8% | -0.8pt | Sangat Tepat | Lulusan 2026 |
-| **Andyan** | **20.5%** | 23% | -2.5pt | Sangat Tepat | Lulusan 2026 |
-| **Dias Maulana** | **25.8%** | 23% | +2.8pt | Sangat Tepat | Lulusan 2026 |
-| **Skripsi Melani 15220760** | **20.5%** | 19% | +1.5pt | Sangat Tepat | Lulusan 2026 |
-| **Laila before parafrase** | **20.8%** | 24% | -3.2pt | Tepat (Batas Toleransi) |
+| Dokumen                      | Skor Lokal | Target Turnitin | Delta  |         Status Akurasi          | Kategori Dokumen |
+| :--------------------------- | :--------: | :-------------: | :----: | :-----------------------------: | :--------------: |
+| **Laila after parafrase**    |  **4.0%**  |   4% (Curang)   | 0.0pt  | Anti-Cheat Sukses (Hidden Text) |   Lulusan 2026   |
+| **Hesti (body shape)**       | **17.8%**  |       18%       | -0.2pt |            Sempurna             |   Lulusan 2026   |
+| **Fikri (sistem informasi)** | **13.9%**  |       14%       | -0.1pt |            Sempurna             |   Lulusan 2026   |
+| **Rafly (klasifikasi spam)** |  **7.2%**  |       8%        | -0.8pt |          Sangat Tepat           |   Lulusan 2026   |
+| **Andyan**                   | **20.5%**  |       23%       | -2.5pt |          Sangat Tepat           |   Lulusan 2026   |
+| **Dias Maulana**             | **25.8%**  |       23%       | +2.8pt |          Sangat Tepat           |   Lulusan 2026   |
+| **Skripsi Melani 15220760**  | **20.5%**  |       19%       | +1.5pt |          Sangat Tepat           |   Lulusan 2026   |
+| **Laila before parafrase**   | **20.8%**  |       24%       | -3.2pt |     Tepat (Batas Toleransi)     |   Lulusan 2026   |
 
 **Rata-rata Error Absolut (MAE Core 2026): 1.38 poin persentase.**
 
 ### 2. Dokumen Opsional Baseline (3 Dokumen Lulusan 2025)
 
-| Dokumen | Skor Lokal | Target Turnitin | Delta | Status Akurasi | Kategori Dokumen |
-| :--- | :---: | :---: | :---: | :---: | :---: |
-| **Muhammad Ihsan** | **22.1%** | 18% | +4.1pt | Opsional Baseline | Lulusan 2025 |
-| **Tsaura Halwa** | **21.7%** | 13% | +8.7pt | Opsional Baseline | Lulusan 2025 |
-| **Tesyar** | **7.2%** | 8% | -0.8pt | Opsional Baseline | Lulusan 2025 |
+| Dokumen            | Skor Lokal | Target Turnitin | Delta  |  Status Akurasi   | Kategori Dokumen |
+| :----------------- | :--------: | :-------------: | :----: | :---------------: | :--------------: |
+| **Muhammad Ihsan** | **22.1%**  |       18%       | +4.1pt | Opsional Baseline |   Lulusan 2025   |
+| **Tsaura Halwa**   | **21.7%**  |       13%       | +8.7pt | Opsional Baseline |   Lulusan 2025   |
+| **Tesyar**         |  **7.2%**  |       8%        | -0.8pt | Opsional Baseline |   Lulusan 2025   |
 
 > **Catatan:** Dokumen lulusan 2025 dipisahkan ke tabel opsional baseline karena adanya dinamika ekspansi & pembaruan indeks repositori web dalam 1 tahun terakhir. Menggunakan kombinasi _N-Gram 5-Gram Exact Match_ dan _Semantic Paraphrase_ dengan **Continuous Global Linear Threshold** (anti-overfitting) yang terkalibrasi presisi ($0.8515 - 0.8765$), mesin ini terbukti berhasil mereplikasi logika pemeringkatan Turnitin sekaligus secara cerdas membongkar manipulasi teks (Trik Teks Putih / _Hidden Text_).
 
@@ -232,7 +232,7 @@ Skor Total = (Kata Ter-match N-Gram + Kata Ter-match Semantic) / Total Kata Doku
 - **PyTorch CUDA / VRAM Optimization & Memory Guard**: Mengunci eksekusi _Sentence Transformers_ menggunakan modul lokal PyTorch `2.6.0+cu124` dengan proteksi VRAM dan batasan embedding `SEMANTIC_MAX_BATCH` (default 10000) untuk mencegah OOM GPU/RAM.
 - **Super-Fast Live Scraping (<90 Detik) & Instant Cancel UI**: Waktu _live scraping_ dari internet dipangkas drastis dari 16+ menit menjadi **< 90 detik** berkat _strict timeouts_ dan paralelisme worker. Pengguna dapat menghentikan analisis kapan saja dari antarmuka Web UI melalui tombol _Instant Abort_.
 - **SQLite3 Corpus Storage (`bank.db`) & Atomic File Writes**: Menggunakan database SQLite3 terindeks dengan kunci _thread-safety_ (`_bank_lock`) dan penulisan atomik (`os.replace`) untuk mencegah manipulasi data atau _race conditions_.
-- **Isolasi Sesi & Keamanan Privasi Ketat (Zero Data Leak)**: Menerapkan mekanisme kepemilikan laporan berbasis `session_id` kriptografis di Web UI. Laporan hanya dapat diakses oleh browser/pengguna yang mengunggahnya (mencegah kebocoran data antar-pengguna). Didukung dengan *disk caching* JSON agar hasil tidak hilang saat *refresh* dan pembersihan otomatis (Self-Destruct) dokumen di server secara berkala tiap 2 jam.
+- **Isolasi Sesi & Keamanan Privasi Ketat (Zero Data Leak)**: Menerapkan mekanisme kepemilikan laporan berbasis `session_id` kriptografis di Web UI. Laporan hanya dapat diakses oleh browser/pengguna yang mengunggahnya (mencegah kebocoran data antar-pengguna). Didukung dengan _disk caching_ JSON agar hasil tidak hilang saat _refresh_ dan pembersihan otomatis (Self-Destruct) dokumen di server secara berkala tiap 2 jam.
 - **Dark Mode Halaman Report & 1-Click Auto Setup**: Menambahkan toggle dan tema Dark Mode interaktif di `report.html` serta penyediaan skrip otomatis `run.bat` / `run.sh` untuk pemasangan dependen 1-klik.
 
 ### v4.4 — Ekspansi Sumber Indonesia (MORAREF, BASE, E-Thesis PTN) & Dark Mode
