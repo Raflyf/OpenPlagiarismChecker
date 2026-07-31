@@ -40,7 +40,7 @@ for idx, filename in enumerate(files):
         # Gunakan force_scrape='false' agar menggunakan frozen_corpus yg sudah terkumpul,
         # sehingga pengujian threshold baru lebih cepat dan konsisten.
         resp = session.post(URL_UPLOAD, files={'file': f}, data={
-            'force_scrape': 'false',
+            'force_scrape': 'true',
             'use_semantic': 'true',
             'exclude_quotes': 'true',
             'exclude_biblio': 'true'

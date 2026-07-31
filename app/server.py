@@ -175,19 +175,23 @@ def process_document(file_id, filepath, original_filename, exclude_quotes=True, 
         doc_hash = hashlib.md5(doc_text.encode("utf-8")).hexdigest()[:16]
         frozen_path = get_frozen_path(original_filename, doc_hash)
         corpus = None
-        if force_scrape:
-            print(f"[!] FORCE SCRAPE: user meminta scrape ulang dari internet, abaikan korpus beku.")
-        elif os.path.exists(frozen_path):
+        existing_corpus = {}
+        if os.path.exists(frozen_path):
             try:
                 with open(frozen_path, encoding="utf-8") as f:
-                    corpus = json.load(f)
-                set_progress(85, "Memuat korpus beku (dokumen sudah pernah dicek)...")
-                print(f"[!] KORPUS BEKU dimuat: {len(corpus)} sumber (skor deterministik, skip scrape).")
+                    existing_corpus = json.load(f)
             except Exception as e:
-                print(f"[!] Gagal baca frozen ({e}), scrape ulang.")
-                corpus = None
+                print(f"[!] Gagal baca frozen ({e}).")
+                existing_corpus = {}
+
+        if not force_scrape and existing_corpus:
+            corpus = existing_corpus
+            set_progress(85, "Memuat korpus beku (dokumen sudah pernah dicek)...")
+            print(f"[!] KORPUS BEKU dimuat: {len(corpus)} sumber (skor deterministik, skip scrape).")
 
         if corpus is None:
+            if force_scrape:
+                print(f"[!] FORCE SCRAPE: Memperluas korpus ({len(existing_corpus)} sumber eksis) dengan live scraping internet...")
             adaptive_probes = max(200, min(200, int(len(sentences) / 2.5)))
             print(f"[!] ADAPTIVE SAMPLING: {adaptive_probes} probes untuk {len(sentences)} kalimat...")
             urls, preloaded_corpus = get_candidate_urls(sentences, max_probes=adaptive_probes, progress_cb=ddg_progress)
@@ -199,16 +203,19 @@ def process_document(file_id, filepath, original_filename, exclude_quotes=True, 
                 set_progress(pct, f"Mengunduh isi sumber ({completed}/{total}){speed_text}...")
 
             print(f"[!] Mengunduh teks dari {len(urls)} kandidat (bank dipakai sbg cache)...")
-            corpus = scrape_all_candidates(urls, preloaded_corpus, progress_cb=scrape_progress)
-            print(f"[!] Korpus terkurasi utk dokumen ini: {len(corpus)} sumber.")
+            new_scraped = scrape_all_candidates(urls, preloaded_corpus, progress_cb=scrape_progress)
+            
+            # MERGE: Gabungkan korpus eksis dengan hasil scraping live baru agar data makin kaya dan tidak membuang data lama
+            corpus = existing_corpus.copy()
+            corpus.update(new_scraped)
+            print(f"[!] Korpus terkurasi total utk dokumen ini: {len(corpus)} sumber ({len(new_scraped)} baru/live).")
             try:
                 # Atomic write: tulis ke file temp dulu, lalu rename
-                # Mencegah race condition jika 2 proses parallel menulis file yang sama
                 frozen_tmp = frozen_path + ".tmp." + secrets.token_hex(4)
                 with open(frozen_tmp, "w", encoding="utf-8") as f:
                     json.dump(corpus, f, ensure_ascii=False)
                 os.replace(frozen_tmp, frozen_path)
-                print(f"[!] Korpus DIBEKUKAN: {os.path.basename(frozen_path)} (run berikut skor identik).")
+                print(f"[!] Korpus DIBEKUKAN & DIPERBARUI: {os.path.basename(frozen_path)} ({len(corpus)} total sumber).")
             except Exception as e:
                 print(f"[!] Gagal simpan frozen: {e}")
 
