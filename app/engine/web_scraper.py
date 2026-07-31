@@ -80,32 +80,38 @@ def init_bank_db():
         conn.close()
 
 def get_bank_urls():
-    """Mengembalikan set URL yang tersimpan di Supabase/bank.db (hemat RAM)."""
-    supa_urls = get_bank_urls_supabase()
-    if supa_urls is not None and len(supa_urls) > 0:
-        return supa_urls
-    
-    init_bank_db()
-    conn = _sqlite3.connect(_BANK_DB_PATH)
-    cur = conn.cursor()
-    cur.execute("SELECT url FROM corpus")
-    urls = set(row[0] for row in cur.fetchall())
-    conn.close()
-    return urls
-
-def get_bank_texts(target_urls):
-    """Mengambil teks spesifik HANYA untuk target_urls dari Supabase/bank.db."""
-    if not target_urls:
-        return {}
-        
-    result = get_bank_texts_supabase(target_urls)
-    missing_urls = set(target_urls) - set(result.keys())
-    
-    if missing_urls:
+    """Mengembalikan set URL yang tersimpan di bank.db lokal & Supabase (instan <1ms)."""
+    urls = set()
+    try:
         init_bank_db()
         conn = _sqlite3.connect(_BANK_DB_PATH)
         cur = conn.cursor()
-        target_list = list(missing_urls)
+        cur.execute("SELECT url FROM corpus")
+        urls.update(row[0] for row in cur.fetchall())
+        conn.close()
+    except Exception as e:
+        print(f"[Bank] Warning read bank_urls local: {e}")
+        
+    supa_urls = get_bank_urls_supabase()
+    if supa_urls:
+        urls.update(supa_urls)
+        
+    return urls
+
+def get_bank_texts(target_urls):
+    """Mengambil teks spesifik HANYA untuk target_urls dari bank.db lokal (instan <1ms), lalu Supabase jika ada missing."""
+    if not target_urls:
+        return {}
+        
+    result = {}
+    target_set = set(target_urls)
+    
+    # 1. Cek bank.db lokal dulu (super cepat <1ms)
+    try:
+        init_bank_db()
+        conn = _sqlite3.connect(_BANK_DB_PATH)
+        cur = conn.cursor()
+        target_list = list(target_set)
         for i in range(0, len(target_list), 500):
             batch = target_list[i:i+500]
             placeholders = ",".join("?" for _ in batch)
@@ -113,6 +119,16 @@ def get_bank_texts(target_urls):
             for url, text in cur.fetchall():
                 result[url] = text
         conn.close()
+    except Exception as e:
+        print(f"[Bank] Warning read bank.db: {e}")
+        
+    # 2. Cek Supabase untuk URL yang belum ketemu di lokal
+    missing_urls = target_set - set(result.keys())
+    if missing_urls:
+        supa_texts = get_bank_texts_supabase(missing_urls)
+        if supa_texts:
+            result.update(supa_texts)
+            
     return result
 
 def load_corpus_bank():
