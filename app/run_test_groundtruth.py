@@ -56,24 +56,34 @@ for name, fname, target in discover_docs():
     sentences = get_sentences(doc_text)
     print(f"[{name}] {len(doc_text.split())} kata, {len(sentences)} kalimat", flush=True)
 
-    if not REFRESH and os.path.exists(frozen_path):
-        with open(frozen_path, "r", encoding="utf-8") as f:
-            corpus = json.load(f)
+    existing_corpus = {}
+    if os.path.exists(frozen_path):
+        try:
+            with open(frozen_path, "r", encoding="utf-8") as f:
+                existing_corpus = json.load(f)
+        except Exception:
+            existing_corpus = {}
+
+    if not REFRESH and existing_corpus:
+        corpus = existing_corpus
         print(f"[{name}] KORPUS BEKU dimuat: {len(corpus)} sumber ({os.path.basename(frozen_path)})", flush=True)
     else:
+        if REFRESH:
+            print(f"[{name}] REFRESH=1: Memperluas korpus ({len(existing_corpus)} sumber eksis) dengan live scraping...", flush=True)
         adaptive_probes = max(180, min(200, int(len(sentences) / 2.5)))
         print(f"[{name}] ADAPTIVE SAMPLING: {adaptive_probes} probes untuk {len(sentences)} kalimat", flush=True)
         urls, preloaded = get_candidate_urls(sentences, max_probes=adaptive_probes)
         print(f"[{name}] preloaded={len(preloaded)} scrape-urls={len(urls)}", flush=True)
-        corpus = scrape_all_candidates(urls, preloaded)
+        new_scraped = scrape_all_candidates(urls, preloaded)
+        corpus = existing_corpus.copy()
+        corpus.update(new_scraped)
         # Atomic write: tulis ke file temp dulu, lalu rename
-        # Mencegah race condition jika 2 proses parallel menulis file yang sama
         import secrets as _secrets
         frozen_tmp = frozen_path + ".tmp." + _secrets.token_hex(4)
         with open(frozen_tmp, "w", encoding="utf-8") as f:
             json.dump(corpus, f, ensure_ascii=False)
         os.replace(frozen_tmp, frozen_path)
-        print(f"[{name}] korpus DIBEKUKAN ke disk: {len(corpus)} sumber ({os.path.basename(frozen_path)})", flush=True)
+        print(f"[{name}] korpus DIPERBARUI ke disk: {len(corpus)} total sumber ({os.path.basename(frozen_path)})", flush=True)
 
     sources, total_sim, phrases = calculate_similarity(
         doc_text, corpus, exclude_small=True, use_semantic=True, 
