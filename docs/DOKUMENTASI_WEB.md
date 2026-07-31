@@ -7,7 +7,7 @@ Dokumen ini merangkum arsitektur, alur kerja, dan changelog konseptual aplikasi 
 
 Menyediakan pengecek plagiarisme lokal gratis yang meniru perilaku Turnitin untuk
 membantu mahasiswa mengecek skripsi sebelum submit Turnitin resmi. Skor diusahakan
-se-valid mungkin terhadap Turnitin asli (validasi 6 dokumen: MAE 1.25pt).
+se-valid mungkin terhadap Turnitin asli (validasi 11 dokumen: MAE 1.21%).
 
 ## 2. Arsitektur Berkas
 
