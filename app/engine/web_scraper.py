@@ -142,14 +142,11 @@ def load_corpus_bank():
     return data
 
 def save_to_corpus_bank(new_corpus):
-    """Simpan sumber baru ke Supabase & bank.db SQLite (atomik & thread-safe)."""
+    """Simpan sumber baru ke bank.db SQLite (instan <1ms) & Supabase Cloud (async background thread, zero delay)."""
     if not new_corpus:
         return
         
-    # 1. Simpan ke Supabase Cloud
-    save_to_corpus_bank_supabase(new_corpus)
-    
-    # 2. Simpan ke SQLite lokal sebagai backup cache
+    # 1. Simpan ke SQLite lokal instan (<1ms)
     init_bank_db()
     with _bank_lock:
         try:
@@ -164,6 +161,11 @@ def save_to_corpus_bank(new_corpus):
             print(f"[Bank] Tersimpan ke bank.db (total: {total} sumber)")
         except Exception as e:
             print(f"[Bank] PERINGATAN: gagal menyimpan ke bank.db: {e}")
+
+    # 2. Simpan ke Supabase Cloud di BACKGROUND THREAD (Zero delay, tidak menahan kalkulasi N-Gram!)
+    import threading
+    t = threading.Thread(target=save_to_corpus_bank_supabase, args=(new_corpus.copy(),), daemon=True)
+    t.start()
 
 def is_safe_url(url):
     """Sanitasi URL anti-SSRF: memblokir IP privat/local, loopback, dan metadata endpoint.
