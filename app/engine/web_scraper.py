@@ -53,6 +53,22 @@ def _get_session():
 _BANK_JSON_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "corpus_bank", "bank.json")
 _BANK_DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "corpus_bank", "bank.db")
 _bank_lock = _threading.Lock()  # lindungi mutasi DB dari race antar-thread
+_byte_lock = _threading.Lock()
+_global_download_bytes = 0
+
+def _reset_download_bytes():
+    global _global_download_bytes
+    with _byte_lock:
+        _global_download_bytes = 0
+
+def _add_download_bytes(b):
+    global _global_download_bytes
+    with _byte_lock:
+        _global_download_bytes += b
+
+def _get_download_bytes():
+    with _byte_lock:
+        return _global_download_bytes
 
 def init_bank_db():
     """Inisialisasi tabel SQLite3 dan lakukan auto-migrasi dari bank.json jika ada."""
@@ -1403,11 +1419,13 @@ def scrape_url(url):
 
             content = b""
             for chunk in res.iter_content(chunk_size=8192):
-                content += chunk
+                if chunk:
+                    content += chunk
+                    total_bytes += len(chunk)
+                    _add_download_bytes(len(chunk))
                 if len(content) > 20 * 1024 * 1024:
                     break
             
-            total_bytes += len(content)
             res_text = content.decode(res.apparent_encoding or 'utf-8', errors='ignore')
             import re
             
@@ -1463,8 +1481,8 @@ def scrape_all_candidates(urls, preloaded_corpus, progress_cb=None):
     requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
     
     import time
+    _reset_download_bytes()
     start_time = time.time()
-    total_downloaded_bytes = 0
     # Maksimalkan ke 32 thread untuk mengunduh ratusan/ribuan URL web secara sangat agresif
     failed_urls = []
     with concurrent.futures.ThreadPoolExecutor(max_workers=32) as executor:
@@ -1473,7 +1491,6 @@ def scrape_all_candidates(urls, preloaded_corpus, progress_cb=None):
         for i, future in enumerate(concurrent.futures.as_completed(futures)):
             try:
                 url, text, downloaded_bytes = future.result()
-                total_downloaded_bytes += downloaded_bytes
                 if len(text) > 150: # Validasi panjang minimal teks
                     corpus[url] = text
                 else:
@@ -1484,12 +1501,15 @@ def scrape_all_candidates(urls, preloaded_corpus, progress_cb=None):
             
             if progress_cb:
                 elapsed = time.time() - start_time
-                speed_mbps = (total_downloaded_bytes / (1024 * 1024)) / elapsed if elapsed > 0 else 0
-                if speed_mbps < 1.0:
-                    speed_kbps = (total_downloaded_bytes / 1024) / elapsed if elapsed > 0 else 0
-                    speed_str = f"{speed_kbps:.1f} KB/s"
+                current_bytes = _get_download_bytes()
+                speed_bytes_sec = current_bytes / elapsed if elapsed > 0 else 0
+                
+                if speed_bytes_sec >= 1024 * 1024:
+                    speed_str = f"{speed_bytes_sec / (1024 * 1024):.2f} MB/s"
+                elif speed_bytes_sec >= 1024:
+                    speed_str = f"{speed_bytes_sec / 1024:.1f} KB/s"
                 else:
-                    speed_str = f"{speed_mbps:.2f} MB/s"
+                    speed_str = f"{speed_bytes_sec:.1f} B/s"
                 progress_cb(i + 1, total, speed_str)
 
     # RETRY PASS: URL yang gagal (kosong/error) sering korban rate-limit sesaat, bukan
