@@ -79,7 +79,7 @@ Evaluasi dilakukan terhadap 11 dokumen skripsi validasi dengan skor Turnitin res
 | **Laila (After Parafrase)** | 14.95% | 0.8773 | +2.88% | **17.84%** | **18%** | 4% (Curang) | **-** | **Anti-Cheat Sukses (Hidden Text 4%)** |
 
 **Metrik Kinerja Utama (Core 2026):**
-- **Mean Absolute Error (MAE):** **1.21%**
+- **Mean Absolute Error (MAE):** **1.21%** (Dihitung khusus 8 dokumen lulusan 2026 terbaru, tidak memasukkan lulusan 2025).
 - **Tingkat Kelulusan ($\le \pm 4.0\%$ gap):** **6 dari 7 Dokumen Lulus Sempurna**
 
 ### B. Dokumen Opsional Baseline (3 Dokumen Lulusan 2025)
