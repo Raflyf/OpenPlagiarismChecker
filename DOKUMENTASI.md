@@ -1,6 +1,6 @@
 # DOKUMENTASI LENGKAP SISTEM DETEKSI PLAGIARISME (TURNITIN CLONE)
 
-**Versi:** 8.0 (Continuous Square-Root Auto-Thresholding, GPU CUDA Accelerated, 15 API Paralel)  
+**Versi:** 4.5 (Continuous Square-Root Auto-Thresholding, GPU CUDA Accelerated, 15 API Paralel)  
 **Tanggal:** 31 Juli 2026  
 **Status:** Produksi / Validasi MAE 1.21% (Benchmark Utama Lulusan 2026)  
 
@@ -26,7 +26,7 @@ Sistem deteksi plagiarisme dirancang menggunakan arsitektur **Hybrid Dual-Engine
                   +------------------+------------------+
                                      |
                          [Aggregator & Calibration]
-                       (Continuous Square-Root v8.0)
+                       (Continuous Square-Root v4.5)
                                      |
                          +-----------v-----------+
                          |  Laporan Plagiarisme  |
@@ -46,7 +46,7 @@ Untuk memproses puluhan ribu kalimat sumber secara *real-time*, sistem dioptimal
 
 ---
 
-## 3. Formulasi Continuous Square-Root Auto-Thresholding (v8.0)
+## 3. Formulasi Continuous Square-Root Auto-Thresholding (v4.5)
 
 Untuk menjamin generalisasi sistem pada dokumen baru tanpa percabangan buatan (`if-else` hardcoded), threshold pencocokan semantik ditentukan menggunakan rumus kurva matematika kontinu:
 
