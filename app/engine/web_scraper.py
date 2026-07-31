@@ -147,13 +147,18 @@ def get_bank_texts(target_urls):
             
     return result
 
-def load_corpus_bank():
-    """Load seluruh isi bank.db sebagai dict (untuk backward compatibility Pemanggil)."""
+def load_corpus_bank(target_urls=None):
+    """Load bank corpus on-demand for specific target_urls to prevent RAM explosion."""
+    if target_urls:
+        return get_bank_texts(target_urls)
+    # Fallback jika dipanggil tanpa filter: baca via cursor generator (lightweight)
     init_bank_db()
     conn = _sqlite3.connect(_BANK_DB_PATH)
     cur = conn.cursor()
     cur.execute("SELECT url, text FROM corpus")
-    data = {row[0]: row[1] for row in cur.fetchall()}
+    data = {}
+    for row in cur:
+        data[row[0]] = row[1]
     conn.close()
     return data
 
@@ -1481,8 +1486,8 @@ def scrape_all_candidates(urls, preloaded_corpus, progress_cb=None):
     requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
     
     import time
-    _reset_download_bytes()
     start_time = time.time()
+    total_downloaded_bytes = 0
     # Maksimalkan ke 32 thread untuk mengunduh ratusan/ribuan URL web secara sangat agresif
     failed_urls = []
     with concurrent.futures.ThreadPoolExecutor(max_workers=32) as executor:
@@ -1491,17 +1496,18 @@ def scrape_all_candidates(urls, preloaded_corpus, progress_cb=None):
         for i, future in enumerate(concurrent.futures.as_completed(futures)):
             try:
                 url, text, downloaded_bytes = future.result()
+                total_downloaded_bytes += downloaded_bytes
                 if len(text) > 150: # Validasi panjang minimal teks
                     corpus[url] = text
                 else:
                     failed_urls.append(futures[future])
             except Exception as e:
                 failed_urls.append(futures[future])
-                print(f"[!] Warning: API/Scraper error -> {e}")
+                logger.warning(f"[!] Warning: API/Scraper error -> {e}")
             
             if progress_cb:
                 elapsed = time.time() - start_time
-                current_bytes = _get_download_bytes()
+                current_bytes = total_downloaded_bytes
                 speed_bytes_sec = current_bytes / elapsed if elapsed > 0 else 0
                 
                 if speed_bytes_sec >= 1024 * 1024:
@@ -1513,7 +1519,7 @@ def scrape_all_candidates(urls, preloaded_corpus, progress_cb=None):
                 progress_cb(i + 1, total, speed_str)
 
     # RETRY PASS: URL yang gagal (kosong/error) sering korban rate-limit sesaat, bukan
-    # benar-benar mati. Coba sekali lagi dengan konkurensi sangat rendah (4 worker).
+    # benar-benar mati. Coba sekali lagi dengan konkurensi sedang (8 worker).
     if failed_urls:
         print(f"[Scraper] Retry {len(failed_urls)} sumber yang gagal (konkurensi sedang)...")
         with concurrent.futures.ThreadPoolExecutor(max_workers=8) as executor:

@@ -9,25 +9,33 @@ import numpy as np
 import gc
 import os
 
+import threading
+
 # Global model instance (loaded once for efficiency)
 _model = None
+_model_lock = threading.Lock()
 
 # Memory guard: max embeddings in VRAM/RAM per batch
 # Model 'paraphrase-multilingual-MiniLM-L12-v2' ~500MB, embeddings ~384 dims
-# Default dinaikkan menjadi 10000 agar komputasi di GPU (mis. RTX 3050 4GB) jauh lebih optimal.
+# Default dinaikkan menjadi 30000 agar komputasi di GPU (mis. RTX 3050 4GB) jauh lebih optimal.
 _MAX_EMBEDDINGS_PER_BATCH = int(os.environ.get("SEMANTIC_MAX_BATCH", "30000"))
 
 def get_model(force_cpu=False):
     """
-    Load and cache the sentence-transformers model.
+    Load and cache the sentence-transformers model safely with threading lock.
     Using 'paraphrase-multilingual-MiniLM-L12-v2' - a lightweight but effective model for semantic similarity in Indonesian.
     """
     global _model
-    if force_cpu or _model is None:
-        device = "cpu" if force_cpu else ("cuda" if torch.cuda.is_available() else "cpu")
-        print(f"[!] Loading Sentence-Transformer model for semantic similarity... (device={device})")
-        _model = SentenceTransformer('paraphrase-multilingual-MiniLM-L12-v2', device=device)
-        print(f"[!] Model loaded successfully on {device.upper()}.")
+    if _model is None or force_cpu:
+        with _model_lock:
+            if _model is None or force_cpu:
+                device = "cpu" if force_cpu else ("cuda" if torch.cuda.is_available() else "cpu")
+                print(f"[!] Loading Sentence-Transformer model for semantic similarity... (device={device})")
+                loaded_model = SentenceTransformer('paraphrase-multilingual-MiniLM-L12-v2', device=device)
+                if not force_cpu:
+                    _model = loaded_model
+                print(f"[!] Model loaded successfully on {device.upper()}.")
+                return loaded_model
     return _model
 
 def calculate_semantic_similarity(sentence1, sentence2):

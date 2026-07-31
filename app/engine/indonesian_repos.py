@@ -11,14 +11,32 @@ import time
 import httpx
 import os
 
+import threading
+
+_shared_client = None
+_client_lock = threading.Lock()
+
+def _get_shared_client():
+    global _shared_client
+    if _shared_client is None:
+        with _client_lock:
+            if _shared_client is None:
+                _shared_client = httpx.Client(
+                    http2=False,
+                    verify=False,
+                    timeout=10.0,
+                    limits=httpx.Limits(max_keepalive_connections=30, max_connections=100)
+                )
+    return _shared_client
+
 def safe_get(url, params=None, timeout=10, headers=None, verify=False):
-    """Gunakan HTTPX dengan HTTP/2 untuk mem-bypass WAF/Firewall kampus"""
+    """Gunakan HTTPX dengan persistent connection pooling (H-M4 Fix)"""
     if headers is None:
         headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'}
     try:
-        with httpx.Client(http2=True, verify=verify) as client:
-            return client.get(url, params=params, timeout=timeout, headers=headers)
-    except Exception as e:
+        client = _get_shared_client()
+        return client.get(url, params=params, timeout=timeout, headers=headers)
+    except Exception:
         class DummyResponse:
             status_code = 500
             text = ""
