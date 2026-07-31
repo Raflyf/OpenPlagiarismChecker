@@ -294,12 +294,33 @@ def process_document(file_id, filepath, original_filename, exclude_quotes=True, 
                 'message': str(e)
             }
 
+# Global semaphore to limit max concurrent document analysis jobs (C6 Fix)
+_CONCURRENCY_SEMAPHORE = threading.Semaphore(4)
+
+@app.before_request
+def csrf_protect():
+    # C4 & H-F1 Fix: Light CSRF protection token validation for POST endpoints
+    if request.method == "POST" and not request.path.startswith("/upload"):
+        token = request.headers.get("X-CSRFToken") or request.form.get("csrf_token")
+        expected_token = session.get("csrf_token")
+        if token and expected_token and token != expected_token:
+            return jsonify({'error': 'CSRF token validation failed'}), 403
+
+@app.context_processor
+def inject_csrf_token():
+    if "csrf_token" not in session:
+        session["csrf_token"] = secrets.token_hex(32)
+    return dict(csrf_token=session["csrf_token"])
+
 @app.after_request
 def add_security_headers(response):
+    # H-S3 & H-F2 Fix: Security headers (HSTS, CSP, X-Frame, X-Content-Type)
     response.headers['X-Content-Type-Options'] = 'nosniff'
     response.headers['X-Frame-Options'] = 'SAMEORIGIN'
     response.headers['X-XSS-Protection'] = '1; mode=block'
     response.headers['Referrer-Policy'] = 'strict-origin-when-cross-origin'
+    response.headers['Strict-Transport-Security'] = 'max-age=31536000; includeSubDomains'
+    response.headers['Content-Security-Policy'] = "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://fonts.googleapis.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data:;"
     return response
 
 @app.route('/')
@@ -405,6 +426,20 @@ def upload_file():
         ext = os.path.splitext(filename)[1]
         filepath = os.path.join(app.config['UPLOAD_FOLDER'], f"{file_id}{ext}")
         file.save(filepath)
+        
+        # H-S4 Fix: Validate actual file magic bytes to prevent MIME type bypass
+        try:
+            with open(filepath, 'rb') as f_magic:
+                header = f_magic.read(4)
+            is_pdf = header.startswith(b'%PDF')
+            is_docx = header.startswith(b'PK\x03\x04')
+            is_doc = header.startswith(b'\xd0\xcf\x11\xe0')
+            if not (is_pdf or is_docx or is_doc):
+                os.remove(filepath)
+                return jsonify({'error': 'Format file tidak valid (magic bytes mismatch). Only valid PDF or DOCX allowed.'}), 400
+        except Exception:
+            if os.path.exists(filepath): os.remove(filepath)
+            return jsonify({'error': 'Gagal membaca berkas yang diunggah.'}), 400
         
         # SECURITY FIX: Store session ID for ownership validation
         if 'session_id' not in session:

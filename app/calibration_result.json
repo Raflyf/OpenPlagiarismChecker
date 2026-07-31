@@ -20,5 +20,12 @@
       "0.92": 11.98,
       "0.95": 11.61
     }
+  },
+  "evaluation_metadata": {
+    "version": "v4.5",
+    "formula": "0.8000 + 0.0200 * sqrt(ngram_similarity)",
+    "mae_core_2026": 1.21,
+    "sample_size": 8,
+    "caveat": "MAE 1.21% is calculated as in-sample evaluation on 8 core 2026 benchmark documents. Independent hold-out validation set is recommended for wider domain generalization."
   }
 }

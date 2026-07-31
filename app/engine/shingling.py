@@ -83,10 +83,9 @@ COMMON_ACADEMIC_PHRASES = {
 
 def is_common_phrase(ngram_text):
     """Cek apakah n-gram adalah frasa umum akademik (bukan plagiarisme)"""
-    for phrase in COMMON_ACADEMIC_PHRASES:
-        if phrase in ngram_text or ngram_text in phrase:
-            return True
-    return False
+    if ngram_text in COMMON_ACADEMIC_PHRASES:
+        return True
+    return any(phrase in ngram_text for phrase in COMMON_ACADEMIC_PHRASES)
 
 def get_sentences(text, filter_short=False):
     # Improved: handle kalimat tanpa titik yang dipisah newline atau semicolon
@@ -182,6 +181,7 @@ def calculate_similarity(doc_text, corpus, exclude_small=False, use_semantic=Fal
         return [], 0.0, []
 
     total_doc_ngrams = set(get_ngrams(doc_text, n=5))
+    clean_doc_words = [re.sub(r'[^\w\s]', '', w).lower() for w in doc_words]
     
     sources_report = {}
     
@@ -193,16 +193,10 @@ def calculate_similarity(doc_text, corpus, exclude_small=False, use_semantic=Fal
         if not overlap_ngrams:
             continue
 
-        # min_source_overlap: buang sumber yang overlap-nya sangat tipis SEBELUM union global.
-        # Default=1 -> identik perilaku lama (sumber overlap 0 sudah dibuang di atas). Dinaikkan
-        # HANYA untuk jalur bank/web (korpus mentah besar) guna mencegah union global "menjahit"
-        # potongan pendek dari ratusan sumber tak relevan jadi blok plagiat palsu. Groundtruth
-        # (frozen, terkurasi) memakai default -> skor tervalidasi tidak berubah.
         if len(overlap_ngrams) < min_source_overlap:
             continue
             
         # Hitung persis berapa kata di doc_text yang tersusun dari overlap_ngrams sumber INI
-        clean_doc_words = [re.sub(r'[^\w\s]', '', w).lower() for w in doc_words]
         is_matched_source = [False] * len(doc_words)
         
         for i in range(len(doc_words) - 5 + 1):
