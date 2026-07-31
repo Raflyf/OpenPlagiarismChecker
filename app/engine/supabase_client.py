@@ -140,14 +140,14 @@ def save_to_corpus_bank_supabase(new_corpus):
         batch = items[i:i+50]
         try:
             url = f"{SUPABASE_URL}/rest/v1/corpus_bank"
-            resp = _session.post(url, json=batch, headers=headers, timeout=10.0)
+            resp = _session.post(url, json=batch, headers=headers, timeout=20.0)
             if resp.status_code in (200, 201, 409):
                 saved_count += len(batch)
             else:
                 # Fallback: jika batch gagal (400 Bad Request karena 1 item korup), kirim per-item agar item valid tetap masuk
                 for single_item in batch:
                     try:
-                        r_single = _session.post(url, json=[single_item], headers=headers, timeout=3.0)
+                        r_single = _session.post(url, json=[single_item], headers=headers, timeout=5.0)
                         if r_single.status_code in (200, 201, 409):
                             saved_count += 1
                     except Exception:
