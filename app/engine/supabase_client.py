@@ -36,6 +36,13 @@ _session.headers.update({
     "Content-Type": "application/json"
 })
 
+def _clean_str(s):
+    if not isinstance(s, str):
+        return ""
+    # PostgreSQL rejects null bytes (\x00 / \u0000) with error 22P05
+    s = s.replace('\x00', '').replace('\u0000', '')
+    return s.encode('utf-8', 'ignore').decode('utf-8').strip()
+
 def is_supabase_configured():
     return bool(SUPABASE_URL and SUPABASE_KEY)
 
@@ -67,7 +74,7 @@ def get_bank_texts_supabase(target_urls):
         batch = target_list[i:i+50]
         try:
             # Sanitasi URL untuk in-clause PostgREST
-            formatted_urls = ",".join(f'"{u}"' for u in batch)
+            formatted_urls = ",".join(f'"{_clean_str(u)}"' for u in batch)
             url = f"{SUPABASE_URL}/rest/v1/corpus_bank?select=url,text_content&url=in.({formatted_urls})"
             resp = _session.get(url, timeout=8.0)
             if resp.status_code == 200:
@@ -80,15 +87,18 @@ def get_bank_texts_supabase(target_urls):
     return result
 
 def save_to_corpus_bank_supabase(new_corpus):
-    """Menyimpan/meng-upsert dict {url: text} baru ke Supabase corpus_bank (batch 50 items)."""
+    """Menyimpan/meng-upsert dict {url: text} baru ke Supabase corpus_bank (batch 50 items) dengan pembersihan Unicode null-bytes."""
     if not is_supabase_configured() or not new_corpus:
         return False
     
     items = []
     for u, t in new_corpus.items():
         if isinstance(t, str) and len(t) > 150:
-            domain = urllib.parse.urlparse(u).netloc
-            items.append({"url": u, "domain": domain, "text_content": t})
+            clean_u = _clean_str(u)
+            clean_t = _clean_str(t)
+            domain = _clean_str(urllib.parse.urlparse(clean_u).netloc)
+            if clean_u and clean_t:
+                items.append({"url": clean_u, "domain": domain, "text_content": clean_t})
             
     if not items:
         return False
@@ -103,6 +113,15 @@ def save_to_corpus_bank_supabase(new_corpus):
             resp = _session.post(url, json=batch, headers=headers, timeout=10.0)
             if resp.status_code in (200, 201):
                 saved_count += len(batch)
+            else:
+                # Fallback: jika batch gagal (400 Bad Request karena 1 item korup), kirim per-item agar item valid tetap masuk
+                for single_item in batch:
+                    try:
+                        r_single = _session.post(url, json=[single_item], headers=headers, timeout=3.0)
+                        if r_single.status_code in (200, 201):
+                            saved_count += 1
+                    except Exception:
+                        pass
         except Exception as e:
             print(f"[Supabase] Warning save_to_corpus_bank batch {i}: {e}")
             
