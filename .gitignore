@@ -10,7 +10,7 @@ Konfigurasi rahasia
 
 Dokumen uji file besar
 .search_cache/
-app/before_turnitin/
+app/hasil_trunitin_asli/
 *.pdf
 
 Runtime artifacts
