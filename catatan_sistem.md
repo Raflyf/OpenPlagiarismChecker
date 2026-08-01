@@ -21,7 +21,7 @@
 
 ## Langkah-Langkah Tertunda (Pending Tasks)
 
-- [ ] Menunggu log validasi GPU MAE selesai (`task-15506`).
-- [ ] Membaca hasil validasi di file Markdown yang digenerate oleh skrip.
-- [ ] Update `README.md` dan `DOKUMENTASI.md` dengan fakta _in-sample_ MAE 1.21% tanpa klaim berlebihan (overclaim), serta menambahkan keterangan kelemahan sistem (overfitting risks).
-- [ ] Cross-check ulang isi `docs/AUDIT_FINAL.md` untuk perbaikan yang terlewat dari `to_do_list.md`.
+- [x] Menunggu log validasi GPU MAE selesai (`task-15506`).
+- [x] Membaca hasil validasi di file Markdown yang digenerate oleh skrip.
+- [x] Update `README.md` dan `DOKUMENTASI.md` dengan fakta _in-sample_ MAE 3.12% tanpa klaim berlebihan (overclaim), serta menambahkan keterangan kelemahan sistem (overfitting risks).
+- [x] Cross-check ulang isi `docs/AUDIT_FINAL.md` untuk perbaikan yang terlewat dari `to_do_list.md`.
