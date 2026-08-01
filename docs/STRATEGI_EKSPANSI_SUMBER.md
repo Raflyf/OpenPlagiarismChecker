@@ -1,4 +1,4 @@
-# Strategi Ekspansi Sumber Daya — Mengejar Database Turnitin
+# Strategi Ekspansi Sumber Daya — Mengejar Database Commercial Standard
 
 **Versi:** 1.1
 **Tanggal:** 29 Juli 2026
@@ -6,9 +6,9 @@
 
 ---
 
-## 1. Posisi Saat Ini vs Turnitin
+## 1. Posisi Saat Ini vs Commercial Standard
 
-### Database Turnitin
+### Database Commercial Standard
 
 | Kategori            | Jumlah              | Sifat                     |
 | ------------------- | ------------------- | ------------------------- |
@@ -25,11 +25,11 @@
 | API Indonesia              | 3 sumber (IOS, Neliti, Garuda) | Gratis          |
 | Repositori kampus langsung | ~50 domain                     | Manual scraping |
 | Web search (DDG, Google)   | Tak terbatas                   | Rate limited    |
-| **Jumlah total terindeks** | **Jauh di bawah Turnitin**     |                 |
+| **Jumlah total terindeks** | **Jauh di bawah Commercial Standard**     |                 |
 
 ### Kesimpulan Awal
 
-Tidak mungkin menyaingi skala Turnitin secara absolut. Tapi kita bisa mendekati akurasi untuk dokumen bahasa Indonesia dengan pendekatan **quality over quantity** — sumber Indonesia yang relevan jauh lebih penting daripada miliaran halaman web global.
+Tidak mungkin menyaingi skala Commercial Standard secara absolut. Tapi kita bisa mendekati akurasi untuk dokumen bahasa Indonesia dengan pendekatan **quality over quantity** — sumber Indonesia yang relevan jauh lebih penting daripada miliaran halaman web global.
 
 ---
 
@@ -392,7 +392,7 @@ class CorpusSource:
 
 ### 6.2 Dampak pada Skor Similarity
 
-- Gap akurasi saat ini ≈ 2-5% dari Turnitin (MAE ~2.10)
+- Gap akurasi saat ini ≈ 2-5% dari Commercial Standard (MAE ~2.10)
 - Dengan korpus Indonesia +90%, gap diprediksi turun ke **1-2%**
 - Kasus false-negative (skor 0% padahal seharusnya tinggi) akan berkurang drastis
 
@@ -418,7 +418,7 @@ class CorpusSource:
 
 ## 8. Keterbatasan yang Harus Diterima
 
-Turnitin tetap unggul di:
+Commercial Standard tetap unggul di:
 
 1. Student paper repository — 2 miliar+ halaman (subscription model)
 2. Publisher paywall content — Elsevier, Springer, Taylor & Francis, IEEE

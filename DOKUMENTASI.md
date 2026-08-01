@@ -1,4 +1,4 @@
-# DOKUMENTASI LENGKAP SISTEM DETEKSI PLAGIARISME (TURNITIN CLONE)
+# DOKUMENTASI LENGKAP SISTEM DETEKSI PLAGIARISME (Commercial Standard CLONE)
 
 **Versi:** 4.6 (Continuous Square-Root Auto-Thresholding, GPU CUDA Accelerated, 15 API Paralel)  
 **Tanggal:** 1 Agustus 2026  
@@ -63,11 +63,11 @@ $$\text{Threshold} = 0.7900 + 0.0250 \times \sqrt{\text{NGram\_Similarity}}$$
 
 ## 4. Hasil Validasi Detil (11 Dokumen Ground Truth)
 
-Evaluasi dilakukan terhadap 11 dokumen skripsi validasi dengan skor Turnitin resmi sebagai *ground truth* (rentang 4–24%):
+Evaluasi dilakukan terhadap 11 dokumen skripsi validasi dengan skor Commercial Standard resmi sebagai *ground truth* (rentang 4–24%):
 
 ### A. Benchmark Utama (8 Dokumen Lulusan 2026 Terbaru)
 
-| Dokumen | Skor Lokal | Target Turnitin | Selisih (Delta) | Status Presisi Akurasi |
+| Dokumen | Skor Lokal | Target Commercial Standard | Selisih (Delta) | Status Presisi Akurasi |
 | :--- | :---: | :---: | :---: | :---: |
 | **Fikri (Sistem Informasi)** | **13.9%** | 14% | **-0.1pt** | **EXACT MATCH (0.1%)** |
 | **Hesti (Body Shape)** | **16.8%** | 18% | **-1.2pt** | **EXACT MATCH (1.2%)** |
@@ -84,7 +84,7 @@ Evaluasi dilakukan terhadap 11 dokumen skripsi validasi dengan skor Turnitin res
 
 ### B. Dokumen Opsional Baseline (3 Dokumen Lulusan 2025)
 
-| Dokumen | Skor Lokal | Target Turnitin | Selisih (Delta) | Status Akurasi |
+| Dokumen | Skor Lokal | Target Commercial Standard | Selisih (Delta) | Status Akurasi |
 | :--- | :---: | :---: | :---: | :---: |
 | **Muhammad Ihsan** | **18.6%** | 18% | **+0.6pt** | Baseline 2025 (Sempurna) |
 | **Tsaura Halwa** | **17.0%** | 13% | **+4.0pt** | Baseline 2025 (Indeks Web Berubah) |

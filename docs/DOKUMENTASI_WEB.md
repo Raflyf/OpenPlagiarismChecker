@@ -1,13 +1,13 @@
-# Dokumentasi Web App Turnitin Lokal
+# Dokumentasi Web App Open-Source Plagiarism Detection
 
 Dokumen ini merangkum arsitektur, alur kerja, dan changelog konseptual aplikasi web
 (localhost) pengecek plagiarisme. Dibaca bersama [README.md](../README.md).
 
 ## 1. Tujuan
 
-Menyediakan pengecek plagiarisme lokal gratis yang meniru perilaku Turnitin untuk
-membantu mahasiswa mengecek skripsi sebelum submit Turnitin resmi. Skor diusahakan
-se-valid mungkin terhadap Turnitin asli (validasi 8 dokumen utama lulusan 2026: MAE 1.21%, tidak memasukkan lulusan 2025).
+Menyediakan pengecek plagiarisme lokal gratis yang meniru perilaku Commercial Standard untuk
+membantu mahasiswa mengecek skripsi sebelum submit Commercial Standard resmi. Skor diusahakan
+se-valid mungkin terhadap Commercial Standard asli (validasi 8 dokumen utama lulusan 2026: MAE 1.21%, tidak memasukkan lulusan 2025).
 
 ## 2. Arsitektur Berkas
 
@@ -20,7 +20,7 @@ app/
 │   ├── shingling.py     N-Gram matching + agregasi global union semantic orchestration
 │   ├── semantic_similarity.py  # sentence-transformers (paraphrase-multilingual-MiniLM-L12-v2)
 │   ├── web_scraper.py   Multi-source crawler + API bank corpus (cache) + Anti-RTO
-│   └── pdf_generator.py Report PDF bergaya Turnitin (highlight per-sumber)
+│   └── pdf_generator.py Report PDF bergaya Commercial Standard (highlight per-sumber)
 ├── corpus_bank/         Bank corpus (CACHE URL->teks, tumbuh tiap pemakaian)
 ├── frozen_corpus/*.json Korpus beku per-dokumen validasi (skor deterministik)
 ├── templates/index.html Halaman upload
@@ -45,7 +45,7 @@ agar skor konsisten dan dapat dipertanggungjawabkan:
    Layer 1: N-Gram 5-gram exact match + gap-filling konservatif + union global.
    Layer 2: Semantic (selalu nyala) untuk kalimat yang lolos N-Gram (<30% match).
    Skor = (kata ter-match union / total kata) \* 100%.
-5. **PDF report** `generate_report_pdf`: highlight berwarna per-sumber ala Turnitin,
+5. **PDF report** `generate_report_pdf`: highlight berwarna per-sumber ala Commercial Standard,
    halaman ORIGINALITY REPORT, daftar PRIMARY SOURCES.
 
 ## 4. Anti-RTO System (Eliminasi Request Time Out)

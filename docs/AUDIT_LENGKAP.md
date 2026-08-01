@@ -1,4 +1,4 @@
-# Audit Lengkap — Plagiarism Checker (Turnitin Clone)
+# Audit Lengkap — Plagiarism Checker (Commercial Standard Clone)
 
 | Field | Value |
 |-------|-------|
@@ -34,7 +34,7 @@
 7. [Temuan Pengambilan Database Jurnal](#7-temuan-pengambilan-database-jurnal)
 8. [Temuan Modul Pendukung](#8-temuan-modul-pendukung)
 9. [Temuan UI/UX & API Server](#9-temuan-uiux--api-server)
-10. [Perbandingan vs Turnitin Asli](#10-perbandingan-vs-turnitin-asli)
+10. [Perbandingan vs Commercial Standard Asli](#10-perbandingan-vs-Commercial Standard-asli)
 11. [Matriks Risiko](#11-matriks-risiko)
 12. [Rekomendasi Perbaikan](#12-rekomendasi-perbaikan)
 13. [Lampiran](#13-lampiran)
@@ -43,18 +43,18 @@
 
 ## 1. Ringkasan Eksekutif
 
-Modul `plagiarism_checker` adalah aplikasi Flask lokal yang meniru alur kerja Turnitin: unggah PDF skripsi, cari sumber di internet/repositori akademik, bandingkan dengan algoritma N-Gram Shingling (5 kata), opsional semantic similarity, lalu hasilkan laporan PDF bergaya Originality Report.
+Modul `plagiarism_checker` adalah aplikasi Flask lokal yang meniru alur kerja Commercial Standard: unggah PDF skripsi, cari sumber di internet/repositori akademik, bandingkan dengan algoritma N-Gram Shingling (5 kata), opsional semantic similarity, lalu hasilkan laporan PDF bergaya Originality Report.
 
 ### Kesimpulan Utama
 
 | Aspek | Penilaian | Keterangan |
 |-------|-----------|------------|
 | **Arsitektur konseptual** | Baik | Pipeline hybrid (search → scrape → compare) masuk akal untuk pre-check |
-| **Algoritma N-Gram lokal** | Cukup | Exact 5-gram + gap filling mirip Turnitin, tapi tidak fuzzy |
+| **Algoritma N-Gram lokal** | Cukup | Exact 5-gram + gap filling mirip Commercial Standard, tapi tidak fuzzy |
 | **Semantic layer** | Lemah untuk BI | Model English-centric; threshold tetap 0.75 |
 | **Pengambilan jurnal** | Tidak andal | Terlalu banyak API berbayar; error di-silent; bug pairing URL-teks |
 | **Keamanan** | Buruk | API key hardcoded; debug mode; ngrok publik tanpa auth |
-| **Kesiapan produksi** | Belum layak | Cocok sebagai eksperimen/pre-check, bukan pengganti Turnitin |
+| **Kesiapan produksi** | Belum layak | Cocok sebagai eksperimen/pre-check, bukan pengganti Commercial Standard |
 
 ### Statistik Temuan
 
@@ -141,7 +141,7 @@ flowchart TD
 | `web_scraper.py` | Cari & unduh sumber web | 50 probe kalimat | `urls[]`, `preloaded_corpus{}` |
 | `shingling.py` | Hitung kemiripan N-Gram | `doc_text`, `corpus` | skor %, sumber, frasa plagiat |
 | `semantic_similarity.py` | Deteksi parafrasa | kalimat unmatched | cosine similarity matrix |
-| `pdf_generator.py` | Highlight + halaman report | PDF asli + data | PDF laporan Turnitin-style |
+| `pdf_generator.py` | Highlight + halaman report | PDF asli + data | PDF laporan Commercial Standard-style |
 
 ### 3.3 Model Data
 
@@ -395,7 +395,7 @@ Filter `exclude_small` (skip sumber < 1%) hanya diterapkan pada layer N-Gram. Ha
 
 ### LOG-08 [MODERAT] Jumlah Per-Sumber Bisa Melebihi 100% Total
 
-Setiap sumber dihitung independen dengan gap filling. Turnitin juga menampilkan per-sumber yang overlap, tapi user bisa salah interpretasi bahwa jumlah persentase sumber = skor total.
+Setiap sumber dihitung independen dengan gap filling. Commercial Standard juga menampilkan per-sumber yang overlap, tapi user bisa salah interpretasi bahwa jumlah persentase sumber = skor total.
 
 ---
 
@@ -415,7 +415,7 @@ Frasa plagiat dengan 4+ kata penyisipan di tengah tidak di-gap-fill.
 
 **Lokasi:** `server.py` baris 65
 
-`int(math.floor(total_similarity))` — 18.9% ditampilkan sebagai 18%. Konsisten dengan Turnitin yang membulatkan ke bawah, tapi kehilangan presisi desimal.
+`int(math.floor(total_similarity))` — 18.9% ditampilkan sebagai 18%. Konsisten dengan Commercial Standard yang membulatkan ke bawah, tapi kehilangan presisi desimal.
 
 ---
 
@@ -706,9 +706,9 @@ Empat opsi filter (kutipan, pustaka, sumber <1%, semantic) terhubung dengan bena
 
 ---
 
-## 10. Perbandingan vs Turnitin Asli
+## 10. Perbandingan vs Commercial Standard Asli
 
-| Dimensi | Turnitin Asli | Plagiarism Checker | Gap |
+| Dimensi | Commercial Standard Asli | Plagiarism Checker | Gap |
 |---------|---------------|-------------------|-----|
 | **Database** | 200+ juta dokumen proprietary, institusi, publisher | Public web + API terbuka | Sangat besar |
 | **Coverage dokumen** | Full-document fingerprint | 50 probe kalimat (~2–5%) | Sangat besar |
@@ -723,7 +723,7 @@ Empat opsi filter (kutipan, pustaka, sumber <1%, semantic) terhubung dengan bena
 
 ### Disclaimer yang Sudah Benar di README
 
-README v2.0 sudah mencantumkan disclaimer bahwa skor tidak akan persis sama dengan Turnitin. Audit ini **mengkonfirmasi** klaim tersebut dan menambahkan bahwa ada bug implementasi (JRN-01, LOG-01) yang memperburuk akurasi di luar perbedaan corpus.
+README v2.0 sudah mencantumkan disclaimer bahwa skor tidak akan persis sama dengan Commercial Standard. Audit ini **mengkonfirmasi** klaim tersebut dan menambahkan bahwa ada bug implementasi (JRN-01, LOG-01) yang memperburuk akurasi di luar perbedaan corpus.
 
 ---
 

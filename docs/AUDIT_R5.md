@@ -84,7 +84,7 @@ app.config['SECRET_KEY'] = os.environ.get('FLASK_SECRET_KEY') or secrets.token_h
 **Masalah:** Path menggunakan lowercase `app/` di beberapa tempat dan uppercase `App/` di tempat lain.
 
 - `.gitignore:23-24`: `app/corpus_bank/*.db`, `app/corpus_bank/*.bak`
-- `Run_batch.py:8`: `os.path.join(BASE_DIR, "app", "before_turnitin")`
+- `Run_batch.py:8`: `os.path.join(BASE_DIR, "app", "before_Commercial Standard")`
 - `server.py`: Menggunakan `App/` untuk path absolut
 
 **Dampak:** Pada Linux/macOS (case-sensitive), file tidak akan ditemukan dan aplikasi crash.

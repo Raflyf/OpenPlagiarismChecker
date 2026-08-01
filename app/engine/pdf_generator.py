@@ -5,7 +5,7 @@ import time
 def get_color_for_source(source_id):
     """
     Mengembalikan warna RGB (0-1 float) berdasarkan ID sumber.
-    Format Turnitin:
+    Format Commercial Standard:
     1: Merah (1.0, 0.0, 0.0)
     2: Magenta (1.0, 0.0, 1.0)
     3: Ungu Tua (0.5, 0.0, 0.5)
@@ -35,7 +35,7 @@ def get_color_for_source(source_id):
 
 def generate_report_pdf(original_pdf_path, output_pdf_path, data):
     """
-    Membuat PDF akhir bergaya Turnitin dengan highlight kalimat
+    Membuat PDF akhir bergaya Commercial Standard dengan highlight kalimat
     dan halaman ORIGINALITY REPORT di bagian akhir.
     """
     ext = os.path.splitext(original_pdf_path)[1].lower()
@@ -283,7 +283,7 @@ def generate_report_pdf(original_pdf_path, output_pdf_path, data):
         fooled_text = f"{fooled_sim}%"
         report_page.insert_text((margin_left + 10, y_pos), fooled_text, fontsize=28, fontname="helv", color=(0.5, 0.5, 0.5))
         y_pos += 15
-        report_page.insert_text((margin_left + 10, y_pos), "SKOR JIKA HIDDEN TEXT LOLOS (seperti Turnitin asli)", fontsize=9, fontname="helv", color=(0.5, 0.5, 0.5))
+        report_page.insert_text((margin_left + 10, y_pos), "SKOR JIKA HIDDEN TEXT LOLOS (seperti Commercial Standard asli)", fontsize=9, fontname="helv", color=(0.5, 0.5, 0.5))
         y_pos += 13
         report_page.insert_text((margin_left + 10, y_pos), "Teks tersembunyi menggelembungkan jumlah kata sehingga persentase turun.", fontsize=8, fontname="helv", color=(0.6, 0.6, 0.6))
         y_pos += 25

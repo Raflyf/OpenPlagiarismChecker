@@ -379,7 +379,7 @@ def fetch_crossref(probe):
             "query": short_probe,
             "select": "URL,title,abstract",
             "rows": 15,
-            "mailto": "research_turnitin_local@university.edu"
+            "mailto": "research_Commercial Standard_local@university.edu"
         }
         res = requests.get(url, params=params, timeout=_REQUEST_TIMEOUT)
         if res.status_code == 200:
@@ -414,7 +414,7 @@ def fetch_openalex(probe):
             "filter": f"language:id,open_access.is_oa:true,fulltext.search:{short_probe}",
             "per_page": 10,
             "select": "id,title,open_access,primary_location,abstract_inverted_index",
-            "mailto": "research_turnitin_local@university.edu"
+            "mailto": "research_Commercial Standard_local@university.edu"
         }
         res = requests.get("https://api.openalex.org/works", params=params, timeout=_REQUEST_TIMEOUT)
         if res.status_code == 200:
@@ -560,7 +560,7 @@ def fetch_ddgs(probe):
 
         # FUZZY SEARCH KEMBALI!
         # Ekstraksi PDF sangat rawan typo (spasi hilang, dsb). Exact match mutlak sering berujung 0 hasil.
-        # Kita gunakan Fuzzy Search di Search Engine dengan potongan 8 kata (standar Turnitin), bukan 15 kata!
+        # Kita gunakan Fuzzy Search di Search Engine dengan potongan 8 kata (standar Commercial Standard), bukan 15 kata!
         short_probe = " ".join(probe.split()[:8])
 
         import random, hashlib
@@ -804,7 +804,7 @@ def fetch_europe_pmc(probe):
             "pageSize": 5,
             "resultType": "core"
         }
-        headers = {"User-Agent": "TurnitinLocalBot/4.0 (mailto:research_turnitin_local@university.edu)"}
+        headers = {"User-Agent": "Commercial StandardLocalBot/4.0 (mailto:research_Commercial Standard_local@university.edu)"}
         res = requests.get(url, params=params, headers=headers, timeout=3)
         if res.status_code == 200:
             data = res.json()

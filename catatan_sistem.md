@@ -1,7 +1,7 @@
 # Catatan Sistem & Memori Agent (Antigravity)
 
 **Tanggal:** 1 Agustus 2026
-**Proyek:** Plagiarism Checker v4.6 (RaflyF/free-turnitin-plagiarism-clone)
+**Proyek:** Plagiarism Checker v4.6 (RaflyF/free-Commercial Standard-plagiarism-clone)
 
 ## Konteks Saat Ini
 
