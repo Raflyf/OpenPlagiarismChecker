@@ -12,6 +12,7 @@ from concurrent.futures import ThreadPoolExecutor
 
 # Sembunyikan peringatan jika situs web yang di-scrape berupa XML/RSS
 warnings.filterwarnings("ignore", category=XMLParsedAsHTMLWarning)
+logging.getLogger("duckduckgo_search").setLevel(logging.ERROR)
 
 # --- Konstanta Timeout & Pool Global ---
 _REQUEST_TIMEOUT = 10           # timeout default semua fetch API (detik) — kompromi: cepat vs server kampus lambat
@@ -1312,7 +1313,7 @@ def get_candidate_urls(sentences, max_probes=100, progress_cb=None):
         logger.warning("Cohere/DDG expander error: {e}")
 
     # --- blok API mati di bawah dinonaktifkan (disimpan sbagai referensi histori) ---
-    logger.info("[API] Mencari jurnal dari {len(probes)} sampel kalimat via Semantic Scholar, Crossref & DuckDuckGo...")
+    logger.info(f"[API] Mencari jurnal dari {len(probes)} sampel kalimat via Semantic Scholar, Crossref & DuckDuckGo...")
     
     # Akumulasi statistik per-API lintas semua probe
     total_stats = {}
@@ -1349,9 +1350,9 @@ def get_candidate_urls(sentences, max_probes=100, progress_cb=None):
                 active = {k: v for k, v in total_stats.items() if v > 0}
                 parts = [f"{k}:{v}" for k, v in sorted(active.items(), key=lambda x: -x[1])]
                 total_found = sum(active.values())
-                logger.info("[API] Probe {probes_done}/{len(probes)} -- {total_found} sumber ditemukan | {', '.join(parts)}")
+                logger.info(f"[API] Probe {probes_done}/{len(probes)} -- {total_found} sumber ditemukan | {', '.join(parts)}")
                 
-    logger.info("[API] Berhasil menarik {len(preloaded_corpus)} abstrak jurnal dan {len(urls)} link web publik.")
+    logger.info(f"[API] Berhasil menarik {len(preloaded_corpus)} abstrak jurnal dan {len(urls)} link web publik.")
     return list(urls), preloaded_corpus
 
 class AdaptiveThreadPool:
