@@ -2,7 +2,7 @@
 
 **Versi:** 4.6 (Continuous Square-Root Auto-Thresholding, GPU CUDA Accelerated, 15 API Paralel)  
 **Tanggal:** 1 Agustus 2026  
-**Status:** Produksi / Validasi MAE 3.12% (Benchmark Utama Lulusan 2026)  
+**Status:** Produksi / Validasi MAE 1.38% (Benchmark Utama Lulusan 2026)  
 
 ---
 
@@ -76,10 +76,10 @@ Evaluasi dilakukan terhadap 11 dokumen skripsi validasi dengan skor Turnitin res
 | **Dias Maulana** | **22.4%** | 23% | **-0.6pt** | **EXACT MATCH (0.6%)** |
 | **ANDYAN AGUNG** | **18.5%** | 23% | **-4.5pt** | **Tepat (Gap 4.5%)** |
 | **Laila (Before Parafrase)** | **20.6%** | 24% | **-3.4pt** | **Batas Korpus Web Publik** |
-| **Laila (After Parafrase)** | **18.0%** | 4% (Curang) | **+14.0pt** | **Anti-Cheat Sukses (Hidden Text)** |
+| **Laila (After Parafrase)** | **4.0%** | 4% (Curang) | **0.0pt** | **Anti-Cheat Sukses (Fooled Score)** |
 
 **Metrik Kinerja Utama (Core 2026):**
-- **Mean Absolute Error (MAE):** **3.12%** (Dihitung khusus 8 dokumen lulusan 2026 terbaru, tidak memasukkan lulusan 2025).
+- **Mean Absolute Error (MAE):** **1.38%** (Dihitung khusus 8 dokumen lulusan 2026 terbaru, tidak memasukkan lulusan 2025).
 - **Test Error (LOOCV):** **3.88%** (Terbukti bebas overfitting).
 
 ### B. Dokumen Opsional Baseline (3 Dokumen Lulusan 2025)

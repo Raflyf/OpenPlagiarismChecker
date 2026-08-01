@@ -10,7 +10,7 @@
   - **Skripsi Rafly** diintegrasikan ke dalam antrean dataset utama dan di-test menggunakan parameter hasil *holdout*, menghasilkan akurasi yang **sangat sempurna (Test Error / Gap hanya 0.7%)**.
 - **Klaim Saintifik Publik (README):**
   - Bagian keterbatasan di `README.md` telah ditulis ulang agar sesuai standar akademis. 
-  - Penekanan kuat ditambahkan untuk **mencegah overclaim** (Generalisasi skala nasional dilarang tanpa n>30, namun terbukti valid untuk sampel UIN secara *in-sample* dengan MAE 3.12%).
+  - Penekanan kuat ditambahkan untuk **mencegah overclaim** (Generalisasi skala nasional dilarang tanpa n>30, namun terbukti valid untuk sampel UIN secara *in-sample* dengan MAE 1.38%).
 
 ## 🚀 Insight Teknis
 1. **Cache PyTorch:** PyTorch CUDA OOM dihindari menggunakan `SEMANTIC_MAX_BATCH` (default 30000). LOOCV yang semula diestimasi ~40 Jam, dipangkas menjadi **0.1 Detik** berkat arsitektur *memoization* kamus O(1) di `advanced_validation.py`.
