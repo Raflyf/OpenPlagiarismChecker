@@ -93,7 +93,7 @@ def init_bank_db():
                 items = [(u, t) for u, t in data.items() if len(t) > 150]
                 cur.executemany("INSERT OR IGNORE INTO corpus (url, text) VALUES (?, ?)", items)
                 conn.commit()
-                logger.info("[Bank] Berhasil migrasi {len(items)} sumber ke bank.db SQLite.")
+                logger.info(f"[Bank] Berhasil migrasi {len(items)} sumber ke bank.db SQLite.")
                 # Ubah nama bank.json agar tidak dibaca lagi (gunakan os.replace agar menimpa jika .bak sudah ada)
                 os.replace(_BANK_JSON_PATH, _BANK_JSON_PATH + ".bak")
             except Exception as e:
@@ -401,7 +401,7 @@ def fetch_crossref(probe):
                     urls_found.append(p_url)
                     texts_found.append(combined_text)
     except Exception as e:
-        logger.warning("Warning: API/Scraper error -> {e}")
+        logger.warning(f"Warning: API/Scraper error -> {e}")
     return urls_found, texts_found
 
 def fetch_openalex(probe):
@@ -441,7 +441,7 @@ def fetch_openalex(probe):
                     abstract_text = " ".join([w[1] for w in word_index])
                 texts_found.append((title + " " + abstract_text).strip())
     except Exception as e:
-        logger.warning("OpenAlex API error: {e}")
+        logger.warning(f"OpenAlex API error: {e}")
     return urls_found, texts_found
 
 def fetch_google_scholar(probe):
@@ -474,7 +474,7 @@ def fetch_google_scholar(probe):
                 if a_tag and 'href' in a_tag.attrs:
                     urls_found.append(a_tag['href'])
     except Exception as e:
-        logger.warning("Warning: API/Scraper error -> {e}")
+        logger.warning(f"Warning: API/Scraper error -> {e}")
     return urls_found, []
 
 def fetch_google_web(probe):
@@ -522,7 +522,7 @@ def fetch_google_web(probe):
                     if link.startswith('http') and 'google.com' not in link and 'google.co.id' not in link:
                         urls_found.append(link)
     except Exception as e:
-        logger.warning("Warning: API/Scraper error -> {e}")
+        logger.warning(f"Warning: API/Scraper error -> {e}")
     return urls_found, []
 
 def fetch_garuda(probe):
@@ -718,7 +718,7 @@ def fetch_core(probe):
                     urls_found.append(p_url)
                     texts_found.append(combined)
     except Exception as e:
-        logger.warning("CORE API error: {e}")
+        logger.warning(f"CORE API error: {e}")
     return urls_found, texts_found
 
 def fetch_openaire(probe):
@@ -1270,7 +1270,7 @@ def get_candidate_urls(sentences, max_probes=100, progress_cb=None):
     urls = set()
     preloaded_corpus = {}
     
-    logger.info("[API] Meluncurkan Bot AI & Browser Crawler untuk {len(probes)} Fingerprints...")
+    logger.info(f"[API] Meluncurkan Bot AI & Browser Crawler untuk {len(probes)} Fingerprints...")
     
     # USE_COHERE_EXPANDER (default "0"=MATI): blok Cohere->DDG ini bottleneck utama
     # (Cohere trial 1 req/detik + 3 varian/probe x DDG yg sering kena rate-limit 429).
@@ -1485,7 +1485,7 @@ def scrape_all_candidates(urls, preloaded_corpus, progress_cb=None):
     if found_urls:
         cached_texts = get_bank_texts(found_urls)
         corpus.update(cached_texts)
-        logger.info("[Bank] {len(cached_texts)} sumber ditemukan di bank.db lokal (skip scrape)")
+        logger.info(f"[Bank] {len(cached_texts)} sumber ditemukan di bank.db lokal (skip scrape)")
     
     # Hapus URL yang sudah ada di bank / preloaded (tak perlu scrape ulang)
     urls = [u for u in urls if u not in bank_urls and u not in corpus]
@@ -1494,7 +1494,7 @@ def scrape_all_candidates(urls, preloaded_corpus, progress_cb=None):
         save_to_corpus_bank(corpus)
         return corpus
 
-    logger.info("[Scraper] Bot Crawler mulai mengunduh {len(urls)} sumber web publik...")
+    logger.info(f"[Scraper] Bot Crawler mulai mengunduh {len(urls)} sumber web publik...")
     
     # Abaikan InsecureRequestWarning saat scrape blog/kampus yang SSL-nya mati
     from requests.packages.urllib3.exceptions import InsecureRequestWarning
@@ -1541,7 +1541,7 @@ def scrape_all_candidates(urls, preloaded_corpus, progress_cb=None):
     # RETRY PASS: URL yang gagal (kosong/error) sering korban rate-limit sesaat, bukan
     # benar-benar mati. Coba sekali lagi dengan konkurensi sedang (8 worker).
     if failed_urls:
-        logger.info("[Scraper] Retry {len(failed_urls)} sumber yang gagal (konkurensi sedang)...")
+        logger.info(f"[Scraper] Retry {len(failed_urls)} sumber yang gagal (konkurensi sedang)...")
         with concurrent.futures.ThreadPoolExecutor(max_workers=8) as executor:
             futures = {executor.submit(scrape_url, u): u for u in failed_urls}
             for future in concurrent.futures.as_completed(futures):
