@@ -1,7 +1,7 @@
 # Catatan Sistem & Memori Agent (Antigravity)
 
 **Tanggal:** 1 Agustus 2026
-**Proyek:** Plagiarism Checker v4.5 (RaflyF/free-turnitin-plagiarism-clone)
+**Proyek:** Plagiarism Checker v4.6 (RaflyF/free-turnitin-plagiarism-clone)
 
 ## Konteks Saat Ini
 
@@ -12,7 +12,7 @@
 
 2. **Kepatuhan (Compliance) terhadap Aturan Pengguna:**
    - **TIDAK MENGGUNAKAN TIMER:** Sesuai permintaan terbaru, saya tidak memanggil _timer_ (schedule API) agar tidak membuang-buang token. Saya mengandalkan _Reactive Wakeup_ untuk menunggu log GPU selesai secara alami.
-   - **TIDAK MENGUBAH VERSI:** Mempertahankan versi v4.5 (tidak mengubah ke 8.0 seperti yang tidak sengaja dilakukan sebelumnya).
+   - **TIDAK MENGUBAH VERSI:** Mempertahankan versi v4.6 (tidak mengubah ke 8.0 seperti yang tidak sengaja dilakukan sebelumnya).
    - **PENJELASAN UTUH:** Saat memperbarui README.md nanti, tidak boleh menghapus dokumentasi/penjelasan lama yang masih relevan.
 
 3. **Status Audit (PENTING!):**
