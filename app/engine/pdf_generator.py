@@ -5,7 +5,7 @@ import time
 def get_color_for_source(source_id):
     """
     Mengembalikan warna RGB (0-1 float) berdasarkan ID sumber.
-    Format Commercial Standard:
+    Format Standar Referensi:
     1: Merah (1.0, 0.0, 0.0)
     2: Magenta (1.0, 0.0, 1.0)
     3: Ungu Tua (0.5, 0.0, 0.5)
@@ -35,7 +35,7 @@ def get_color_for_source(source_id):
 
 def generate_report_pdf(original_pdf_path, output_pdf_path, data):
     """
-    Membuat PDF akhir bergaya Commercial Standard dengan highlight kalimat
+    Membuat PDF akhir bergaya Standar Referensi dengan highlight kalimat
     dan halaman ORIGINALITY REPORT di bagian akhir.
     """
     ext = os.path.splitext(original_pdf_path)[1].lower()
@@ -276,16 +276,16 @@ def generate_report_pdf(original_pdf_path, output_pdf_path, data):
     fooled_sim = data.get('fooled_similarity')
     if fooled_sim is not None:
         # Kotak info abu-abu muda
-        info_rect = fitz.Rect(margin_left, y_pos - 5, 545, y_pos + 55)
+        info_rect = fitz.Rect(margin_left, y_pos, 545, y_pos + 75)
         report_page.draw_rect(info_rect, color=(0.7, 0.7, 0.7), fill=(0.95, 0.95, 0.95), width=0.5)
-        y_pos += 10
+        y_pos += 32
         
         fooled_text = f"{fooled_sim}%"
-        report_page.insert_text((margin_left + 10, y_pos), fooled_text, fontsize=28, fontname="helv", color=(0.5, 0.5, 0.5))
-        y_pos += 15
-        report_page.insert_text((margin_left + 10, y_pos), "SKOR JIKA HIDDEN TEXT LOLOS (seperti Commercial Standard asli)", fontsize=9, fontname="helv", color=(0.5, 0.5, 0.5))
+        report_page.insert_text((margin_left + 15, y_pos), fooled_text, fontsize=28, fontname="helv", color=(0.5, 0.5, 0.5))
+        y_pos += 16
+        report_page.insert_text((margin_left + 15, y_pos), "SKOR JIKA HIDDEN TEXT LOLOS (seperti standar asli referensi)", fontsize=9, fontname="helv", color=(0.5, 0.5, 0.5))
         y_pos += 13
-        report_page.insert_text((margin_left + 10, y_pos), "Teks tersembunyi menggelembungkan jumlah kata sehingga persentase turun.", fontsize=8, fontname="helv", color=(0.6, 0.6, 0.6))
+        report_page.insert_text((margin_left + 15, y_pos), "Teks tersembunyi menggelembungkan jumlah kata sehingga persentase turun.", fontsize=8, fontname="helv", color=(0.6, 0.6, 0.6))
         y_pos += 25
     
     y_pos += 5

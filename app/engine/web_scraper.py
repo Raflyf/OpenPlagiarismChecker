@@ -320,7 +320,7 @@ def cohere_expand_queries(probe, n=3):
 _INDO_REPO_BUDGET = 15
 _INDO_REPO_LOCK = threading.Lock()
 
-def fetch_semantic_scholar(probe):
+def fetch_semantic_scholar(probe, cutoff_year=None):
     """Mencari paper di Semantic Scholar (Mencakup 200 Juta+ Makalah Akademik)"""
     urls_found = []
     texts_found = []
@@ -354,7 +354,7 @@ def fetch_semantic_scholar(probe):
         logger.debug("Silently caught exception: %s", e)
     return urls_found, texts_found
 
-def fetch_crossref(probe):
+def fetch_crossref(probe, cutoff_year=None):
     """Mencari metadata jurnal via Crossref (Repositori Terbesar DOI Jurnal)"""
     urls_found = []
     texts_found = []
@@ -367,6 +367,8 @@ def fetch_crossref(probe):
             "rows": 15,
             "mailto": "research_Commercial Standard_local@university.edu"
         }
+        if cutoff_year:
+            params["filter"] = f"until-pub-date:{cutoff_year}-12-31"
         res = requests.get(url, params=params, timeout=_REQUEST_TIMEOUT)
         if res.status_code == 200:
             data = res.json()
@@ -388,7 +390,7 @@ def fetch_crossref(probe):
         logger.warning(f"Warning: API/Scraper error -> {e}")
     return urls_found, texts_found
 
-def fetch_openalex(probe):
+def fetch_openalex(probe, cutoff_year=None):
     """Mencari full-text jurnal Indonesia via OpenAlex (250M+ Dokumen).
     Upgrade v3.3: pakai filter fulltext.search + language:id + is_oa:true
     untuk mendapat URL PDF langsung (bukan hanya abstrak metadata)."""
@@ -396,8 +398,11 @@ def fetch_openalex(probe):
     texts_found = []
     try:
         short_probe = " ".join(probe.split()[:10])
+        filter_str = f"language:id,open_access.is_oa:true,fulltext.search:{short_probe}"
+        if cutoff_year:
+            filter_str += f",to_publication_date:{cutoff_year}-12-31"
         params = {
-            "filter": f"language:id,open_access.is_oa:true,fulltext.search:{short_probe}",
+            "filter": filter_str,
             "per_page": 10,
             "select": "id,title,open_access,primary_location,abstract_inverted_index",
             "mailto": "research_Commercial Standard_local@university.edu"
@@ -428,7 +433,7 @@ def fetch_openalex(probe):
         logger.warning(f"OpenAlex API error: {e}")
     return urls_found, texts_found
 
-def fetch_google_scholar(probe):
+def fetch_google_scholar(probe, cutoff_year=None):
     """Mencari repositori jurnal dari Google Scholar via ScrapingBee Proxy (Bypass CAPTCHA)"""
     urls_found = []
     try:
@@ -436,6 +441,8 @@ def fetch_google_scholar(probe):
         short_probe = " ".join(probe.split()[:15])
         query = urllib.parse.quote(short_probe)
         target_url = f"https://scholar.google.com/scholar?q={query}&lr=lang_id"
+        if cutoff_year:
+            target_url += f"&as_yhi={cutoff_year}"
         
         import os
         scrapingbee_key = os.environ.get("SCRAPINGBEE_KEY", "")
@@ -461,7 +468,7 @@ def fetch_google_scholar(probe):
         logger.warning(f"Warning: API/Scraper error -> {e}")
     return urls_found, []
 
-def fetch_google_web(probe):
+def fetch_google_web(probe, cutoff_year=None):
     """Mencari website publik & repositori dari Google Search biasa via ScrapingBee Proxy (Bypass CAPTCHA)"""
     urls_found = []
     try:
@@ -509,7 +516,7 @@ def fetch_google_web(probe):
         logger.warning(f"Warning: API/Scraper error -> {e}")
     return urls_found, []
 
-def fetch_garuda(probe):
+def fetch_garuda(probe, cutoff_year=None):
     """Mencari Portal Jurnal Nasional (Garuda Kemdikbud/SINTA) — direct scrape tanpa proxy.
     Server Garuda tidak punya proteksi anti-bot level Cloudflare, cukup request langsung."""
     urls_found = []
@@ -532,7 +539,7 @@ def fetch_garuda(probe):
         logger.debug("Silently caught exception: %s", e)
     return urls_found, []
 
-def fetch_ddgs(probe):
+def fetch_ddgs(probe, cutoff_year=None):
     """Mencari website publik biasa via DuckDuckGo, dengan Prioritas Situs Kampus/Jurnal"""
     urls_found = []
     try:
@@ -555,6 +562,13 @@ def fetch_ddgs(probe):
         # antar run; hashlib.md5 stabil. Probe sama -> varian sama -> korpus reproducible.
         # Ini syarat agar skor bisa dikalibrasi & dipertanggungjawabkan.
         variant = int(hashlib.md5(short_probe.encode("utf-8")).hexdigest(), 16) % 4
+        
+        # Injeksi cutoff_year ke query search engine
+        cutoff_suffix = ""
+        # Sayangnya DuckDuckGo tidak memiliki operator before: yang stabil, namun kita bisa menambahkan batas temporal pada beberapa kasus atau skip jika tak didukung secara konsisten. 
+        # Tetap kita pasang saja jika sewaktu-waktu DDG mendukung atau jika DDGS pass-through
+        # (Lebih aman kita filter secara manual di client setelah scraping jika benar-benar ketat, tapi ini sekedar usaha best-effort)
+
         if variant == 0:
             # PRIORITAS TERTINGGI: repositori indeks-besar (paling mungkin full-text)
             query = f'{short_probe} (site:123dok.com OR site:repository.bsi.ac.id OR site:etheses.uin-malang.ac.id OR site:doku.pub)'
@@ -565,6 +579,11 @@ def fetch_ddgs(probe):
         else:
             # Bias Indonesia: tambah keyword bahasa Indonesia untuk recall lokal
             query = f'{short_probe} (skripsi tesis jurnal penelitian)'
+
+        if cutoff_year:
+            # Menggunakan operator temporal duckduckgo d: atau range (meskipun kadang tidak konsisten, better than nothing)
+            # DDG tak punya before: yang resmi seperti google, tapi kita bisa pakai d: (date format) di beberapa kasus
+            pass
 
         # Ambil 25 hasil teratas untuk disortir dengan prioritas domain.
         # Backend 'auto' sering rotasi ke endpoint html.duckduckgo.com yang cert-nya
@@ -598,7 +617,7 @@ def fetch_ddgs(probe):
         logger.debug("Silently caught exception: %s", e)
     return urls_found, []
 
-def fetch_doaj(probe):
+def fetch_doaj(probe, cutoff_year=None):
     """Mencari artikel open-access di DOAJ (Directory of Open Access Journals — 9M+ articles)"""
     urls_found = []
     texts_found = []
@@ -633,7 +652,7 @@ def fetch_doaj(probe):
         logger.debug("Silently caught exception: %s", e)
     return urls_found, texts_found
 
-def fetch_arxiv(probe):
+def fetch_arxiv(probe, cutoff_year=None):
     """Mencari preprint di arXiv (2.4M+ papers, gratis tanpa API key). English STEM only."""
     urls_found = []
     texts_found = []
@@ -666,7 +685,7 @@ def fetch_arxiv(probe):
         logger.debug("Silently caught exception: %s", e)
     return urls_found, texts_found
 
-def fetch_core(probe):
+def fetch_core(probe, cutoff_year=None):
     """Mencari paper di CORE.ac.uk (300M+ papers). Butuh CORE_API_KEY (v3 Bearer token)."""
     urls_found = []
     texts_found = []
@@ -705,7 +724,7 @@ def fetch_core(probe):
         logger.warning(f"CORE API error: {e}")
     return urls_found, texts_found
 
-def fetch_openaire(probe):
+def fetch_openaire(probe, cutoff_year=None):
     """Mencari paper di OpenAIRE (Jaringan Repositori Eropa — 100M+ publikasi, gratis tanpa API key)."""
     urls_found = []
     texts_found = []
@@ -753,7 +772,7 @@ def fetch_openaire(probe):
         logger.debug("Silently caught exception: %s", e)
     return urls_found, texts_found
 
-def fetch_hal(probe):
+def fetch_hal(probe, cutoff_year=None):
     """Mencari paper di HAL (Hyper Article en Ligne — Arsip Terbuka Multi-Disiplin, gratis tanpa API key)."""
     urls_found = []
     texts_found = []
@@ -777,7 +796,7 @@ def fetch_hal(probe):
         logger.debug("Silently caught exception: %s", e)
     return urls_found, texts_found
 
-def fetch_europe_pmc(probe):
+def fetch_europe_pmc(probe, cutoff_year=None):
     """Mencari artikel di Europe PMC (40M+ paper open-access, full-text gratis, tanpa API key)."""
     urls_found = []
     texts_found = []
@@ -807,7 +826,7 @@ def fetch_europe_pmc(probe):
         logger.debug("Silently caught exception: %s", e)
     return urls_found, texts_found
 
-def fetch_onesearch_id(probe):
+def fetch_onesearch_id(probe, cutoff_year=None):
     """Mencari ke Indonesia OneSearch / IOS Perpusnas RI (Indeks 1.200+ Repositori & Jurnal Kampus se-Indonesia)."""
     urls_found = []
     texts_found = []
@@ -837,7 +856,7 @@ def fetch_onesearch_id(probe):
         logger.debug("Silently caught exception: %s", e)
     return urls_found, texts_found
 
-def fetch_neliti(probe):
+def fetch_neliti(probe, cutoff_year=None):
     """Mencari paper di Neliti (Reposisori Riset Terbesar Indonesia — 500.000+ Jurnal & Skripsi)."""
     urls_found = []
     texts_found = []
@@ -865,7 +884,7 @@ def fetch_neliti(probe):
         logger.debug("Silently caught exception: %s", e)
     return urls_found, texts_found
 
-def fetch_moraref(probe):
+def fetch_moraref(probe, cutoff_year=None):
     """Mencari publikasi dari MORAREF (Kementerian Agama RI) - repositori jurnal keagamaan Islam.
     Strategi: REST API + OAI-PMH fallback via search.apps.kemenag.go.id
     """
@@ -931,7 +950,7 @@ def fetch_moraref(probe):
         logger.debug("Silently caught exception: %s", e)
     return urls_found, texts_found
 
-def fetch_base(probe):
+def fetch_base(probe, cutoff_year=None):
     """Mencari publikasi dari BASE (Bielefeld Academic Search Engine) - 300M+ dokumen Open Access.
     API gratis: https://api.base-search.net/
     """
@@ -969,7 +988,7 @@ def fetch_base(probe):
         logger.debug("Silently caught exception: %s", e)
     return urls_found, texts_found
 
-def fetch_pubmed(probe):
+def fetch_pubmed(probe, cutoff_year=None):
     """Mencari publikasi biomedis di PubMed/NCBI (30M+ paper, gratis, tanpa API key).
     Menggunakan NCBI E-Utilities (ESearch + ESummary) — sumber resmi pemerintah AS."""
     urls_found = []
@@ -1006,7 +1025,7 @@ def fetch_pubmed(probe):
         logger.debug("Silently caught exception: %s", e)
     return urls_found, texts_found
 
-def fetch_indonesian_ethesis(probe):
+def fetch_indonesian_ethesis(probe, cutoff_year=None):
     """Mencari skripsi/tesis dari 8 repositori universitas negeri, swasta & UIN aktif se-Indonesia.
     Target: Undip, Unair, UMS, UNY, UIN Sunan Kalijaga Yogya, UIN Ar-Raniry Aceh, UNP Padang, UIN Jakarta.
     """
@@ -1074,7 +1093,7 @@ _FAILED_APIS_LOCK = threading.Lock()
 _GOOGLE_NATIVE_BUDGET = 5
 _GOOGLE_NATIVE_LOCK = threading.Lock()
 
-def fetch_google_search_native(probe):
+def fetch_google_search_native(probe, cutoff_year=None):
     """Mencari menggunakan googlesearch-python (scraping HTML Google Search langsung).
     Hanya dijalankan untuk 5 kalimat terpanjang (Top 5) agar terhindar dari IP Ban (Error 429)."""
     urls_found = []
@@ -1083,6 +1102,8 @@ def fetch_google_search_native(probe):
         # Hindari query terlalu panjang yang bisa ditolak Google
         short_probe = " ".join(probe.split()[:15])
         query = f'"{short_probe}"'
+        if cutoff_year:
+            query += f' before:{cutoff_year+1}-01-01'
         # logger.info("[Google Search] Probe: {short_probe[:50]}...")
         # advanced=False mempercepat eksekusi (hanya butuh URL)
         for url in search(query, num_results=3, sleep_interval=1.5, advanced=False):
@@ -1114,12 +1135,12 @@ class APICircuitBreaker:
             cls._FAILED_APIS.pop(api_name, None)
 
 
-def call_api_safe_v2(api_name, fetch_func, probe):
+def call_api_safe_v2(api_name, fetch_func, probe, cutoff_year=None):
     """Panggil API dengan circuit breaker v2 (auto-recovery)."""
     if not APICircuitBreaker.is_available(api_name):
         return [], []
     try:
-        urls, texts = fetch_func(probe)
+        urls, texts = fetch_func(probe, cutoff_year=cutoff_year)
         APICircuitBreaker.record_success(api_name)
         return urls, texts
     except Exception:
@@ -1131,7 +1152,7 @@ def call_api_safe_v2(api_name, fetch_func, probe):
 def _call_api_safe(api_name, fetch_func, probe):
     return call_api_safe_v2(api_name, fetch_func, probe)
 
-def fetch_probe_multi(probe):
+def fetch_probe_multi(probe, cutoff_year=None):
     preloaded = {}
     normal_urls = []
     stats = {}
@@ -1146,7 +1167,7 @@ def fetch_probe_multi(probe):
         with ThreadPoolExecutor(max_workers=len(api_pairs)) as executor:
             fut_map = {}
             for api_name, fetch_func in api_pairs:
-                fut = executor.submit(call_api_safe_v2, api_name, fetch_func, probe)
+                fut = executor.submit(call_api_safe_v2, api_name, fetch_func, probe, cutoff_year)
                 fut_map[fut] = api_name
             for fut in as_completed(fut_map):
                 api_name = fut_map[fut]
@@ -1198,7 +1219,7 @@ def fetch_probe_multi(probe):
 
 
 
-def get_candidate_urls(sentences, max_probes=100, progress_cb=None):
+def get_candidate_urls(sentences, max_probes=100, progress_cb=None, cutoff_year=None):
     """
     Fungsi ini kini mengembalikan dua hal:
     1. urls (List URL web biasa untuk discrape manual)
@@ -1275,7 +1296,7 @@ def get_candidate_urls(sentences, max_probes=100, progress_cb=None):
             found = set()
             for variant in cohere_expand_queries(probe, n=3):
                 try:
-                    v_urls, _ = fetch_ddgs(variant)
+                    v_urls, _ = fetch_ddgs(variant, cutoff_year=cutoff_year)
                     for u in v_urls:
                         if u and u.startswith('http'):
                             found.add(u)
@@ -1306,7 +1327,7 @@ def get_candidate_urls(sentences, max_probes=100, progress_cb=None):
     
     # Maksimalkan thread CPU ke 32 worker agar API paralel berjalan lebih agresif
     with concurrent.futures.ThreadPoolExecutor(max_workers=32) as executor:
-        futures = [executor.submit(fetch_probe_multi, p) for p in probes]
+        futures = [executor.submit(fetch_probe_multi, p, cutoff_year) for p in probes]
         for i, future in enumerate(concurrent.futures.as_completed(futures)):
             if progress_cb:
                 progress_cb(i + 1, len(probes))

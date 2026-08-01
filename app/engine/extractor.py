@@ -1,6 +1,9 @@
 import fitz
 import re
 import logging
+import datetime
+import os
+from typing import List, Tuple, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -15,8 +18,6 @@ RE_STRAIGHT_QUOTES = re.compile(r'"[^"]{1,500}"')
 RE_SMART_QUOTES = re.compile(r'“[^”]{1,500}”')
 RE_NEWLINES = re.compile(r'\n+')
 RE_SENTENCE_SPLIT = re.compile(r'(?<=[.!?;])\s+')
-
-from typing import List, Tuple, Optional
 
 def detect_manipulation(text: str, hidden_word_count: int = 0) -> List[str]:
     """Mendeteksi trik mahasiswa untuk mencurangi Commercial Standard"""
@@ -79,7 +80,7 @@ def _extract_visible_text(doc):
             visible_parts.append(" ")
     return "".join(visible_parts), hidden_word_count, any_dropped, hidden_spans
 
-def extract_text_from_pdf(filepath: str, exclude_quotes: bool = True, exclude_biblio: bool = True, return_hidden: bool = False, fast_mode: bool = False):
+def extract_text_from_pdf(filepath: str, exclude_quotes: bool = True, exclude_biblio: bool = True, return_hidden: bool = False, fast_mode: bool = False, exclude_abstract: bool = True):
     """Extract text from PDF with robust error handling"""
     text = ""
     hidden_word_count = 0
@@ -115,7 +116,7 @@ def extract_text_from_pdf(filepath: str, exclude_quotes: bool = True, exclude_bi
 
     manipulation_warnings = detect_manipulation(text, hidden_word_count)
     
-    cleaned_text = clean_text(text, exclude_quotes, exclude_biblio)
+    cleaned_text = clean_text(text, exclude_quotes, exclude_biblio, exclude_abstract)
     
     # Bersihkan Zero-width chars dari teks agar tetap bisa di-cek similarity-nya
     cleaned_text = RE_ZERO_WIDTH.sub('', cleaned_text)
@@ -125,7 +126,7 @@ def extract_text_from_pdf(filepath: str, exclude_quotes: bool = True, exclude_bi
 
     if return_hidden:
         # Bersihkan raw_text dengan cara yang sama
-        raw_cleaned = clean_text(raw_text, exclude_quotes, exclude_biblio)
+        raw_cleaned = clean_text(raw_text, exclude_quotes, exclude_biblio, exclude_abstract)
         raw_cleaned = RE_ZERO_WIDTH.sub('', raw_cleaned)
         raw_cleaned = raw_cleaned.translate(cyrillic_to_latin)
         return cleaned_text, manipulation_warnings, raw_cleaned, hidden_spans
@@ -186,7 +187,7 @@ def _extract_visible_docx(doc):
     return "".join(visible_parts), hidden_word_count, any_dropped, "".join(raw_parts)
 
 
-def extract_text_from_docx(docx_path: str, exclude_quotes: bool = True, exclude_biblio: bool = True, return_hidden: bool = False, fast_mode: bool = False):
+def extract_text_from_docx(docx_path: str, exclude_quotes: bool = True, exclude_biblio: bool = True, return_hidden: bool = False, fast_mode: bool = False, exclude_abstract: bool = True):
     """Extract text from .docx (Word). Mendeteksi trik manipulasi font."""
     from docx import Document
     doc = Document(docx_path)
@@ -203,29 +204,29 @@ def extract_text_from_docx(docx_path: str, exclude_quotes: bool = True, exclude_
         text = raw_text
 
     manipulation_warnings = detect_manipulation(text, hidden_word_count)
-    cleaned_text = clean_text(text, exclude_quotes, exclude_biblio)
+    cleaned_text = clean_text(text, exclude_quotes, exclude_biblio, exclude_abstract)
     cleaned_text = RE_ZERO_WIDTH.sub('', cleaned_text)
     cyrillic_to_latin = str.maketrans('асеорхуАСЕОРХУ', 'aceopxyACEOPXY')
     cleaned_text = cleaned_text.translate(cyrillic_to_latin)
     
     if return_hidden:
-        raw_cleaned = clean_text(raw_text, exclude_quotes, exclude_biblio)
+        raw_cleaned = clean_text(raw_text, exclude_quotes, exclude_biblio, exclude_abstract)
         raw_cleaned = RE_ZERO_WIDTH.sub('', raw_cleaned)
         raw_cleaned = raw_cleaned.translate(cyrillic_to_latin)
         return cleaned_text, manipulation_warnings, raw_cleaned, []
     return cleaned_text, manipulation_warnings
 
 
-def extract_text_auto(filepath, exclude_quotes=True, exclude_biblio=True, return_hidden=False, fast_mode=False):
+def extract_text_auto(filepath, exclude_quotes=True, exclude_biblio=True, return_hidden=False, fast_mode=False, exclude_abstract=True):
     """Deteksi ekstensi lalu ekstrak (.pdf/.docx/.txt). Satu pintu untuk semua format."""
     low = filepath.lower()
     if low.endswith(".docx") or low.endswith(".doc"):
-        return extract_text_from_docx(filepath, exclude_quotes, exclude_biblio, return_hidden=return_hidden)
+        return extract_text_from_docx(filepath, exclude_quotes, exclude_biblio, return_hidden=return_hidden, exclude_abstract=exclude_abstract)
     if low.endswith(".txt"):
         res = extract_text_from_txt(filepath)
         if return_hidden: return res, [], res, []
         return res, []
-    return extract_text_from_pdf(filepath, exclude_quotes, exclude_biblio, return_hidden=return_hidden, fast_mode=fast_mode)
+    return extract_text_from_pdf(filepath, exclude_quotes, exclude_biblio, return_hidden=return_hidden, fast_mode=fast_mode, exclude_abstract=exclude_abstract)
 
 
 def extract_text_from_txt(txt_path):
@@ -258,7 +259,7 @@ def extract_text_from_txt(txt_path):
     except Exception as e:
         raise Exception(f"Failed to extract TXT: {str(e)}")
 
-def clean_text(text, exclude_quotes=True, exclude_biblio=True):
+def clean_text(text, exclude_quotes=True, exclude_biblio=True, exclude_abstract=True):
     text = RE_SPACES.sub(' ', text).strip()
 
     # [1] Exclude Front Matter (Cover, Pengesahan, Daftar Isi) - Commercial Standard Behavior
@@ -291,6 +292,24 @@ def clean_text(text, exclude_quotes=True, exclude_biblio=True):
 
     if chosen_idx != -1 and chosen_idx < len(text) * 0.4:
         text = text[chosen_idx:]
+    elif exclude_abstract:
+        # Jika BAB 1 tidak ditemukan (chosen_idx = -1), kita cari bagian Abstrak dan hapus secara spesifik (untuk tipe jurnal).
+        # Cari dari awal. Jika ada ABSTRAK / ABSTRACT, cari kata kunci akhir atau paragraf selanjutnya.
+        m_abs = re.search(r'\b(?:ABSTRAK|ABSTRACT)\b', upper_text)
+        if m_abs and m_abs.start() < len(text) * 0.3:
+            # Cari akhir abstrak (bisa berupa "KATA KUNCI:", "KEYWORDS:", atau "1. PENDAHULUAN" / "1. INTRODUCTION")
+            start_abs = m_abs.start()
+            end_abs = -1
+            m_end = re.search(r'\b(?:KATA KUNCI|KEYWORDS|PENDAHULUAN|INTRODUCTION)\b', upper_text[start_abs + 10:])
+            if m_end:
+                # Potong teks dari awal sampai KATA KUNCI (kita asumsikan setelah kata kunci adalah teks asli yang dicek)
+                # Atau jika itu Pendahuluan, potong sampai pendahuluan
+                # Lebih aman: hapus blok abstraknya.
+                end_abs = start_abs + 10 + m_end.end()
+            
+            if end_abs != -1 and end_abs - start_abs < 3000:
+                text = text[:start_abs] + text[end_abs:]
+
 
     # [2] Exclude Bibliography
     if exclude_biblio:
