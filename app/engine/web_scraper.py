@@ -286,9 +286,9 @@ def cohere_expand_queries(probe, n=3):
         return []
     try:
         prompt = (
-            "Anda membantu mendeteksi plagiarisme skripsi Bahasa Indonesia. "
+            "Anda membantu mendeteksi plagiarisme dokumen akademik Bahasa Indonesia. "
             f"Buat {n} variasi frasa pencarian singkat (5-8 kata) untuk menemukan sumber "
-            "jurnal/skripsi yang mungkin menjadi asal kalimat berikut. Jawab HANYA daftar "
+            "jurnal/dokumen yang mungkin menjadi asal kalimat berikut. Jawab HANYA daftar "
             "frasa, satu per baris, tanpa nomor atau penjelasan.\n\n"
             f"Kalimat: {probe}"
         )
@@ -365,7 +365,7 @@ def fetch_crossref(probe, cutoff_year=None):
             "query": short_probe,
             "select": "URL,title,abstract",
             "rows": 15,
-            "mailto": "research_Commercial Standard_local@university.edu"
+            "mailto": "research_open_plagiarism@university.edu"
         }
         if cutoff_year:
             params["filter"] = f"until-pub-date:{cutoff_year}-12-31"
@@ -405,7 +405,7 @@ def fetch_openalex(probe, cutoff_year=None):
             "filter": filter_str,
             "per_page": 10,
             "select": "id,title,open_access,primary_location,abstract_inverted_index",
-            "mailto": "research_Commercial Standard_local@university.edu"
+            "mailto": "research_open_plagiarism@university.edu"
         }
         res = requests.get("https://api.openalex.org/works", params=params, timeout=_REQUEST_TIMEOUT)
         if res.status_code == 200:
@@ -553,7 +553,7 @@ def fetch_ddgs(probe, cutoff_year=None):
 
         # FUZZY SEARCH KEMBALI!
         # Ekstraksi PDF sangat rawan typo (spasi hilang, dsb). Exact match mutlak sering berujung 0 hasil.
-        # Kita gunakan Fuzzy Search di Search Engine dengan potongan 8 kata (standar Commercial Standard), bukan 15 kata!
+        # Kita gunakan Fuzzy Search di Search Engine dengan potongan 8 kata (standar industri), bukan 15 kata!
         short_probe = " ".join(probe.split()[:8])
 
         import random, hashlib
@@ -809,7 +809,7 @@ def fetch_europe_pmc(probe, cutoff_year=None):
             "pageSize": 5,
             "resultType": "core"
         }
-        headers = {"User-Agent": "Commercial StandardLocalBot/4.0 (mailto:research_Commercial Standard_local@university.edu)"}
+        headers = {"User-Agent": "OpenPlagiarismBot/4.0 (mailto:research_open_plagiarism@university.edu)"}
         res = requests.get(url, params=params, headers=headers, timeout=3)
         if res.status_code == 200:
             data = res.json()
