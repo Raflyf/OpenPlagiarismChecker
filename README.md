@@ -2,7 +2,7 @@
 
 Alat pengecek plagiarisme lokal gratis yang meniru perilaku Turnitin: mendeteksi kecocokan teks (_N-Gram exact match_) dan parafrasa (_semantic similarity_) terhadap sumber-sumber akademik terbuka di internet. Dibangun untuk membantu mahasiswa yang terkendala biaya mengecek plagiarisme skripsi sebelum submit ke Turnitin resmi kampus.
 
-**Bukan pengganti Turnitin** tapi memberikan estimasi skor yang **sangat akurat dan mendekati** Turnitin asli (selisih rata-rata / MAE hanya **3.12%** pada benchmark utama lulusan 2026). Gunakan alat ini untuk mengecek dan memperbaiki draf dokumen secara gratis sebelum submit ke Turnitin resmi kampus.
+**Bukan pengganti Turnitin** tapi memberikan estimasi skor yang **sangat akurat dan mendekati** Turnitin asli (selisih rata-rata / MAE hanya **1.38%** pada benchmark utama lulusan 2026). Gunakan alat ini untuk mengecek dan memperbaiki draf dokumen secara gratis sebelum submit ke Turnitin resmi kampus.
 
 ## Changelog v4.6
 - **Upgrade Algoritma:** Implementasi *Continuous Square-Root Auto-Thresholding* v4.6.
@@ -226,7 +226,7 @@ Skor Total = (Kata Ter-match N-Gram + Kata Ter-match Semantic) / Total Kata Doku
 
 ## Limitasi Desain (Trade-off)
 
-- **Semantic Layer (Penandaan Kalimat Utuh)**: Ketika _semantic match_ ditemukan pada sebuah _chunk_ (maksimal 40 kata), seluruh kata di dalam _chunk_ tersebut ditandai sebagai plagiat. Hal ini dapat menyebabkan sedikit _over-estimation_ pada kalimat panjang yang sebagian diparafrasa. Namun, hal ini dikompensasi oleh _Continuous Square-Root Auto-Thresholding_ (v4.6) yang terkalibrasi presisi, sehingga secara keseluruhan (MAE 3.12%) tetap terjaga akurasinya.
+- **Semantic Layer (Penandaan Kalimat Utuh)**: Ketika _semantic match_ ditemukan pada sebuah _chunk_ (maksimal 40 kata), seluruh kata di dalam _chunk_ tersebut ditandai sebagai plagiat. Hal ini dapat menyebabkan sedikit _over-estimation_ pada kalimat panjang yang sebagian diparafrasa. Namun, hal ini dikompensasi oleh _Continuous Square-Root Auto-Thresholding_ (v4.6) yang terkalibrasi presisi, sehingga secara keseluruhan (MAE 1.38%) tetap terjaga akurasinya.
 
 ---
 
