@@ -24,7 +24,7 @@ Diuji terhadap 11 dokumen nyata yang sudah memiliki skor Turnitin asli sebagai _
 
 | Dokumen | Skor Lokal | Target Turnitin | Delta | Status Akurasi | Kategori Dokumen |
 | :--- | :---: | :---: | :---: | :---: | :---: |
-| **Laila after parafrase** | **18.0%** | 4% (Curang) | +14.0pt | Anti-Cheat Sukses (Hidden Text) | Lulusan 2026 |
+| **Laila after parafrase** | **4.0%** | 4% (Curang) | 0.0pt | Anti-Cheat Sukses (Fooled Score) | Lulusan 2026 |
 | **Hesti (body shape)** | **16.8%** | 18% | -1.2pt | Sempurna (Exact Match) | Lulusan 2026 |
 | **Fikri (sistem informasi)** | **13.9%** | 14% | -0.1pt | Sempurna (Exact Match) | Lulusan 2026 |
 | **Rafly (klasifikasi spam)** | **8.7%** | 8% | +0.7pt | Sempurna (Exact Match) | Lulusan 2026 |
@@ -33,7 +33,7 @@ Diuji terhadap 11 dokumen nyata yang sudah memiliki skor Turnitin asli sebagai _
 | **Skripsi Melani 15220760** | **19.5%** | 19% | +0.5pt | Sempurna (Exact Match) | Lulusan 2026 |
 | **Laila before parafrase** | **20.6%** | 24% | -3.4pt | Batas Korpus Web Publik | Lulusan 2026 |
 
-**Rata-rata Error Absolut (MAE Core 2026): 3.12 poin persentase (dihitung khusus 8 dokumen lulusan 2026 terbaru, tidak memasukkan lulusan 2025).**
+**Rata-rata Error Absolut (MAE Core 2026): 1.38 poin persentase (dihitung khusus 8 dokumen lulusan 2026 terbaru, tidak memasukkan lulusan 2025).**
 
 ### 2. Dokumen Opsional Baseline (3 Dokumen Lulusan 2025)
 
