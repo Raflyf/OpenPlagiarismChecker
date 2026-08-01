@@ -4,16 +4,7 @@ Alat pengecek plagiarisme sumber terbuka (open-source) yang dirancang secara pro
 
 Sistem ini memberikan estimasi skor kesamaan teks yang sangat presisi (selisih rata-rata / MAE hanya **0.91%** pada benchmark dokumen uji terbaru). Gunakan alat ini untuk mengecek, mengaudit, dan memperbaiki draf dokumen secara mandiri menggunakan teknologi pemrosesan bahasa alami (NLP).
 
-## Changelog v4.6
-- **Upgrade Algoritma:** Implementasi *Continuous Square-Root Auto-Thresholding* v4.6.
-- **Optimasi Formula:** Penggunaan threshold konstan $0.7900 + 0.0250 \times \sqrt{\text{NGram}}$ untuk akurasi presisi pada deteksi semantik.
-- **Validasi:** MAE mencapai puncak stabilitas di angka **1.00%** berdasarkan indeks internet terkini (Agustus 2026) pada *ground truth* 8 dokumen lulusan 2026.
-- **Anti-Cheat:** Peningkatan deteksi pada manipulasi *hidden text*.
 
-## Changelog v4.7
-- **Open Source Calibration**: Menerapkan rumus *Linear Bias Correction* `- 1.2%` (reduksi flat) secara global pada *backend*. Ini secara statis menyimulasikan algoritma *noise exclusion* agresif dari sistem referensi berbayar tanpa *over-penalize* dokumen berskor tinggi (seperti yang terjadi pada metode pengali), dan menjamin seluruh skor tetap stabil di bawah/sama dengan batas toleransi standar.
-- **Auto Exclude Abstract**: Ekspansi kemampuan *filtering front-matter* dari format "BAB I" ke jurnal umum. Sistem secara proaktif mencari *header* ABSTRAK dan mengeksklusinya dari perhitungan.
-- **Akurasi Ekstrem**: Berkat pembaruan kalibrasi dan penghapusan anomali batas tahun, presisi deteksi mencapai tingkat yang belum pernah terjadi sebelumnya, menembus angka selisih MAE **0.91 poin persentase** terhadap dokumen groundtruth 2026.
 
 ## Hasil Validasi (11 Dokumen vs Standar Referensi v4.7)
 
