@@ -27,11 +27,37 @@ from engine.pdf_generator import generate_report_pdf
 from engine.supabase_client import save_job_status_supabase, get_job_status_supabase
 
 app = Flask(__name__)
+
+# PROMETHEUS METRICS
+import time as time_mod
+_metric_total_docs = 0
+_metric_total_errors = 0
+_metric_processing_time = 0.0
+
+@app.route('/metrics')
+def metrics():
+    # Phase 4 #4: Tambahkan monitoring dan observability stack
+    lines = [
+        "# HELP plagiarism_total_documents Total dokumen diproses",
+        "# TYPE plagiarism_total_documents counter",
+        f"plagiarism_total_documents {_metric_total_docs}",
+        "# HELP plagiarism_total_errors Total error saat pemrosesan",
+        "# TYPE plagiarism_total_errors counter",
+        f"plagiarism_total_errors {_metric_total_errors}",
+        "# HELP plagiarism_processing_time_seconds Total durasi waktu proses (detik)",
+        "# TYPE plagiarism_processing_time_seconds counter",
+        f"plagiarism_processing_time_seconds {_metric_processing_time}"
+    ]
+    from flask import Response
+    return Response("\n".join(lines), mimetype="text/plain")
+
 # Redam log akses HTTP Werkzeug (mis. "GET /status/... 200" tiap detik dari polling
 # frontend) agar terminal tidak dibanjiri. Hanya tampilkan WARNING ke atas; error asli
 # tetap terlihat. Log progres proses (print [!]/[API]) tidak terpengaruh.
-import logging as _logging
-_logging.getLogger('werkzeug').setLevel(_logging.WARNING)
+import logging
+logging.basicConfig(level=logging.INFO, format='%(asctime)s [%(levelname)s] %(message)s')
+logger = logging.getLogger(__name__)
+logging.getLogger('werkzeug').setLevel(logging.WARNING)
 # Security: Generate secure secret key for sessions
 app.config['SECRET_KEY'] = os.environ.get('FLASK_SECRET_KEY') or secrets.token_hex(32)
 app.config['SESSION_COOKIE_HTTPONLY'] = True
@@ -84,7 +110,7 @@ def cleanup_old_files(max_age_hours=2):
                 except Exception:
                     pass
     if cleaned_count > 0:
-        print(f"[!] Cleanup: {cleaned_count} file temporary lama (> {max_age_hours} jam) di uploads/reports berhasil dibersihkan.")
+        logger.info(f"Cleanup: {cleaned_count} file temporary lama (> {max_age_hours} jam) di uploads/reports berhasil dibersihkan.")
 
 # Purge file temporary lama (dibatasi maks 2 jam) saat server startup
 cleanup_old_files(2)
@@ -114,9 +140,9 @@ def periodic_cleanup_task():
                 for k in to_delete:
                     del results_db[k]
                 if to_delete:
-                    print(f"[!] Cleanup: {len(to_delete)} sesi usang (> {RESULTS_DB_TTL_HOURS} jam) dihapus dari memory.")
+                    logger.info(f"Cleanup: {len(to_delete)} sesi usang (> {RESULTS_DB_TTL_HOURS} jam) dihapus dari memory.")
         except Exception as e:
-            print(f"[!] Error in periodic cleanup: {e}")
+            logger.info(f"Error in periodic cleanup: {e}")
 
 cleanup_thread = threading.Thread(target=periodic_cleanup_task, daemon=True)
 cleanup_thread.start()
@@ -137,19 +163,21 @@ def process_document(file_id, filepath, original_filename, exclude_quotes=True, 
                 status = results_db[file_id].get('status', 'processing')
                 save_job_status_supabase(file_id, session_id, status, pct, msg)
 
+    global _metric_total_docs, _metric_total_errors, _metric_processing_time
+    start_time_process = time.time()
     def check_cancelled():
         with RESULTS_DB_LOCK:
             entry = results_db.get(file_id, {})
             if entry.get('cancel_requested'):
                 entry['status'] = 'cancelled'
                 entry['message'] = 'Proses dibatalkan oleh pengguna.'
-                print(f"[!] PROSES DIBATALKAN USER: {file_id}")
+                logger.info(f"PROSES DIBATALKAN USER: {file_id}")
                 return True
             return False
 
     try:
         set_progress(5, "Mengekstrak teks dari dokumen...")
-        print(f"[!] Mulai ekstraksi teks dari: {filepath}")
+        logger.info(f"Mulai ekstraksi teks dari: {filepath}")
         extraction_result = extract_text_auto(filepath, exclude_quotes, exclude_biblio, return_hidden=True)
         doc_text, manipulation_warnings, raw_text, hidden_spans = extraction_result
         sentences = get_sentences(doc_text)
@@ -166,7 +194,7 @@ def process_document(file_id, filepath, original_filename, exclude_quotes=True, 
             pct = 5 + int((completed / total) * 45)  # 5% -> 50%
             set_progress(pct, f"Mencari sumber di internet ({completed}/{total})...")
 
-        print(f"[!] Mencari kandidat sumber (max_probes={INTERNET_MAX_PROBES}, metodologi groundtruth)...")
+        logger.info(f"Mencari kandidat sumber (max_probes={INTERNET_MAX_PROBES}, metodologi groundtruth)...")
 
         # FROZEN CACHE (key = hash ISI teks, bukan nama file): PDF sama persis -> baca
         # korpus beku -> skor identik tiap run (hilangkan variasi jaringan 0-2%). PDF
@@ -181,19 +209,19 @@ def process_document(file_id, filepath, original_filename, exclude_quotes=True, 
                 with open(frozen_path, encoding="utf-8") as f:
                     existing_corpus = json.load(f)
             except Exception as e:
-                print(f"[!] Gagal baca frozen ({e}).")
+                logger.info(f"Gagal baca frozen ({e}).")
                 existing_corpus = {}
 
         if not force_scrape and existing_corpus:
             corpus = existing_corpus
             set_progress(85, "Memuat korpus beku (dokumen sudah pernah dicek)...")
-            print(f"[!] KORPUS BEKU dimuat: {len(corpus)} sumber (skor deterministik, skip scrape).")
+            logger.info(f"KORPUS BEKU dimuat: {len(corpus)} sumber (skor deterministik, skip scrape).")
 
         if corpus is None:
             if force_scrape:
-                print(f"[!] FORCE SCRAPE: Memperluas korpus ({len(existing_corpus)} sumber eksis) dengan live scraping internet...")
+                logger.info(f"FORCE SCRAPE: Memperluas korpus ({len(existing_corpus)} sumber eksis) dengan live scraping internet...")
             adaptive_probes = max(200, min(200, int(len(sentences) / 2.5)))
-            print(f"[!] ADAPTIVE SAMPLING: {adaptive_probes} probes untuk {len(sentences)} kalimat...")
+            logger.info(f"ADAPTIVE SAMPLING: {adaptive_probes} probes untuk {len(sentences)} kalimat...")
             urls, preloaded_corpus = get_candidate_urls(sentences, max_probes=adaptive_probes, progress_cb=ddg_progress)
 
             def scrape_progress(completed, total, speed="0 KB/s"):
@@ -202,26 +230,26 @@ def process_document(file_id, filepath, original_filename, exclude_quotes=True, 
                 speed_text = f" ({speed})" if speed != "0 KB/s" else ""
                 set_progress(pct, f"Mengunduh isi sumber ({completed}/{total}){speed_text}...")
 
-            print(f"[!] Mengunduh teks dari {len(urls)} kandidat (bank dipakai sbg cache)...")
+            logger.info(f"Mengunduh teks dari {len(urls)} kandidat (bank dipakai sbg cache)...")
             new_scraped = scrape_all_candidates(urls, preloaded_corpus, progress_cb=scrape_progress)
             
             # MERGE: Gabungkan korpus eksis dengan hasil scraping live baru agar data makin kaya dan tidak membuang data lama
             corpus = existing_corpus.copy()
             corpus.update(new_scraped)
-            print(f"[!] Korpus terkurasi total utk dokumen ini: {len(corpus)} sumber ({len(new_scraped)} baru/live).")
+            logger.info(f"Korpus terkurasi total utk dokumen ini: {len(corpus)} sumber ({len(new_scraped)} baru/live).")
             try:
                 # Atomic write: tulis ke file temp dulu, lalu rename
                 frozen_tmp = frozen_path + ".tmp." + secrets.token_hex(4)
                 with open(frozen_tmp, "w", encoding="utf-8") as f:
                     json.dump(corpus, f, ensure_ascii=False)
                 os.replace(frozen_tmp, frozen_path)
-                print(f"[!] Korpus DIBEKUKAN & DIPERBARUI: {os.path.basename(frozen_path)} ({len(corpus)} total sumber).")
+                logger.info(f"Korpus DIBEKUKAN & DIPERBARUI: {os.path.basename(frozen_path)} ({len(corpus)} total sumber).")
             except Exception as e:
-                print(f"[!] Gagal simpan frozen: {e}")
+                logger.info(f"Gagal simpan frozen: {e}")
 
         if check_cancelled(): return
         set_progress(85, "Menghitung kemiripan (Algoritma N-Gram)...")
-        print("[!] Menghitung similaritas dengan algoritma N-Gram Shingling...")
+        logger.info(f"Menghitung similaritas dengan algoritma N-Gram Shingling...")
         # PARAMETER IDENTIK GROUNDTRUTH: hanya semantic_threshold="auto". TANPA
         # semantic_max_sources/min_source_overlap -> engine berperilaku persis seperti
         # run_test_groundtruth.py, sehingga skor dokumen tervalidasi konsisten saat
@@ -238,12 +266,12 @@ def process_document(file_id, filepath, original_filename, exclude_quotes=True, 
         # calculate_similarity cuma n-gram matching di memori -> tambah 1-2 detik saja.
         fooled_similarity = None
         if raw_text and raw_text.strip() != doc_text.strip():
-            print("[!] Menghitung skor kedua (jika hidden text lolos)...")
+            logger.info(f"Menghitung skor kedua (jika hidden text lolos)...")
             _, fooled_sim, _ = calculate_similarity(
                 raw_text, corpus, exclude_small, use_semantic=use_semantic,
                 semantic_threshold="auto", semantic_max_sources=10)
             fooled_similarity = round(fooled_sim)
-            print(f"[!] Skor tertipu (hidden text lolos): {fooled_similarity}%")
+            logger.info(f"Skor tertipu (hidden text lolos): {fooled_similarity}%")
 
         data = {
             'filename': original_filename.replace('.pdf', ''),
@@ -256,7 +284,7 @@ def process_document(file_id, filepath, original_filename, exclude_quotes=True, 
         }
         
         set_progress(95, "Membangun Laporan PDF...")
-        print("[!] Membangun PDF Report...")
+        logger.info(f"Membangun PDF Report...")
         report_pdf_path = os.path.join(app.config['REPORT_FOLDER'], f"{file_id}_report.pdf")
         generate_report_pdf(filepath, report_pdf_path, data)
         
@@ -272,17 +300,19 @@ def process_document(file_id, filepath, original_filename, exclude_quotes=True, 
             with open(result_json_path, "w", encoding="utf-8") as f:
                 json.dump({'status': 'completed', 'data': data, 'session_id': results_db[file_id].get('session_id')}, f, ensure_ascii=False)
         except Exception as e:
-            print(f"[!] Gagal simpan cache JSON laporan: {e}")
+            logger.info(f"Gagal simpan cache JSON laporan: {e}")
             
         # [MEMORY CLEANUP] Paksa Garbage Collector berjalan agar RAM dikembalikan ke Windows
         import gc
         del corpus
         gc.collect()
         
-        print(f"[!] Selesai. Hasil: {total_similarity}%")
+        logger.info(f"Selesai. Hasil: {total_similarity}%")
     except Exception as e:
         import traceback
         traceback.print_exc()
+        global _metric_total_errors
+        _metric_total_errors += 1
         if file_id in results_db:
             results_db[file_id].update({
                 'status': 'error',
@@ -350,7 +380,7 @@ def check_frozen():
             try:
                 with open(target_file, "r", encoding="utf-8") as f:
                     corpus_size = f.read().count('"http')
-                print(f"[!] FAST CHECK_FROZEN HIT (<1ms): {os.path.basename(target_file)}")
+                logger.info(f"FAST CHECK_FROZEN HIT (<1ms): {os.path.basename(target_file)}")
                 return jsonify({'exists': True, 'corpus_size': corpus_size, 'hash': 'fast_match'})
             except Exception:
                 pass
@@ -381,13 +411,19 @@ def check_frozen():
             pass
 
 
+def get_client_ip():
+    """Phase 4 #2: Rate limiting dengan proper IP extraction"""
+    forwarded = request.headers.get("X-Forwarded-For")
+    if forwarded:
+        return forwarded.split(',')[0].strip()
+    return request.remote_addr or 'unknown'
+
 def _check_rate_limit(ip):
     """Check rate limit for IP. Returns (allowed, remaining_time)"""
     now = time.time()
     with _rate_limit_lock:
         if ip not in _rate_limit_db:
             _rate_limit_db[ip] = []
-        # Remove old entries
         _rate_limit_db[ip] = [t for t in _rate_limit_db[ip] if now - t < RATE_LIMIT_WINDOW]
         if len(_rate_limit_db[ip]) >= RATE_LIMIT_MAX_REQUESTS:
             oldest = _rate_limit_db[ip][0]
@@ -402,7 +438,7 @@ def upload_file():
         return jsonify({'error': 'No file part'}), 400
     
     # Rate limiting: gunakan remote_addr langsung, bukan X-Forwarded-For (bisa dipalsukan)
-    client_ip = request.remote_addr or 'unknown'
+    client_ip = get_client_ip()
     allowed, remaining = _check_rate_limit(client_ip)
     if not allowed:
         return jsonify({'error': f'Rate limit terlampaui. Coba lagi dalam {remaining} detik.'}), 429
@@ -478,7 +514,7 @@ def cancel_process(file_id):
                 results_db[file_id]['cancel_requested'] = True
                 results_db[file_id]['status'] = 'cancelled'
                 results_db[file_id]['message'] = 'Proses dibatalkan oleh pengguna.'
-                print(f"[!] PROSES DIBATALKAN USER: {file_id}")
+                logger.info(f"PROSES DIBATALKAN USER: {file_id}")
                 return jsonify({'success': True, 'message': 'Proses berhasil dibatalkan.'})
     return jsonify({'error': 'File tidak ditemukan atau akses ditolak'}), 400
 
@@ -637,7 +673,7 @@ if __name__ == '__main__':
     signal.signal(signal.SIGINT, on_ctrl_c)
     
     print("\n==================================================")
-    print(f"[!] Akses Lokal (IP)   : http://{local_ip}:5001")
+    logger.info(f"Akses Lokal (IP)   : http://{local_ip}:5001")
     
     # Jalankan Ngrok di thread terpisah agar crash-nya tidak mematikan Flask
     # SEC-03: Ngrok kini opsional via environment variable
@@ -650,14 +686,14 @@ if __name__ == '__main__':
                 logging.getLogger("pyngrok").setLevel(logging.CRITICAL)
                 ngrok.kill()
                 public_url = ngrok.connect(5001)
-                print(f"[!] Akses Publik Ngrok : {public_url.public_url}")
+                logger.info(f"Akses Publik Ngrok : {public_url.public_url}")
             except Exception as e:
-                print(f"[!] Ngrok tidak tersedia: {e}")
+                logger.info(f"Ngrok tidak tersedia: {e}")
         
         ngrok_thread = threading.Thread(target=start_ngrok, daemon=True)
         ngrok_thread.start()
     else:
-        print("[!] Akses Publik Ngrok : DINONAKTIFKAN (Gunakan USE_NGROK=true untuk mengaktifkan)")
+        logger.info(f"Akses Publik Ngrok : DINONAKTIFKAN (Gunakan USE_NGROK=true untuk mengaktifkan)")
         
     print("==================================================\n")
     
