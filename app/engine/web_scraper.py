@@ -13,6 +13,7 @@ from concurrent.futures import ThreadPoolExecutor
 # Sembunyikan peringatan jika situs web yang di-scrape berupa XML/RSS
 warnings.filterwarnings("ignore", category=XMLParsedAsHTMLWarning)
 logging.getLogger("duckduckgo_search").setLevel(logging.ERROR)
+logging.getLogger("ddgs").setLevel(logging.ERROR)
 
 # --- Konstanta Timeout & Pool Global ---
 _REQUEST_TIMEOUT = 10           # timeout default semua fetch API (detik) — kompromi: cepat vs server kampus lambat
