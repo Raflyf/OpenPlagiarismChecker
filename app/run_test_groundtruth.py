@@ -5,7 +5,7 @@ from engine.extractor import extract_text_auto, get_sentences
 from engine.web_scraper import get_candidate_urls, scrape_all_candidates
 from engine.shingling import calculate_similarity
 
-BASE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "before_Commercial Standard")
+BASE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "before_commercial_standard")
 FROZEN = os.path.join(os.path.dirname(os.path.abspath(__file__)), "frozen_corpus")
 os.makedirs(FROZEN, exist_ok=True)
 
@@ -15,7 +15,7 @@ REFRESH = os.environ.get("REFRESH", "0") == "1"
 
 
 def discover_docs():
-    """Auto-discover dokumen validasi di before_Commercial Standard/.
+    """Auto-discover dokumen validasi di before_commercial_standard/.
     Target Commercial Standard diambil dari angka 'NN%' di nama file. Slug = nama file
     tanpa angka% & ekstensi, dipakai sbagai key korpus beku."""
     docs = []

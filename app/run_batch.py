@@ -9,10 +9,10 @@ import json
 import uuid
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-# before_Commercial Standard berada di dalam folder app/ yang sama
-FOLDER = os.path.join(BASE_DIR, "before_Commercial Standard")
+# before_commercial_standard berada di dalam folder app/ yang sama
+FOLDER = os.path.join(BASE_DIR, "before_commercial_standard")
 if not os.path.exists(FOLDER):
-    FOLDER = os.path.join(BASE_DIR, "app", "before_Commercial Standard")
+    FOLDER = os.path.join(BASE_DIR, "app", "before_commercial_standard")
 import socket
 try:
     s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)

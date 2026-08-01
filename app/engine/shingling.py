@@ -14,8 +14,8 @@ RE_HYPHENATION = re.compile(r'-\s+')
 RE_NON_ALPHANUMERIC = re.compile(r'[^\w\s]')
 
 # Magic Numbers extracted to constants (Phase 3 #6)
-SEMANTIC_THRESH_BASE = 0.7900
-SEMANTIC_THRESH_MULTIPLIER = 0.0250
+SEMANTIC_THRESH_BASE = 0.7900  # Titik Sweetspot (Base optimum)
+SEMANTIC_THRESH_MULTIPLIER = 0.0250 # Pengali N-Gram Synergy
 DEFAULT_CHUNK_MAX_WORDS = 40
 NGRAM_SIZE = 5
 
@@ -112,7 +112,7 @@ class SimilarityCalculator:
         self.use_semantic = False
         self.semantic_threshold = "auto"
         self.semantic_max_sources = None
-        self.min_source_overlap = 1
+        self.min_source_overlap = 3  # Dinaikkan dari 1 agar abaikan sumber dengan overlap ngram kecil
         self.is_cancelled_cb = None
 
         self.doc_spans = []
