@@ -1,8 +1,8 @@
 # Open-Source Plagiarism Detection — Mesin Cek Plagiarisme & Kesamaan Teks
 
-Alat pengecek plagiarisme skala *Enterprise* yang dirancang secara profesional untuk mendeteksi kecocokan teks persis (_N-Gram exact match_) dan parafrasa semantik (_semantic similarity_). Sistem ini diposisikan sebagai alternatif komersial papan atas (setara Turnitin), membandingkan dokumen terhadap ratusan juta sumber akademik publik di internet secara instan dan dapat diaudit secara transparan.
+Alat pengecek plagiarisme sumber terbuka (open-source) yang dirancang secara profesional untuk mendeteksi kecocokan teks persis (_N-Gram exact match_) dan parafrasa semantik (_semantic similarity_). Sistem ini menggunakan kecerdasan buatan untuk mencocokkan dokumen terhadap jutaan sumber akademik publik di internet. Dibangun untuk memberikan solusi deteksi plagiarisme yang transparan, dapat diaudit, dan gratis bagi mahasiswa, dosen, maupun institusi pendidikan.
 
-Sistem ini memberikan estimasi skor kesamaan teks yang sangat presisi (selisih rata-rata / MAE mutlak **1.00%** pada benchmark dokumen uji terbaru Agustus 2026).
+Sistem ini memberikan estimasi skor kesamaan teks yang sangat presisi (selisih rata-rata / MAE hanya **1.00%** pada benchmark dokumen uji terbaru). Gunakan alat ini untuk mengecek, mengaudit, dan memperbaiki draf dokumen secara mandiri menggunakan teknologi pemrosesan bahasa alami (NLP).
 
 ## Changelog v4.6
 - **Upgrade Algoritma:** Implementasi *Continuous Square-Root Auto-Thresholding* v4.6.
@@ -341,7 +341,7 @@ Skor Total = (Kata Ter-match N-Gram + Kata Ter-match Semantic) / Total Kata Doku
 
 ## Kontribusi & Lisensi
 
-Proyek *Enterprise* komersial alternatif Turnitin untuk mendemokratisasi akses terhadap alat pengecekan kesamaan dokumen ilmiah (Document Similarity Checking). Dilengkapi dengan perlindungan arsitektur tingkat lanjut.
+Proyek sumber terbuka (Open-Source) untuk mendemokratisasi akses terhadap alat pengecekan kesamaan dokumen ilmiah (Document Similarity Checking). Dilengkapi dengan lisensi MIT.
 
 **Dibuat oleh:** Rafly Firmansyah  
 **Algoritma:** N-Gram Shingling (5-gram) + Semantic Similarity (sentence-transformers)  
