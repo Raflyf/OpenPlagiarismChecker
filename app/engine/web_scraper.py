@@ -1,4 +1,7 @@
 import os
+import logging
+
+logger = logging.getLogger(__name__)
 import time
 import random
 import requests
@@ -82,17 +85,17 @@ def init_bank_db():
         # Migrasi otomatis jika bank.json versi lama ada
         if os.path.exists(_BANK_JSON_PATH):
             try:
-                print(f"[Bank] Mengimpor data lama dari bank.json ke SQLite bank.db...")
+                logger.info("[Bank] Mengimpor data lama dari bank.json ke SQLite bank.db...")
                 with open(_BANK_JSON_PATH, "r", encoding="utf-8") as f:
                     data = _json.load(f)
                 items = [(u, t) for u, t in data.items() if len(t) > 150]
                 cur.executemany("INSERT OR IGNORE INTO corpus (url, text) VALUES (?, ?)", items)
                 conn.commit()
-                print(f"[Bank] Berhasil migrasi {len(items)} sumber ke bank.db SQLite.")
+                logger.info("[Bank] Berhasil migrasi {len(items)} sumber ke bank.db SQLite.")
                 # Ubah nama bank.json agar tidak dibaca lagi (gunakan os.replace agar menimpa jika .bak sudah ada)
                 os.replace(_BANK_JSON_PATH, _BANK_JSON_PATH + ".bak")
             except Exception as e:
-                print(f"[Bank] Warning migrasi: {e}")
+                logger.info("[Bank] Warning migrasi: {e}")
         conn.close()
 
 def get_bank_urls():
@@ -106,7 +109,7 @@ def get_bank_urls():
         urls.update(row[0] for row in cur.fetchall())
         conn.close()
     except Exception as e:
-        print(f"[Bank] Warning read bank_urls local: {e}")
+        logger.info("[Bank] Warning read bank_urls local: {e}")
         
     supa_urls = get_bank_urls_supabase()
     if supa_urls:
@@ -136,7 +139,7 @@ def get_bank_texts(target_urls):
                 result[url] = text
         conn.close()
     except Exception as e:
-        print(f"[Bank] Warning read bank.db: {e}")
+        logger.info("[Bank] Warning read bank.db: {e}")
         
     # 2. Cek Supabase untuk URL yang belum ketemu di lokal
     missing_urls = target_set - set(result.keys())
@@ -179,9 +182,9 @@ def save_to_corpus_bank(new_corpus):
             cur.execute("SELECT COUNT(*) FROM corpus")
             total = cur.fetchone()[0]
             conn.close()
-            print(f"[Bank] Tersimpan ke bank.db (total: {total} sumber)")
+            logger.info("[Bank] Tersimpan ke bank.db (total: {total} sumber)")
         except Exception as e:
-            print(f"[Bank] PERINGATAN: gagal menyimpan ke bank.db: {e}")
+            logger.info("[Bank] PERINGATAN: gagal menyimpan ke bank.db: {e}")
 
     # 2. Simpan ke Supabase Cloud di BACKGROUND THREAD (Zero delay, tidak menahan kalkulasi N-Gram!)
     import threading
@@ -358,8 +361,8 @@ def fetch_semantic_scholar(probe):
                 if len(combined_text) > 50:
                     urls_found.append(p_url)
                     texts_found.append(combined_text)
-    except Exception:
-        pass
+    except Exception as e:
+        logger.debug("Silently caught exception: %s", e)
     return urls_found, texts_found
 
 def fetch_crossref(probe):
@@ -393,7 +396,7 @@ def fetch_crossref(probe):
                     urls_found.append(p_url)
                     texts_found.append(combined_text)
     except Exception as e:
-        print(f"[!] Warning: API/Scraper error -> {e}")
+        logger.warning("Warning: API/Scraper error -> {e}")
     return urls_found, texts_found
 
 def fetch_openalex(probe):
@@ -433,7 +436,7 @@ def fetch_openalex(probe):
                     abstract_text = " ".join([w[1] for w in word_index])
                 texts_found.append((title + " " + abstract_text).strip())
     except Exception as e:
-        print(f"[!] OpenAlex API error: {e}")
+        logger.warning("OpenAlex API error: {e}")
     return urls_found, texts_found
 
 def fetch_google_scholar(probe):
@@ -466,7 +469,7 @@ def fetch_google_scholar(probe):
                 if a_tag and 'href' in a_tag.attrs:
                     urls_found.append(a_tag['href'])
     except Exception as e:
-        print(f"[!] Warning: API/Scraper error -> {e}")
+        logger.warning("Warning: API/Scraper error -> {e}")
     return urls_found, []
 
 def fetch_google_web(probe):
@@ -514,7 +517,7 @@ def fetch_google_web(probe):
                     if link.startswith('http') and 'google.com' not in link and 'google.co.id' not in link:
                         urls_found.append(link)
     except Exception as e:
-        print(f"[!] Warning: API/Scraper error -> {e}")
+        logger.warning("Warning: API/Scraper error -> {e}")
     return urls_found, []
 
 def fetch_garuda(probe):
@@ -536,8 +539,8 @@ def fetch_garuda(probe):
                     if not url.startswith('http'):
                         url = "https://garuda.kemdiktisaintek.go.id" + url
                     urls_found.append(url)
-    except Exception:
-        pass
+    except Exception as e:
+        logger.debug("Silently caught exception: %s", e)
     return urls_found, []
 
 def fetch_ddgs(probe):
@@ -603,7 +606,7 @@ def fetch_ddgs(probe):
         scored.sort(key=lambda x: x[0], reverse=True)
         urls_found.extend([u for _, u in scored[:12]])
     except Exception as e:
-        pass
+        logger.debug("Silently caught exception: %s", e)
     return urls_found, []
 
 def fetch_doaj(probe):
@@ -637,8 +640,8 @@ def fetch_doaj(probe):
                 if p_url and len(combined) > 50:
                     urls_found.append(p_url)
                     texts_found.append(combined)
-    except Exception:
-        pass
+    except Exception as e:
+        logger.debug("Silently caught exception: %s", e)
     return urls_found, texts_found
 
 def fetch_arxiv(probe):
@@ -670,8 +673,8 @@ def fetch_arxiv(probe):
                     if len(combined) > 50:
                         urls_found.append(link)
                         texts_found.append(combined)
-    except Exception:
-        pass
+    except Exception as e:
+        logger.debug("Silently caught exception: %s", e)
     return urls_found, texts_found
 
 def fetch_core(probe):
@@ -710,7 +713,7 @@ def fetch_core(probe):
                     urls_found.append(p_url)
                     texts_found.append(combined)
     except Exception as e:
-        print(f"[!] CORE API error: {e}")
+        logger.warning("CORE API error: {e}")
     return urls_found, texts_found
 
 def fetch_openaire(probe):
@@ -757,8 +760,8 @@ def fetch_openaire(probe):
                 if p_url and len(combined) > 50:
                     urls_found.append(p_url)
                     texts_found.append(combined)
-    except Exception:
-        pass
+    except Exception as e:
+        logger.debug("Silently caught exception: %s", e)
     return urls_found, texts_found
 
 def fetch_hal(probe):
@@ -781,8 +784,8 @@ def fetch_hal(probe):
                 if p_url and len(combined) > 50:
                     urls_found.append(p_url)
                     texts_found.append(combined)
-    except Exception:
-        pass
+    except Exception as e:
+        logger.debug("Silently caught exception: %s", e)
     return urls_found, texts_found
 
 def fetch_europe_pmc(probe):
@@ -811,8 +814,8 @@ def fetch_europe_pmc(probe):
                 if len(combined) > 50:
                     urls_found.append(p_url)
                     texts_found.append(combined)
-    except Exception:
-        pass
+    except Exception as e:
+        logger.debug("Silently caught exception: %s", e)
     return urls_found, texts_found
 
 def fetch_onesearch_id(probe):
@@ -841,8 +844,8 @@ def fetch_onesearch_id(probe):
                 if p_url and len(combined) > 50:
                     urls_found.append(p_url)
                     texts_found.append(combined)
-    except Exception:
-        pass
+    except Exception as e:
+        logger.debug("Silently caught exception: %s", e)
     return urls_found, texts_found
 
 def fetch_neliti(probe):
@@ -869,8 +872,8 @@ def fetch_neliti(probe):
                     if len(combined) > 50:
                         urls_found.append(p_url)
                         texts_found.append(combined)
-    except Exception:
-        pass
+    except Exception as e:
+        logger.debug("Silently caught exception: %s", e)
     return urls_found, texts_found
 
 def fetch_moraref(probe):
@@ -903,8 +906,8 @@ def fetch_moraref(probe):
                         if title and len(combined) > 50:
                             urls_found.append(url)
                             texts_found.append(combined)
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug("Silently caught exception: %s", e)
         # Pendekatan 2: OAI-PMH fallback
         if len(urls_found) < 3:
             try:
@@ -933,10 +936,10 @@ def fetch_moraref(probe):
                             texts_found.append(combined)
                             if len(urls_found) >= 5:
                                 break
-            except Exception:
-                pass
-    except Exception:
-        pass
+            except Exception as e:
+                logger.debug("Silently caught exception: %s", e)
+    except Exception as e:
+        logger.debug("Silently caught exception: %s", e)
     return urls_found, texts_found
 
 def fetch_base(probe):
@@ -973,8 +976,8 @@ def fetch_base(probe):
                     if title and len(combined) > 50:
                         urls_found.append(url)
                         texts_found.append(combined)
-    except Exception:
-        pass
+    except Exception as e:
+        logger.debug("Silently caught exception: %s", e)
     return urls_found, texts_found
 
 def fetch_pubmed(probe):
@@ -1010,8 +1013,8 @@ def fetch_pubmed(probe):
                 if title and len(combined) > 40:
                     urls_found.append(url)
                     texts_found.append(combined)
-    except Exception:
-        pass
+    except Exception as e:
+        logger.debug("Silently caught exception: %s", e)
     return urls_found, texts_found
 
 def fetch_indonesian_ethesis(probe):
@@ -1072,8 +1075,8 @@ def fetch_indonesian_ethesis(probe):
                             texts_found.append(combined)
             except Exception:
                 continue
-    except Exception:
-        pass
+    except Exception as e:
+        logger.debug("Silently caught exception: %s", e)
     return urls_found, texts_found
 
 _FAILED_APIS = set()
@@ -1091,12 +1094,12 @@ def fetch_google_search_native(probe):
         # Hindari query terlalu panjang yang bisa ditolak Google
         short_probe = " ".join(probe.split()[:15])
         query = f'"{short_probe}"'
-        # print(f"[Google Search] Probe: {short_probe[:50]}...")
+        # logger.info("[Google Search] Probe: {short_probe[:50]}...")
         # advanced=False mempercepat eksekusi (hanya butuh URL)
         for url in search(query, num_results=3, sleep_interval=1.5, advanced=False):
             urls_found.append(url)
     except Exception as e:
-        pass
+        logger.debug("Silently caught exception: %s", e)
     return urls_found, []
 
 class APICircuitBreaker:
@@ -1262,7 +1265,7 @@ def get_candidate_urls(sentences, max_probes=100, progress_cb=None):
     urls = set()
     preloaded_corpus = {}
     
-    print(f"[API] Meluncurkan Bot AI & Browser Crawler untuk {len(probes)} Fingerprints...")
+    logger.info("[API] Meluncurkan Bot AI & Browser Crawler untuk {len(probes)} Fingerprints...")
     
     # USE_COHERE_EXPANDER (default "0"=MATI): blok Cohere->DDG ini bottleneck utama
     # (Cohere trial 1 req/detik + 3 varian/probe x DDG yg sering kena rate-limit 429).
@@ -1288,7 +1291,7 @@ def get_candidate_urls(sentences, max_probes=100, progress_cb=None):
                         if u and u.startswith('http'):
                             found.add(u)
                 except Exception as e:
-                    print(f"[!] fetch_ddgs varian gagal: {e}")
+                    logger.warning("fetch_ddgs varian gagal: {e}")
             return list(found)
 
         # max_workers=2: hormati Cohere trial 1 req/detik + hindari DDG rate-limit
@@ -1301,12 +1304,12 @@ def get_candidate_urls(sentences, max_probes=100, progress_cb=None):
                     for u in future.result():
                         urls.add(u)
                 except Exception as e:
-                    print(f"[!] expander future gagal: {e}")
+                    logger.warning("expander future gagal: {e}")
       except Exception as e:
-        print(f"[!] Cohere/DDG expander error: {e}")
+        logger.warning("Cohere/DDG expander error: {e}")
 
     # --- blok API mati di bawah dinonaktifkan (disimpan sbagai referensi histori) ---
-    print(f"[API] Mencari jurnal dari {len(probes)} sampel kalimat via Semantic Scholar, Crossref & DuckDuckGo...")
+    logger.info("[API] Mencari jurnal dari {len(probes)} sampel kalimat via Semantic Scholar, Crossref & DuckDuckGo...")
     
     # Akumulasi statistik per-API lintas semua probe
     total_stats = {}
@@ -1335,7 +1338,7 @@ def get_candidate_urls(sentences, max_probes=100, progress_cb=None):
                         urls.add(u)
                     
             except Exception as e:
-                print(f"[!] Peringatan di get_candidate_urls worker: {e}")
+                logger.warning("Peringatan di get_candidate_urls worker: {e}")
             
             probes_done += 1
             # Cetak ringkasan progresif setiap 10 probe atau pada probe terakhir
@@ -1343,9 +1346,9 @@ def get_candidate_urls(sentences, max_probes=100, progress_cb=None):
                 active = {k: v for k, v in total_stats.items() if v > 0}
                 parts = [f"{k}:{v}" for k, v in sorted(active.items(), key=lambda x: -x[1])]
                 total_found = sum(active.values())
-                print(f"[API] Probe {probes_done}/{len(probes)} -- {total_found} sumber ditemukan | {', '.join(parts)}")
+                logger.info("[API] Probe {probes_done}/{len(probes)} -- {total_found} sumber ditemukan | {', '.join(parts)}")
                 
-    print(f"[API] Berhasil menarik {len(preloaded_corpus)} abstrak jurnal dan {len(urls)} link web publik.")
+    logger.info("[API] Berhasil menarik {len(preloaded_corpus)} abstrak jurnal dan {len(urls)} link web publik.")
     return list(urls), preloaded_corpus
 
 class AdaptiveThreadPool:
@@ -1456,7 +1459,7 @@ def scrape_url(url):
                 text = re.sub(r'\s+', ' ', text).strip()
                 return url, text, total_bytes
     except Exception as e:
-        pass
+        logger.debug("Silently caught exception: %s", e)
     return url, "", total_bytes
 
 def scrape_all_candidates(urls, preloaded_corpus, progress_cb=None):
@@ -1470,7 +1473,7 @@ def scrape_all_candidates(urls, preloaded_corpus, progress_cb=None):
     if found_urls:
         cached_texts = get_bank_texts(found_urls)
         corpus.update(cached_texts)
-        print(f"[Bank] {len(cached_texts)} sumber ditemukan di bank.db lokal (skip scrape)")
+        logger.info("[Bank] {len(cached_texts)} sumber ditemukan di bank.db lokal (skip scrape)")
     
     # Hapus URL yang sudah ada di bank / preloaded (tak perlu scrape ulang)
     urls = [u for u in urls if u not in bank_urls and u not in corpus]
@@ -1479,7 +1482,7 @@ def scrape_all_candidates(urls, preloaded_corpus, progress_cb=None):
         save_to_corpus_bank(corpus)
         return corpus
 
-    print(f"[Scraper] Bot Crawler mulai mengunduh {len(urls)} sumber web publik...")
+    logger.info("[Scraper] Bot Crawler mulai mengunduh {len(urls)} sumber web publik...")
     
     # Abaikan InsecureRequestWarning saat scrape blog/kampus yang SSL-nya mati
     from requests.packages.urllib3.exceptions import InsecureRequestWarning
@@ -1521,7 +1524,7 @@ def scrape_all_candidates(urls, preloaded_corpus, progress_cb=None):
     # RETRY PASS: URL yang gagal (kosong/error) sering korban rate-limit sesaat, bukan
     # benar-benar mati. Coba sekali lagi dengan konkurensi sedang (8 worker).
     if failed_urls:
-        print(f"[Scraper] Retry {len(failed_urls)} sumber yang gagal (konkurensi sedang)...")
+        logger.info("[Scraper] Retry {len(failed_urls)} sumber yang gagal (konkurensi sedang)...")
         with concurrent.futures.ThreadPoolExecutor(max_workers=8) as executor:
             futures = {executor.submit(scrape_url, u): u for u in failed_urls}
             for future in concurrent.futures.as_completed(futures):
@@ -1530,8 +1533,8 @@ def scrape_all_candidates(urls, preloaded_corpus, progress_cb=None):
                     total_downloaded_bytes += downloaded_bytes
                     if len(text) > 150:
                         corpus[url] = text
-                except Exception:
-                    pass
+                except Exception as e:
+                    logger.debug("Silently caught exception: %s", e)
 
     # Simpan sumber baru ke bank lokal (makin kaya seiring waktu)
     save_to_corpus_bank(corpus)

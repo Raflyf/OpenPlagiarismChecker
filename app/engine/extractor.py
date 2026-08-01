@@ -1,17 +1,32 @@
 import fitz
 import re
+import logging
+
+logger = logging.getLogger(__name__)
+
+# Pre-compiled Regex Patterns (Phase 3 #7)
+RE_ZERO_WIDTH = re.compile(r'[\u200B-\u200D\uFEFF]')
+RE_CYRILLIC_HOMOGLYPHS = re.compile(r'[асеорхуАСЕОРХУ]')
+RE_SPACES = re.compile(r'\s+')
+RE_HEADING_BAB1_LONG = re.compile(r'(?:BAB|CHAPTER)\s+(?:I|1)[\s:.\n]*(?:PENDAHULUAN|INTRODUCTION)\b')
+RE_HEADING_BAB1_SHORT = re.compile(r'BAB\s+(?:I|1)\b')
+RE_TOC_ENTRY_END = re.compile(r'[\s\.]*\d{1,3}\s*$')
+RE_STRAIGHT_QUOTES = re.compile(r'"[^"]{1,500}"')
+RE_SMART_QUOTES = re.compile(r'“[^”]{1,500}”')
+RE_NEWLINES = re.compile(r'\n+')
+RE_SENTENCE_SPLIT = re.compile(r'(?<=[.!?;])\s+')
 
 def detect_manipulation(text, hidden_word_count=0):
     """Mendeteksi trik mahasiswa untuk mencurangi Turnitin"""
     warnings = []
     # 1. Deteksi Zero-Width Characters (diselipkan antar huruf agar kata tidak terbaca)
-    zero_width_chars = re.findall(r'[\u200B-\u200D\uFEFF]', text)
+    zero_width_chars = RE_ZERO_WIDTH.findall(text)
     if len(zero_width_chars) > 20:
         warnings.append("MANIPULASI TERDETEKSI: Ditemukan karakter tak terlihat (Zero-Width Space) yang digunakan untuk mengelabui sistem.")
     
     # 2. Deteksi huruf Cyrillic Homoglyphs (Huruf Rusia yang terlihat seperti huruf A, E, O latin)
     # Ini sangat umum digunakan untuk memutus N-Gram
-    cyrillic_chars = re.findall(r'[асеорхуАСЕОРХУ]', text)
+    cyrillic_chars = RE_CYRILLIC_HOMOGLYPHS.findall(text)
     if len(cyrillic_chars) > 30:
         warnings.append("MANIPULASI TERDETEKSI: Ditemukan penggunaan huruf Cyrillic (Rusia) ilegal yang menyamar sebagai abjad Latin.")
 
@@ -76,7 +91,8 @@ def extract_text_from_pdf(filepath, exclude_quotes=True, exclude_biblio=True, re
                 vis_text, hidden_word_count, any_dropped, hidden_spans = "", 0, False, []
             else:
                 vis_text, hidden_word_count, any_dropped, hidden_spans = _extract_visible_text(doc)
-        except Exception:
+        except Exception as vis_e:
+            logger.warning("Failed to extract visible text, falling back to raw text: %s", vis_e)
             vis_text, hidden_word_count, any_dropped, hidden_spans = "", 0, False, []
         # Teks mentah (semua span, termasuk hidden) untuk skor "fooled"
         raw_text = ""
@@ -100,7 +116,7 @@ def extract_text_from_pdf(filepath, exclude_quotes=True, exclude_biblio=True, re
     cleaned_text = clean_text(text, exclude_quotes, exclude_biblio)
     
     # Bersihkan Zero-width chars dari teks agar tetap bisa di-cek similarity-nya
-    cleaned_text = re.sub(r'[\u200B-\u200D\uFEFF]', '', cleaned_text)
+    cleaned_text = RE_ZERO_WIDTH.sub('', cleaned_text)
     # Normalkan huruf Cyrillic kembali ke Latin agar usahanya sia-sia
     cyrillic_to_latin = str.maketrans('асеорхуАСЕОРХУ', 'aceopxyACEOPXY')
     cleaned_text = cleaned_text.translate(cyrillic_to_latin)
@@ -108,7 +124,7 @@ def extract_text_from_pdf(filepath, exclude_quotes=True, exclude_biblio=True, re
     if return_hidden:
         # Bersihkan raw_text dengan cara yang sama
         raw_cleaned = clean_text(raw_text, exclude_quotes, exclude_biblio)
-        raw_cleaned = re.sub(r'[\u200B-\u200D\uFEFF]', '', raw_cleaned)
+        raw_cleaned = RE_ZERO_WIDTH.sub('', raw_cleaned)
         raw_cleaned = raw_cleaned.translate(cyrillic_to_latin)
         return cleaned_text, manipulation_warnings, raw_cleaned, hidden_spans
 
@@ -186,13 +202,13 @@ def extract_text_from_docx(docx_path, exclude_quotes=True, exclude_biblio=True, 
 
     manipulation_warnings = detect_manipulation(text, hidden_word_count)
     cleaned_text = clean_text(text, exclude_quotes, exclude_biblio)
-    cleaned_text = re.sub(r'[\u200B-\u200D\uFEFF]', '', cleaned_text)
+    cleaned_text = RE_ZERO_WIDTH.sub('', cleaned_text)
     cyrillic_to_latin = str.maketrans('асеорхуАСЕОРХУ', 'aceopxyACEOPXY')
     cleaned_text = cleaned_text.translate(cyrillic_to_latin)
     
     if return_hidden:
         raw_cleaned = clean_text(raw_text, exclude_quotes, exclude_biblio)
-        raw_cleaned = re.sub(r'[\u200B-\u200D\uFEFF]', '', raw_cleaned)
+        raw_cleaned = RE_ZERO_WIDTH.sub('', raw_cleaned)
         raw_cleaned = raw_cleaned.translate(cyrillic_to_latin)
         return cleaned_text, manipulation_warnings, raw_cleaned, []
     return cleaned_text, manipulation_warnings
@@ -241,7 +257,7 @@ def extract_text_from_txt(txt_path):
         raise Exception(f"Failed to extract TXT: {str(e)}")
 
 def clean_text(text, exclude_quotes=True, exclude_biblio=True):
-    text = re.sub(r'\s+', ' ', text).strip()
+    text = RE_SPACES.sub(' ', text).strip()
 
     # [1] Exclude Front Matter (Cover, Pengesahan, Daftar Isi) - Turnitin Behavior
     upper_text = text.upper()
@@ -249,24 +265,24 @@ def clean_text(text, exclude_quotes=True, exclude_biblio=True):
     # Pola heading bab asli: "BAB I" / "BAB 1" diikuti KONTEN nyata (PENDAHULUAN).
     # Regex ini lebih presisi karena mencegah Lembar Konsultasi / Abstrak yang sekadar menyebut "BAB I".
     chosen_idx = -1
-    for m in re.finditer(r'(?:BAB|CHAPTER)\s+(?:I|1)[\s:.\n]*(?:PENDAHULUAN|INTRODUCTION)\b', upper_text):
+    for m in RE_HEADING_BAB1_LONG.finditer(upper_text):
         idx = m.start()
         # Ambil 40 karakter setelah match untuk cek apakah ini entri daftar isi
         tail = text[m.end():m.end() + 40]
         # Entri daftar isi: didominasi titik-titik atau langsung angka halaman
         dot_ratio = tail.count('.') / max(len(tail), 1)
-        is_toc_entry = dot_ratio > 0.3 or bool(re.match(r'[\s\.]*\d{1,3}\s*$', tail[:15]))
+        is_toc_entry = dot_ratio > 0.3 or bool(RE_TOC_ENTRY_END.match(tail[:15]))
         if not is_toc_entry:
             chosen_idx = idx
             break
 
     # Fallback: jika regex spesifik gagal (sangat jarang), gunakan regex lama
     if chosen_idx == -1:
-        for m in re.finditer(r'BAB\s+(?:I|1)\b', upper_text):
+        for m in RE_HEADING_BAB1_SHORT.finditer(upper_text):
             idx = m.start()
             tail = text[m.end():m.end() + 40]
             dot_ratio = tail.count('.') / max(len(tail), 1)
-            is_toc_entry = dot_ratio > 0.3 or bool(re.match(r'[\s\.]*\d{1,3}\s*$', tail[:15]))
+            is_toc_entry = dot_ratio > 0.3 or bool(RE_TOC_ENTRY_END.match(tail[:15]))
             if not is_toc_entry:
                 chosen_idx = idx
                 break
@@ -283,13 +299,13 @@ def clean_text(text, exclude_quotes=True, exclude_biblio=True):
     # [3] Exclude Quotes
     if exclude_quotes:
         # Hapus kutipan dengan straight quotes (maks 500 karakter agar tidak menghapus 1 bab jika ada quote yg tidak tertutup)
-        text = re.sub(r'"[^"]{1,500}"', '', text)
+        text = RE_STRAIGHT_QUOTES.sub('', text)
         # Hapus kutipan dengan smart quotes
-        text = re.sub(r'“[^”]{1,500}”', '', text)
+        text = RE_SMART_QUOTES.sub('', text)
 
     return text
 
 def get_sentences(text):
-    text = re.sub(r'\n+', '. ', text)
-    sentences = re.split(r'(?<=[.!?;])\s+', text)
+    text = RE_NEWLINES.sub('. ', text)
+    sentences = RE_SENTENCE_SPLIT.split(text)
     return [s.strip() for s in sentences if len(s.split()) >= 5]
