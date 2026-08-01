@@ -1,10 +1,10 @@
 @echo off
-TITLE Turnitin Lokal - Plagiarism Checker
+TITLE Open-Source Plagiarism Detection - Plagiarism Checker
 chcp 65001 > NUL
 setlocal enabledelayedexpansion
 
 echo ============================================================
-echo   Turnitin Lokal — Cek Plagiarisme Skripsi Gratis
+echo   Open-Source Plagiarism Detection — Cek Plagiarisme Skripsi Gratis
 echo ============================================================
 echo.
 

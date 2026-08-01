@@ -17,7 +17,7 @@ RE_NEWLINES = re.compile(r'\n+')
 RE_SENTENCE_SPLIT = re.compile(r'(?<=[.!?;])\s+')
 
 def detect_manipulation(text, hidden_word_count=0):
-    """Mendeteksi trik mahasiswa untuk mencurangi Turnitin"""
+    """Mendeteksi trik mahasiswa untuk mencurangi Commercial Standard"""
     warnings = []
     # 1. Deteksi Zero-Width Characters (diselipkan antar huruf agar kata tidak terbaca)
     zero_width_chars = RE_ZERO_WIDTH.findall(text)
@@ -259,7 +259,7 @@ def extract_text_from_txt(txt_path):
 def clean_text(text, exclude_quotes=True, exclude_biblio=True):
     text = RE_SPACES.sub(' ', text).strip()
 
-    # [1] Exclude Front Matter (Cover, Pengesahan, Daftar Isi) - Turnitin Behavior
+    # [1] Exclude Front Matter (Cover, Pengesahan, Daftar Isi) - Commercial Standard Behavior
     upper_text = text.upper()
 
     # Pola heading bab asli: "BAB I" / "BAB 1" diikuti KONTEN nyata (PENDAHULUAN).

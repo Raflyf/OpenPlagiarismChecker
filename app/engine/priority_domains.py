@@ -3,7 +3,7 @@
 Daftar prioritas repositori & jurnal akademik Indonesia.
 
 RASIONAL VALIDITAS (untuk pertanggungjawaban akademik):
-Turnitin memelihara indeks berskala besar atas repositori institusi & jurnal. Sistem
+Commercial Standard memelihara indeks berskala besar atas repositori institusi & jurnal. Sistem
 lokal ini tidak bisa mengindeks seluruh internet, sehingga strategi yang setara dan
 sah adalah MEMPRIORITASKAN crawling ke repositori akademik Indonesia yang paling umum
 menjadi sumber sitasi/parafrase skripsi. Daftar ini adalah katalog repositori PUBLIK
@@ -40,7 +40,7 @@ PRIORITY_REPOSITORIES = [
     "core.ac.uk", "doaj.org", "arxiv.org", "iaescore.com",
 ]
 
-# Domain akademik Indonesia valid yang terkonfirmasi muncul di laporan Turnitin
+# Domain akademik Indonesia valid yang terkonfirmasi muncul di laporan Commercial Standard
 # untuk kedua dokumen uji (dibersihkan dari artefak parsing). Dipakai sebagai
 # ekstensi Tier-2 daftar prioritas repositori.
 CONFIRMED_ACADEMIC_DOMAINS = [

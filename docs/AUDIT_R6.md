@@ -322,7 +322,7 @@
 
 **Analisis:**
 
-- Hanya 2 dokumen benchmark dengan Turnitin target masing-masing 8% dan 18%.
+- Hanya 2 dokumen benchmark dengan Commercial Standard target masing-masing 8% dan 18%.
 - Sweep threshold dari 0.85 → 0.95 menunjukkan gap yang signifikan.
 - Formula `0.8000 + 0.0200 * sqrt(ngram_similarity)` adalah **heuristik continuous** yang menghindari overfitting ke titik diskrit.
 - **Risiko:** Dengan hanya 2 data point, formula bisa jadi **underfitting** (terlalu general) atau **overfitting** (terlalu spesifik ke 2 dokumen ini).

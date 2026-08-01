@@ -32,7 +32,7 @@ Coverage lebih merata ke seluruh bab dokumen.
 
 ### 1.3 Kalibrasi Akurasi (Task #6)
 
-**Target Turnitin asli:**
+**Target Commercial Standard asli:**
 - `skripsi.pdf` (TSP): **8%**
 - `skripsi_final_Trunitin_asli.pdf`: **18%**
 
@@ -55,7 +55,7 @@ Coverage lebih merata ke seluruh bab dokumen.
 
 4. **Domain Grouping Dihapus** (`server.py`)
    - Per-URL corpus matching (lebih akurat, sesuai rekomendasi audit R3 LOG-04)
-   - `round()` menggantikan `math.floor()` untuk pembulatan skor (konsisten Turnitin)
+   - `round()` menggantikan `math.floor()` untuk pembulatan skor (konsisten Commercial Standard)
 
 ---
 
@@ -100,7 +100,7 @@ Coverage lebih merata ke seluruh bab dokumen.
 
 | ID | Temuan | Catatan |
 |----|--------|---------|
-| LOG-03 | N-Gram non-fuzzy | Desain — exact match sesuai Turnitin |
+| LOG-03 | N-Gram non-fuzzy | Desain — exact match sesuai Commercial Standard |
 | JRN-05 | Repo Indonesia selector rapuh | Functional tapi CSS selectors bisa berubah |
 | EXT-01 | PDF scan tanpa OCR | Perlu pytesseract |
 | UI-02 | Rate limiting | Perlu Flask-Limiter |
@@ -170,18 +170,18 @@ Uji terkontrol dengan corpus sintetis ber-ground-truth diketahui pasti:
 | Frasa plagiat 14 kata dari 93 | 15.1% | 14.0% | 1.1 pt | PASS |
 | Boilerplate identik | tinggi | 93.8% | - | PASS (copy nyata tetap terdeteksi) |
 
-**Deviasi 1.1 poin** pada test frasa adalah efek batas n-gram (frasa 14 kata = 10 buah 5-gram; kata di tepi yang tak membentuk 5-gram penuh tak tertandai). Ini **perilaku identik Turnitin** — bukan cacat.
+**Deviasi 1.1 poin** pada test frasa adalah efek batas n-gram (frasa 14 kata = 10 buah 5-gram; kata di tepi yang tak membentuk 5-gram penuh tak tertandai). Ini **perilaku identik Commercial Standard** — bukan cacat.
 
 ## R5.5 — KESIMPULAN VALIDITAS
 
 **Apakah skor valid & dapat dipertanggungjawabkan?** YA, dengan kualifikasi jelas:
 
 1. **Algoritma valid secara matematis** — 0% untuk orisinal, 100% untuk copy, proporsional di tengah. Tidak ada manipulasi/skew buatan pada skor akhir.
-2. **Skor = fungsi dari corpus** — Local Turnitin ini menghitung `(kata_terdeteksi / total_kata) × 100%` secara akurat. Skor sepenuhnya ditentukan oleh **cakupan corpus** yang berhasil dikumpulkan.
-3. **Tidak akan persis sama Turnitin asli** — Turnitin punya database berbayar 200M+ dokumen + repositori mahasiswa privat yang **tidak mungkin** diakses gratis. Selama sumber persis tidak ditemukan, skor lokal cenderung **lebih rendah** (konservatif) — ini justru aman: tidak akan menuduh plagiat secara berlebihan.
-4. **Untuk topik yang sumbernya open-access** (jurnal Indonesia di BSI/Garuda/DOAJ/Crossref/OpenAlex), skor akan mendekati Turnitin. Untuk sumber di balik paywall atau repositori privat, akan meleset ke bawah.
+2. **Skor = fungsi dari corpus** — Local Commercial Standard ini menghitung `(kata_terdeteksi / total_kata) × 100%` secara akurat. Skor sepenuhnya ditentukan oleh **cakupan corpus** yang berhasil dikumpulkan.
+3. **Tidak akan persis sama Commercial Standard asli** — Commercial Standard punya database berbayar 200M+ dokumen + repositori mahasiswa privat yang **tidak mungkin** diakses gratis. Selama sumber persis tidak ditemukan, skor lokal cenderung **lebih rendah** (konservatif) — ini justru aman: tidak akan menuduh plagiat secara berlebihan.
+4. **Untuk topik yang sumbernya open-access** (jurnal Indonesia di BSI/Garuda/DOAJ/Crossref/OpenAlex), skor akan mendekati Commercial Standard. Untuk sumber di balik paywall atau repositori privat, akan meleset ke bawah.
 
-**Rekomendasi jujur untuk skripsi:** Gunakan sebagai **pre-check** — jika lokal sudah menunjukkan X%, Turnitin asli kemungkinan >= X% (karena database Turnitin lebih besar). Bukan pengganti Turnitin resmi kampus.
+**Rekomendasi jujur untuk skripsi:** Gunakan sebagai **pre-check** — jika lokal sudah menunjukkan X%, Commercial Standard asli kemungkinan >= X% (karena database Commercial Standard lebih besar). Bukan pengganti Commercial Standard resmi kampus.
 
 ## R5.6 — File Dimodifikasi (R5)
 

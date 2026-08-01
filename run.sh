@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ============================================================
-#  Turnitin Lokal — Cek Plagiarisme Skripsi Gratis (Linux/macOS)
+#  Open-Source Plagiarism Detection — Cek Plagiarisme Skripsi Gratis (Linux/macOS)
 # ============================================================
 
 cd "$(dirname "$0")" || exit 1

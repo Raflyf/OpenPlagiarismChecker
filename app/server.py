@@ -647,7 +647,7 @@ def download_report(file_id):
         if file_data and 'data' in file_data:
             filename = file_data['data'].get('filename', file_id)
 
-        download_name = f"{filename}_turnitin.pdf"
+        download_name = f"{filename}_Commercial Standard.pdf"
         return send_file(report_pdf_path, as_attachment=True, download_name=download_name)
     return "PDF Report tidak ditemukan.", 404
 

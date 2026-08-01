@@ -1,4 +1,4 @@
-# 🔍 AUDIT KOMPREHENSIF — Plagiarism Checker (Turnitin Lokal)
+# 🔍 AUDIT KOMPREHENSIF — Plagiarism Checker (Open-Source Plagiarism Detection)
 
 **Tanggal:** 31 Juli 2026
 **Scope:** Full codebase audit — Logic, Security, Database, Memory/Performance, Calculation Validity, Frontend
@@ -22,7 +22,7 @@
 
 ### Ringkasan Naratif
 
-Plagiarism checker ini merupakan aplikasi Flask lokal yang meniru alur kerja Turnitin: unggah PDF skripsi, cari sumber di internet/repositori akademik, bandingkan dengan algoritma N-Gram Shingling (5 kata), tambahkan layer semantic similarity, lalu hasilkan laporan PDF bergaya Originality Report. Berdasarkan 6 rangkaian audit yang telah dilakukan (sejak Juli 2026 hingga 31 Juli 2026), keseluruhan kode dasar telah mengalami perbaikan signifikan — 12+ isu sebelumnya telah terverifikasi fixed, termasuk bug agregasi `exclude_small`, hardcoded API keys, debug mode, shell injection, dan kerentanan lainnya.
+Plagiarism checker ini merupakan aplikasi Flask lokal yang meniru alur kerja Commercial Standard: unggah PDF skripsi, cari sumber di internet/repositori akademik, bandingkan dengan algoritma N-Gram Shingling (5 kata), tambahkan layer semantic similarity, lalu hasilkan laporan PDF bergaya Originality Report. Berdasarkan 6 rangkaian audit yang telah dilakukan (sejak Juli 2026 hingga 31 Juli 2026), keseluruhan kode dasar telah mengalami perbaikan signifikan — 12+ isu sebelumnya telah terverifikasi fixed, termasuk bug agregasi `exclude_small`, hardcoded API keys, debug mode, shell injection, dan kerentanan lainnya.
 
 Namun demikian, masih terdapat 9 isu kritis yang tersebar di 6 domain, terutama pada aspek keamanan (CSRF protection, hardcoded Supabase key, RLS) dan performa (race condition semantic model, thread pool explosion, memory allocation tidak terbatas). Formula perhitungan skor secara matematis benar dan defensible untuk keperluan sidang skripsi, tetapi klaim akurasi MAE 1.21% masih berisiko overfitting karena hanya dikalibrasi pada 8 dokumen tanpa hold-out validation.
 
@@ -233,7 +233,7 @@ Global Score = sum(is_matched_global) / total_doc_words × 100
 - **Gap filling konservatif:** Membutuhkan >=2 kata match di kedua sisi gap, mencegah bridging yang terlalu agresif
 - **Exclude_small:** Filter hanya untuk display, bukan agregasi — memastikan skor akurat
 
-**Kesimpulan:** Secara matematis, formula ini benar dan defensible. Implementasi N-Gram mirip dengan pendekatan Turnitin (exact 5-gram shingling).
+**Kesimpulan:** Secara matematis, formula ini benar dan defensible. Implementasi N-Gram mirip dengan pendekatan Commercial Standard (exact 5-gram shingling).
 
 ### Semantic Threshold: 7/10
 
@@ -281,7 +281,7 @@ thresh_val = 0.8000 + 0.0200 * math.sqrt(ngram_similarity)
 
 **Kekurangan:**
 
-- **Generalizability** ❌ — per-document corpus ≠ Turnitin's universal database
+- **Generalizability** ❌ — per-document corpus ≠ Commercial Standard's universal database
 - **Staleness** ❌ — sumber web berubah/hilang seiring waktu
 - **Scalability** ❌ — membutuhkan frozen corpus baru untuk setiap dokumen
 
@@ -370,8 +370,8 @@ thresh_val = 0.8000 + 0.0200 * math.sqrt(ngram_similarity)
 - MAE 1.21% adalah in-sample — **WAJIB dicantumkan caveat** dalam presentasi
 - Frozen corpus memastikan **reproducibility** — skor konsisten untuk dokumen yang sama
 - Semua fix dari audit sebelumnya sudah terverifikasi (12+ isu)
-- Algoritma defensible — mirip dengan pendekatan Turnitin (exact 5-gram)
-- **Caveat untuk sidang:** Tekankan bahwa ini adalah "local plagiarism pre-check" bukan "Turnitin replacement"
+- Algoritma defensible — mirip dengan pendekatan Commercial Standard (exact 5-gram)
+- **Caveat untuk sidang:** Tekankan bahwa ini adalah "local plagiarism pre-check" bukan "Commercial Standard replacement"
 
 ### Untuk Deploy Publik: ⚠️ CONDITIONAL
 
