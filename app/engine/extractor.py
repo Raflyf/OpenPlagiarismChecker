@@ -16,7 +16,9 @@ RE_SMART_QUOTES = re.compile(r'“[^”]{1,500}”')
 RE_NEWLINES = re.compile(r'\n+')
 RE_SENTENCE_SPLIT = re.compile(r'(?<=[.!?;])\s+')
 
-def detect_manipulation(text, hidden_word_count=0):
+from typing import List, Tuple, Optional
+
+def detect_manipulation(text: str, hidden_word_count: int = 0) -> List[str]:
     """Mendeteksi trik mahasiswa untuk mencurangi Commercial Standard"""
     warnings = []
     # 1. Deteksi Zero-Width Characters (diselipkan antar huruf agar kata tidak terbaca)
@@ -77,7 +79,7 @@ def _extract_visible_text(doc):
             visible_parts.append(" ")
     return "".join(visible_parts), hidden_word_count, any_dropped, hidden_spans
 
-def extract_text_from_pdf(filepath, exclude_quotes=True, exclude_biblio=True, return_hidden=False, fast_mode=False):
+def extract_text_from_pdf(filepath: str, exclude_quotes: bool = True, exclude_biblio: bool = True, return_hidden: bool = False, fast_mode: bool = False):
     """Extract text from PDF with robust error handling"""
     text = ""
     hidden_word_count = 0
@@ -184,7 +186,7 @@ def _extract_visible_docx(doc):
     return "".join(visible_parts), hidden_word_count, any_dropped, "".join(raw_parts)
 
 
-def extract_text_from_docx(docx_path, exclude_quotes=True, exclude_biblio=True, return_hidden=False, fast_mode=False):
+def extract_text_from_docx(docx_path: str, exclude_quotes: bool = True, exclude_biblio: bool = True, return_hidden: bool = False, fast_mode: bool = False):
     """Extract text from .docx (Word). Mendeteksi trik manipulasi font."""
     from docx import Document
     doc = Document(docx_path)
