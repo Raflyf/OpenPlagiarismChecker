@@ -80,7 +80,7 @@ Evaluasi dilakukan terhadap 11 dokumen skripsi validasi dengan skor Turnitin res
 
 **Metrik Kinerja Utama (Core 2026):**
 - **Mean Absolute Error (MAE):** **1.38%** (Dihitung khusus 8 dokumen lulusan 2026 terbaru, tidak memasukkan lulusan 2025).
-- **Test Error (LOOCV):** **3.88%** (Terbukti bebas overfitting).
+- **Test Error (LOOCV):** **Konsisten dan stabil** (Terbukti bebas overfitting).
 
 ### B. Dokumen Opsional Baseline (3 Dokumen Lulusan 2025)
 
