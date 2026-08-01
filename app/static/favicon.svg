@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="docGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#4facfe" />
+      <stop offset="100%" stop-color="#00f2fe" />
+    </linearGradient>
+  </defs>
+  
+  <!-- Document Base -->
+  <rect x="120" y="60" width="230" height="300" rx="20" fill="url(#docGrad)" />
+  
+  <!-- Document Lines -->
+  <line x1="160" y1="120" x2="310" y2="120" stroke="#fff" stroke-width="20" stroke-linecap="round"/>
+  <line x1="160" y1="180" x2="310" y2="180" stroke="#fff" stroke-width="20" stroke-linecap="round"/>
+  <line x1="160" y1="240" x2="260" y2="240" stroke="#fff" stroke-width="20" stroke-linecap="round"/>
+  
+  <!-- Magnifying Glass Base -->
+  <circle cx="340" cy="320" r="80" fill="none" stroke="#2c3e50" stroke-width="35" />
+  
+  <!-- Magnifying Glass Handle -->
+  <line x1="400" y1="380" x2="470" y2="450" stroke="#2c3e50" stroke-width="45" stroke-linecap="round"/>
+  
+  <!-- Magnifying Glass Inner Shine -->
+  <circle cx="340" cy="320" r="60" fill="#ffffff" fill-opacity="0.2" />
+</svg>

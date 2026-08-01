@@ -160,7 +160,7 @@ cleanup_thread.start()
 INTERNET_MAX_PROBES = int(os.environ.get("INTERNET_MAX_PROBES", "100"))
 
 
-def process_document(file_id, filepath, original_filename, exclude_quotes=True, exclude_biblio=True, exclude_small=False, use_semantic=False, use_internet=True, force_scrape=False):
+def process_document(file_id, filepath, original_filename, exclude_quotes=True, exclude_biblio=True, exclude_small=False, use_semantic=False, use_internet=True, force_scrape=False, exclude_abstract=True):
     def set_progress(pct, msg):
         with RESULTS_DB_LOCK:
             if file_id in results_db:
@@ -185,7 +185,7 @@ def process_document(file_id, filepath, original_filename, exclude_quotes=True, 
     try:
         set_progress(5, "Mengekstrak teks dari dokumen...")
         logger.info(f"Mulai ekstraksi teks dari: {filepath}")
-        extraction_result = extract_text_auto(filepath, exclude_quotes, exclude_biblio, return_hidden=True)
+        extraction_result = extract_text_auto(filepath, exclude_quotes, exclude_biblio, return_hidden=True, exclude_abstract=exclude_abstract)
         doc_text, manipulation_warnings, raw_text, hidden_spans = extraction_result
         sentences = get_sentences(doc_text)
         if check_cancelled(): return
@@ -453,6 +453,7 @@ def upload_file():
     file = request.files['file']
     exclude_quotes = request.form.get('exclude_quotes', 'true') == 'true'
     exclude_biblio = request.form.get('exclude_biblio', 'true') == 'true'
+    exclude_abstract = True  # Hidden / always on
     exclude_small = request.form.get('exclude_small') == 'true'
     # Deteksi parafrasa (Semantic AI) selalu nyala; UI tak lagi menampilkan opsinya.
     # Default True agar tetap aktif walau field 'use_semantic' tidak dikirim form.
@@ -506,7 +507,7 @@ def upload_file():
 
             'filename': filename
         }
-        thread = threading.Thread(target=process_document, args=(file_id, filepath, filename, exclude_quotes, exclude_biblio, exclude_small, use_semantic, True, force_scrape), daemon=True)
+        thread = threading.Thread(target=process_document, args=(file_id, filepath, filename, exclude_quotes, exclude_biblio, exclude_small, use_semantic, True, force_scrape, exclude_abstract), daemon=True)
         thread.start()
         
         return jsonify({'file_id': file_id, 'filename': filename})
