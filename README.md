@@ -1,57 +1,57 @@
 # OpenPlagiarismChecker
 
-An open-source academic text similarity engine with modular architecture and reproducible evaluation. 
+Sebuah mesin pengecek kesamaan teks akademik *open-source* dengan arsitektur modular dan evaluasi yang dapat direproduksi.
 
-The project detects exact text overlap using n-gram matching and handles paraphrased text using multilingual semantic similarity (via Sentence Transformers). It is designed for reproducible local evaluation, transparent inspection, and extensible experimentation, with a special focus on Indonesian academic sources.
+Proyek ini mendeteksi kecocokan teks persis menggunakan pencocokan n-gram dan menangani teks yang diparafrasakan menggunakan *multilingual semantic similarity* (via Sentence Transformers). Sistem ini dirancang untuk evaluasi lokal yang dapat direproduksi, inspeksi algoritma yang transparan, dan eksperimentasi, dengan fokus khusus pada sumber-sumber akademik berbahasa Indonesia.
 
-> **Disclaimer:** OpenPlagiarismChecker is an independent open-source project. It is not affiliated with, endorsed by, or intended to replace any commercial plagiarism detection service.
-
----
-
-## What this project is
-OpenPlagiarismChecker is a local, privacy-first document similarity checker. It processes PDF, DOCX, and TXT files, extracts the text, and cross-references it against millions of open-access academic papers, journals, and institutional repositories. By combining structural matching (n-gram shingling) and contextual matching (semantic similarity), it provides developers and researchers a transparent way to understand and analyze text overlap.
-
-## Why it matters
-Many plagiarism tools are closed, expensive, or opaque. This project provides a reproducible open-source alternative for students, developers, and researchers who want to inspect how similarity scoring works and improve it. The pipeline, search strategies, similarity algorithms, and evaluation methodologies are fully open for community review and contribution.
-
-## Project status
-This project is actively developed and used as a research and learning tool. The codebase is structured for iterative improvement, testing, and community contribution. 
-
-## How Claude will help
-Claude will be used to refactor code, improve documentation, review pull requests, help maintain cleaner architecture, and speed up development of open-source features and tests.
+> **Disklaimer:** OpenPlagiarismChecker adalah proyek *open-source* independen. Proyek ini tidak berafiliasi, didukung, atau dimaksudkan untuk menggantikan layanan deteksi plagiarisme komersial mana pun.
 
 ---
 
-## Key Features
-- **Exact Text Matching:** Uses 5-word n-gram shingling to detect direct text overlap.
-- **Semantic Similarity:** Employs `paraphrase-multilingual-MiniLM-L12-v2` for paraphrased content detection.
-- **File Support:** Processes PDF, DOCX, and TXT formats.
-- **Local Web Interface:** Easy-to-use local dashboard for document upload and analysis.
-- **Exportable Reports:** Generates structured HTML and PDF similarity reports.
-- **Extensive Public Sources:** Queries 15+ academic APIs and public repositories (e.g., Indonesia OneSearch, Neliti, BASE, Semantic Scholar, OpenAlex, arXiv).
-- **Modular Codebase:** Designed for experimentation and community contribution.
+## Apa Itu Proyek Ini (What this project is)
+OpenPlagiarismChecker adalah mesin pemeriksa kesamaan dokumen lokal yang mengutamakan privasi. Sistem memproses file PDF, DOCX, dan TXT, mengekstrak teksnya, lalu merujuk silang teks tersebut terhadap jutaan makalah akademik, jurnal, dan repositori institusi *open-access*. Dengan menggabungkan pencocokan struktural (*n-gram shingling*) dan kontekstual (*semantic similarity*), sistem ini memberikan transparansi bagi para *developer* dan peneliti untuk memahami dan menganalisis kecocokan (tumpang tindih) teks.
+
+## Mengapa Proyek Ini Penting (Why it matters)
+Banyak perangkat deteksi plagiarisme bersifat tertutup, mahal, atau tidak transparan. Proyek ini menyediakan alternatif *open-source* yang dapat direproduksi bagi pelajar, developer, dan peneliti yang ingin menginspeksi cara kerja penilaian kesamaan dokumen dan memperbaikinya. Keseluruhan *pipeline*, strategi pencarian, algoritma *similarity*, dan metodologi evaluasi dibuka sepenuhnya untuk tinjauan dan kontribusi komunitas.
+
+## Status Proyek (Project status)
+Proyek ini dikembangkan secara aktif dan digunakan sebagai perangkat riset serta pembelajaran. Repositori ini disusun secara modular untuk memungkinkan perbaikan iteratif, pengujian otomatis, dan kontribusi komunitas secara langsung.
+
+## Bagaimana Claude Akan Membantu (How Claude will help)
+Claude akan digunakan untuk memfaktorkan ulang (*refactor*) kode, memperbaiki dokumentasi, meninjau *pull request*, membantu menjaga arsitektur agar lebih bersih, serta mempercepat pengembangan fitur-fitur uji otomatis dan fungsionalitas *open-source*.
 
 ---
 
-## How It Works
-
-1. **Text Extraction:** Parses text from uploaded documents.
-2. **Sampling:** Generates short phrase probes from the document.
-3. **Source Discovery:** Queries public APIs and repositories using the probes.
-4. **Text Retrieval:** Downloads open-access metadata or full text of the candidate sources.
-5. **Layer 1 - Exact Match:** Applies n-gram shingling to find identical text segments.
-6. **Layer 2 - Semantic Match:** Analyzes unmatched segments using a dynamic semantic threshold to find paraphrasing.
-7. **Scoring:** Calculates the final ratio of matched words against the total document word count.
+## Fitur Utama
+- **Pencocokan Teks Persis (Exact Match):** Menggunakan metode *5-word n-gram shingling* untuk mendeteksi kecocokan teks secara langsung.
+- **Kesamaan Semantik (Semantic Similarity):** Memanfaatkan model `paraphrase-multilingual-MiniLM-L12-v2` untuk mendeteksi konten yang diparafrasakan.
+- **Dukungan Format File:** Memproses format PDF, DOCX, dan TXT.
+- **Antarmuka Web Lokal:** Dasbor lokal yang mudah digunakan untuk mengunggah dan menganalisis dokumen.
+- **Ekspor Laporan:** Menghasilkan laporan kesamaan terstruktur dalam format HTML dan PDF.
+- **Sumber Publik Ekstensif:** Melakukan pencarian dari 15+ API akademik dan repositori publik (seperti Indonesia OneSearch, Neliti, BASE, Semantic Scholar, OpenAlex, arXiv).
+- **Codebase Modular:** Dirancang khusus untuk eksperimen dan kontribusi komunitas.
 
 ---
 
-## Evaluation Benchmark
+## Cara Kerja
 
-The system is evaluated against a core benchmark of recent academic documents to measure the gap between the engine's score and baseline reference tools.
+1. **Ekstraksi Teks:** Membaca dan mem-parsing teks dari dokumen yang diunggah.
+2. **Pengambilan Sampel:** Menghasilkan potongan frasa pendek (*probe*) dari dokumen.
+3. **Pencarian Sumber:** Meminta data dari API publik dan repositori akademik menggunakan *probe*.
+4. **Pengambilan Teks (Retrieval):** Mengunduh metadata *open-access* atau teks penuh dari kandidat sumber.
+5. **Layer 1 - Exact Match:** Menerapkan *n-gram shingling* untuk menemukan segmen teks yang identik.
+6. **Layer 2 - Semantic Match:** Menganalisis segmen yang tidak cocok menggunakan batas bawah semantik (*dynamic threshold*) untuk menemukan parafrasa.
+7. **Penilaian Skor:** Menghitung rasio akhir antara jumlah kata yang cocok terhadap total jumlah kata dalam dokumen.
 
-**Core Benchmark (2026 dataset)**
+---
 
-| Document | Local Score | Reference Target | Delta (pp) |
+## Evaluasi Benchmark
+
+Sistem dievaluasi terhadap *core benchmark* dokumen akademik terbaru untuk mengukur perbedaan (*gap*) skor mesin lokal dengan perangkat referensi industri.
+
+**Core Benchmark (Dataset 2026)**
+
+| Dokumen | Skor Lokal | Target Referensi | Delta (poin persentase) |
 | :--- | :---: | :---: | :---: |
 | Laila after paraphrase | 3.45% | 4% | -0.55 |
 | Hesti | 16.91% | 18% | -1.09 |
@@ -62,26 +62,26 @@ The system is evaluated against a core benchmark of recent academic documents to
 | Melani | 18.74% | 19% | -0.26 |
 | Laila before paraphrase | 22.09% | 24% | -1.91 |
 
-*(Note: These results represent current benchmark performance and are continuously evaluated using Leave-One-Out Cross-Validation (LOOCV) to test threshold stability. They do not guarantee identical margins across all document types).*
+*(Catatan: Hasil ini mewakili performa pada dataset benchmark saat ini dan dievaluasi menggunakan metode Leave-One-Out Cross-Validation (LOOCV) untuk menguji stabilitas threshold. Hasil ini tidak menjamin margin perbedaan yang identik untuk seluruh jenis dokumen lainnya).*
 
 ---
 
-## Installation
+## Instalasi
 
-### 1-Click Setup
-Clone or download this repository, then run the startup script for your OS:
-- **Windows:** Double click `run.bat`
-- **Linux / macOS:** Run `./run.sh`
+### Setup 1-Klik (1-Click Run)
+*Clone* atau unduh repositori ini, lalu jalankan *script startup* sesuai sistem operasi Anda:
+- **Windows:** Klik ganda file `run.bat`
+- **Linux / macOS:** Buka terminal dan jalankan `./run.sh`
 
-The script automatically sets up the virtual environment, installs dependencies, and launches the web interface at `http://localhost:5001`.
+*Script* akan secara otomatis mengatur *virtual environment*, menginstal dependensi, dan membuka antarmuka web di `http://localhost:5001`.
 
-### Manual Installation
-1. Clone the repository:
+### Instalasi Manual (Bagi Developer)
+1. Clone repositori:
    ```bash
    git clone https://github.com/Raflyf/OpenPlagiarismChecker.git
    cd OpenPlagiarismChecker
    ```
-2. Create and activate a virtual environment:
+2. Buat dan aktifkan *virtual environment*:
    ```bash
    python -m venv .venv
    # Windows:
@@ -89,11 +89,11 @@ The script automatically sets up the virtual environment, installs dependencies,
    # Linux/macOS:
    source .venv/bin/activate
    ```
-3. Install dependencies:
+3. Install dependensi:
    ```bash
    pip install -r requirements.txt
    ```
-4. Run the server:
+4. Jalankan *server*:
    ```bash
    cd app
    python server.py
@@ -101,56 +101,56 @@ The script automatically sets up the virtual environment, installs dependencies,
 
 ---
 
-## Project Architecture
+## Arsitektur Proyek
 
 ```text
 OpenPlagiarismChecker/
 ├── app/
-│   ├── server.py                 # Flask server 
-│   ├── run_batch.py              # Batch execution runner
-│   ├── run_test_groundtruth.py   # Validation runner
-│   ├── calibrate_threshold.py    # Semantic threshold calibration
-│   ├── test_documents/           # Benchmark documents
-│   ├── frozen_corpus/            # Cached deterministic evaluation corpus
-│   ├── corpus_bank/              # SQLite3 cache database
+│   ├── server.py                 # Flask server (port 5001 / 5000)
+│   ├── run_batch.py              # Runner eksekusi evaluasi batch
+│   ├── run_test_groundtruth.py   # Runner validasi & freeze corpus
+│   ├── calibrate_threshold.py    # Kalibrasi threshold semantik
+│   ├── test_documents/           # Dokumen uji & benchmark
+│   ├── frozen_corpus/            # Korpus cache untuk evaluasi deterministik
+│   ├── corpus_bank/              # Database cache SQLite3
 │   ├── engine/
-│   │   ├── extractor.py          # Document parsing
-│   │   ├── shingling.py          # N-Gram logic & thresholding
-│   │   ├── semantic_similarity.py# Sentence-transformers pipeline
-│   │   ├── web_scraper.py        # Concurrent web retrieval
-│   │   ├── pdf_generator.py      # Report export
-│   │   ├── priority_domains.py   # Academic repository mapping
-│   │   ├── indonesian_repos.py   # Targeted repository scraper
-│   │   └── free_api_fallbacks.py # API fallback handlers
-│   ├── templates/                # Web interface HTML
-│   └── static/                   # CSS and JS assets
+│   │   ├── extractor.py          # Ekstraksi dan parsing dokumen
+│   │   ├── shingling.py          # Logika N-Gram & thresholding
+│   │   ├── semantic_similarity.py# Pipeline Sentence-transformers
+│   │   ├── web_scraper.py        # Pengambilan sumber web konkuren (concurrency)
+│   │   ├── pdf_generator.py      # Ekspor Laporan PDF
+│   │   ├── priority_domains.py   # Pemetaan repositori prioritas
+│   │   ├── indonesian_repos.py   # Scraper langsung ke repositori kampus spesifik
+│   │   └── free_api_fallbacks.py # Handler cadangan API gratis
+│   ├── templates/                # Template antarmuka web (HTML)
+│   └── static/                   # Aset CSS & JavaScript
 └── requirements.txt
 ```
 
 ---
 
 ## Roadmap
-- Expand the independent benchmark dataset across different languages and fields.
-- Improve source discovery efficiency and reduce retrieval timeouts.
-- Refine semantic similarity filtering to lower false-positive rates.
-- Add comprehensive automated unit and integration tests.
-- Improve developer documentation for individual engine components.
+- Memperluas kumpulan data benchmark independen lintas disiplin ilmu dan bahasa.
+- Memperbaiki efisiensi penemuan sumber dan mengurangi *timeout* pengambilan data.
+- Menyempurnakan penyaringan kesamaan semantik untuk menekan persentase *false-positive*.
+- Menambahkan uji *unit testing* dan integrasi otomatis secara komprehensif.
+- Memperbaiki dokumentasi *developer* untuk tiap komponen algoritma mesin deteksi.
 
 ---
 
-## Contribution
-Contributions are highly welcomed. You can contribute by:
-- Integrating new academic APIs or repositories.
-- Adding verifiable benchmark datasets.
-- Writing unit and integration tests.
-- Optimizing CPU/GPU processing performance.
-- Submitting bug fixes.
+## Kontribusi
+Kontribusi komunitas sangat diterima. Anda dapat berpartisipasi dengan cara:
+- Mengintegrasikan API akademik atau repositori kampus baru.
+- Menambahkan dataset benchmark yang dapat diverifikasi.
+- Menulis uji fungsional (*unit testing* dan *integration tests*).
+- Mengoptimalkan performa pemrosesan paralel (CPU/GPU).
+- Mengirimkan perbaikan *bug* (Bug fixes).
 
-Please feel free to open an **Issue** or submit a **Pull Request**.
+Silakan buat **Issue** baru atau kirimkan **Pull Request**.
 
 ---
 
-## License
-OpenPlagiarismChecker is released under the **MIT License**.
+## Lisensi
+OpenPlagiarismChecker dirilis menggunakan **Lisensi MIT**.
 
-This project is intended for open-source research, education, experimentation, and independent similarity analysis.
+Proyek ini ditujukan secara murni untuk riset open-source, pendidikan, eksperimen algoritma, dan analisis kesamaan dokumen secara independen.
