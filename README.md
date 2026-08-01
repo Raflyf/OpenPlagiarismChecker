@@ -92,7 +92,7 @@ Web localhost memakai **metodologi identik** dengan runner validasi (`run_test_g
 - Kalimat yang TIDAK terdeteksi N-Gram (<30% match) dicek ulang.
 - Menggunakan model `paraphrase-multilingual-MiniLM-L12-v2` (dukung bahasa Indonesia).
 - Threshold otomatis menggunakan sistem Continuous Square-Root Auto-Thresholding (v4.6) yang dikalibrasi presisi terhadap 11 dokumen ground truth:
-  $$\text{Threshold} = 0.7900 + 0.0250 \times \sqrt{\text{NGram\_Similarity}}$$
+  $$\text{Threshold} = 0.7900 + 0.0250 \times \sqrt{\text{NGram Similarity}}$$
 - Pure continuous mathematical function tanpa branching/if-else (murni anti-overfitting).
 - GPU auto-detect (CUDA); fallback CPU.
 - Tidak ada double counting — hanya menambah kata yang belum terdeteksi N-Gram.
@@ -220,7 +220,7 @@ Skor Total = (Kata Ter-match N-Gram + Kata Ter-match Semantic) / Total Kata Doku
 - Setiap kata dihitung **sekali** meskipun cocok dengan banyak sumber (union, bukan sum).
 - `exclude_small` hanya memfilter **daftar tampilan** sumber per-dokumen, TIDAK memengaruhi skor total — persis perilaku Turnitin.
 - Threshold semantic otomatis menggunakan sistem Continuous Square-Root Auto-Thresholding (v4.6) yang dikalibrasi secara dinamis terhadap dokumen ground truth:
-  $$\text{Threshold} = 0.7900 + 0.0250 \times \sqrt{\text{NGram\_Similarity}}$$
+  $$\text{Threshold} = 0.7900 + 0.0250 \times \sqrt{\text{NGram Similarity}}$$
 
 ---
 
@@ -234,14 +234,14 @@ Skor Total = (Kata Ter-match N-Gram + Kata Ter-match Semantic) / Total Kata Doku
 
 ### v4.6 (Current) — Empirically Optimal Thresholding & Robust Security Audit
 
-- **Update Parameter Auto-Thresholding v4.6**: Penyesuaian empiris terbaik *Continuous Square-Root Auto-Thresholding* menjadi $0.7900 + 0.0250 \times \sqrt{\text{NGram\_Sim}}$. Divalidasi bebas *overfitting* via Leave-One-Out Cross Validation (LOOCV) di *advanced_validation.py* (Test MAE konsisten stabil).
+- **Update Parameter Auto-Thresholding v4.6**: Penyesuaian empiris terbaik *Continuous Square-Root Auto-Thresholding* menjadi $0.7900 + 0.0250 \times \sqrt{\text{NGram Sim}}$. Divalidasi bebas *overfitting* via Leave-One-Out Cross Validation (LOOCV) di *advanced_validation.py* (Test MAE konsisten stabil).
 - **Security Hardening (100% Audit Passed)**: Perbaikan total semua isu keamanan tinggi-kritis dari *code review* eksternal. Di antaranya CSRF Protection, HSTS/CSP Headers, sanitasi input subprocess, validasi *magic bytes* MIME, serta pembatasan *thread explosion* (`CONCURRENCY_SEMAPHORE = 4`).
 - **Disk Caching for PyTorch Optimization**: Memperkenalkan metode *memoization cache* berbasis disk O(1) yang memangkas waktu kalkulasi Grid Search PyTorch (LOOCV) dari 40+ Jam menjadi kurang dari 1 detik pada tahapan iterasi tes selanjutnya.
 - **SQLite Corpus Streaming**: Optimasi *memory footprint* dengan mengubah `load_corpus_bank()` dari pemuatan array masif 150MB ke RAM menjadi kueri asinkron/generator langsung ke `bank.db`.
 
 ### v4.5 — Continuous Square-Root Auto-Thresholding & 15 API Paralel
 
-- **Continuous Square-Root Auto-Thresholding (v4.5)**: Mengimplementasikan fungsi matematika kontinu $Threshold = 0.8000 + 0.0200 \times \sqrt{\text{NGram\_Sim}}$ murni tanpa percabangan `if-else` buatan (100% anti-overfitting).
+- **Continuous Square-Root Auto-Thresholding (v4.5)**: Mengimplementasikan fungsi matematika kontinu $Threshold = 0.8000 + 0.0200 \times \sqrt{\text{NGram Sim}}$ murni tanpa percabangan `if-else` buatan (100% anti-overfitting).
 - **Pembersihan Corpus Beku & Storage Optimization**: Menghapus file JSON corpus beku lawas dan file cadangan `bank.json.bak` (155 MB), menyisakan tepat 11 korpus beku presisi yang 100% konsisten.
 - **Pemisahan Klasifikasi Dokumen Ground Truth**: Mengategorikan 11 dokumen validasi menjadi _Core Benchmark 2026_ (8 dokumen terbaru dengan akurasi selisih gap maksimal $\le 4\%$) dan _Opsional Baseline 2025_ (3 dokumen lulusan 2025: Ihsan, Tsaura, Tesyar).
 - **Sistem Anti-Cheat Sempurna & Spacing Guard**: Berhasil mengidentifikasi dan membongkar trik manipulasi dokumen seperti "Teks Putih" (_Hidden Text_ / font 1pt) dengan penanganan alokasi spasi yang presisi agar N-Gram tidak terdistorsi.
