@@ -34,6 +34,8 @@ from engine.supabase_client import (
 
 # Thread-local HTTP session untuk connection pooling (reuse koneksi TCP)
 _thread_local = _threading.local()
+from contextlib import closing
+from typing import Dict, Set, Optional
 
 def _get_session():
     """Mendapatkan requests.Session untuk thread saat ini (thread-safe)."""
@@ -79,113 +81,95 @@ def init_bank_db():
     """Inisialisasi tabel SQLite3 dan lakukan auto-migrasi dari bank.json jika ada."""
     os.makedirs(os.path.dirname(_BANK_DB_PATH), exist_ok=True)
     with _bank_lock:
-        conn = _sqlite3.connect(_BANK_DB_PATH)
-        cur = conn.cursor()
-        cur.execute("CREATE TABLE IF NOT EXISTS corpus (url TEXT PRIMARY KEY, text TEXT)")
-        conn.commit()
-        
-        # Migrasi otomatis jika bank.json versi lama ada
-        if os.path.exists(_BANK_JSON_PATH):
-            try:
-                logger.info("[Bank] Mengimpor data lama dari bank.json ke SQLite bank.db...")
-                with open(_BANK_JSON_PATH, "r", encoding="utf-8") as f:
-                    data = _json.load(f)
-                items = [(u, t) for u, t in data.items() if len(t) > 150]
-                cur.executemany("INSERT OR IGNORE INTO corpus (url, text) VALUES (?, ?)", items)
-                conn.commit()
-                logger.info(f"[Bank] Berhasil migrasi {len(items)} sumber ke bank.db SQLite.")
-                # Ubah nama bank.json agar tidak dibaca lagi (gunakan os.replace agar menimpa jika .bak sudah ada)
-                os.replace(_BANK_JSON_PATH, _BANK_JSON_PATH + ".bak")
-            except Exception as e:
-                logger.info("[Bank] Warning migrasi: {e}")
-        conn.close()
+        with closing(_sqlite3.connect(_BANK_DB_PATH)) as conn:
+            cur = conn.cursor()
+            cur.execute("CREATE TABLE IF NOT EXISTS corpus (url TEXT PRIMARY KEY, text TEXT)")
+            conn.commit()
+            
+            # Migrasi otomatis jika bank.json versi lama ada
+            if os.path.exists(_BANK_JSON_PATH):
+                try:
+                    logger.info("[Bank] Mengimpor data lama dari bank.json ke SQLite bank.db...")
+                    with open(_BANK_JSON_PATH, "r", encoding="utf-8") as f:
+                        data = _json.load(f)
+                    items = [(u, t) for u, t in data.items() if len(t) > 150]
+                    cur.executemany("INSERT OR IGNORE INTO corpus (url, text) VALUES (?, ?)", items)
+                    conn.commit()
+                    logger.info(f"[Bank] Berhasil migrasi {len(items)} sumber ke bank.db SQLite.")
+                    os.replace(_BANK_JSON_PATH, _BANK_JSON_PATH + ".bak")
+                except Exception as e:
+                    logger.info("[Bank] Warning migrasi: %s", e)
 
-def get_bank_urls():
+def get_bank_urls() -> Set[str]:
     """Mengembalikan set URL yang tersimpan di bank.db lokal & Supabase (instan <1ms)."""
     urls = set()
     try:
         init_bank_db()
-        conn = _sqlite3.connect(_BANK_DB_PATH)
-        cur = conn.cursor()
-        cur.execute("SELECT url FROM corpus")
-        urls.update(row[0] for row in cur.fetchall())
-        conn.close()
+        with closing(_sqlite3.connect(_BANK_DB_PATH)) as conn:
+            cur = conn.cursor()
+            cur.execute("SELECT url FROM corpus")
+            urls.update(row[0] for row in cur.fetchall())
     except Exception as e:
-        logger.info("[Bank] Warning read bank_urls local: {e}")
+        logger.info("[Bank] Warning read bank_urls local: %s", e)
         
-    supa_urls = get_bank_urls_supabase()
-    if supa_urls:
+    if supa_urls := get_bank_urls_supabase():
         urls.update(supa_urls)
         
     return urls
 
-def get_bank_texts(target_urls):
-    """Mengambil teks spesifik HANYA untuk target_urls dari bank.db lokal (instan <1ms), lalu Supabase jika ada missing."""
-    if not target_urls:
-        return {}
+def get_bank_texts(target_urls: list[str]) -> Dict[str, str]:
+    """Mengambil teks spesifik HANYA untuk target_urls dari bank.db lokal, lalu Supabase."""
+    if not target_urls: return {}
         
     result = {}
     target_set = set(target_urls)
     
-    # 1. Cek bank.db lokal dulu (super cepat <1ms)
     try:
         init_bank_db()
-        conn = _sqlite3.connect(_BANK_DB_PATH)
-        cur = conn.cursor()
-        target_list = list(target_set)
-        for i in range(0, len(target_list), 500):
-            batch = target_list[i:i+500]
-            placeholders = ",".join("?" for _ in batch)
-            cur.execute(f"SELECT url, text FROM corpus WHERE url IN ({placeholders})", batch)
-            for url, text in cur.fetchall():
-                result[url] = text
-        conn.close()
+        with closing(_sqlite3.connect(_BANK_DB_PATH)) as conn:
+            cur = conn.cursor()
+            target_list = list(target_set)
+            for i in range(0, len(target_list), 500):
+                batch = target_list[i:i+500]
+                placeholders = ",".join("?" for _ in batch)
+                cur.execute(f"SELECT url, text FROM corpus WHERE url IN ({placeholders})", batch)
+                result.update({url: text for url, text in cur.fetchall()})
     except Exception as e:
-        logger.info("[Bank] Warning read bank.db: {e}")
+        logger.info("[Bank] Warning read bank.db: %s", e)
         
-    # 2. Cek Supabase untuk URL yang belum ketemu di lokal
-    missing_urls = target_set - set(result.keys())
-    if missing_urls:
-        supa_texts = get_bank_texts_supabase(missing_urls)
-        if supa_texts:
+    if missing_urls := target_set - set(result.keys()):
+        if supa_texts := get_bank_texts_supabase(missing_urls):
             result.update(supa_texts)
             
     return result
 
-def load_corpus_bank(target_urls=None):
+def load_corpus_bank(target_urls: Optional[list[str]] = None) -> Dict[str, str]:
     """Load bank corpus on-demand for specific target_urls to prevent RAM explosion."""
     if target_urls:
         return get_bank_texts(target_urls)
-    # Fallback jika dipanggil tanpa filter: baca via cursor generator (lightweight)
     init_bank_db()
-    conn = _sqlite3.connect(_BANK_DB_PATH)
-    cur = conn.cursor()
-    cur.execute("SELECT url, text FROM corpus")
-    data = {}
-    for row in cur:
-        data[row[0]] = row[1]
-    conn.close()
-    return data
+    with closing(_sqlite3.connect(_BANK_DB_PATH)) as conn:
+        cur = conn.cursor()
+        cur.execute("SELECT url, text FROM corpus")
+        return {row[0]: row[1] for row in cur}
 
-def save_to_corpus_bank_local(new_corpus):
+def save_to_corpus_bank_local(new_corpus: Dict[str, str]):
     """Simpan sumber baru HANYA ke bank.db SQLite (Lokal)."""
-    if not new_corpus:
-        return
+    if not new_corpus: return
         
     init_bank_db()
     with _bank_lock:
         try:
-            conn = _sqlite3.connect(_BANK_DB_PATH)
-            cur = conn.cursor()
-            items = [(u, t) for u, t in new_corpus.items() if isinstance(t, str) and len(t) > 150]
-            cur.executemany("INSERT OR IGNORE INTO corpus (url, text) VALUES (?, ?)", items)
-            conn.commit()
-            cur.execute("SELECT COUNT(*) FROM corpus")
-            total = cur.fetchone()[0]
-            conn.close()
-            logger.info(f"[Bank] Tersimpan ke bank.db (total: {total} sumber)")
+            with closing(_sqlite3.connect(_BANK_DB_PATH)) as conn:
+                cur = conn.cursor()
+                items = [(u, t) for u, t in new_corpus.items() if isinstance(t, str) and len(t) > 150]
+                cur.executemany("INSERT OR IGNORE INTO corpus (url, text) VALUES (?, ?)", items)
+                conn.commit()
+                cur.execute("SELECT COUNT(*) FROM corpus")
+                total = cur.fetchone()[0]
+                logger.info("[Bank] Tersimpan ke bank.db (total: %s sumber)", total)
         except Exception as e:
-            logger.info(f"[Bank] PERINGATAN: gagal menyimpan ke bank.db: {e}")
+            logger.info("[Bank] PERINGATAN: gagal menyimpan ke bank.db: %s", e)
 
 def save_to_corpus_bank(new_corpus):
     """Simpan sumber baru ke bank.db SQLite (instan <1ms) & Supabase Cloud (async background thread, zero delay)."""

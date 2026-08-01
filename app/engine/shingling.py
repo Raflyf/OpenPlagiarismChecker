@@ -52,55 +52,36 @@ def is_common_phrase(ngram_text):
         return True
     return any(phrase in ngram_text for phrase in COMMON_ACADEMIC_PHRASES)
 
-def get_sentences(text, filter_short=False):
+def get_sentences(text: str, filter_short: bool = False) -> list[str]:
     text = RE_NEWLINE.sub('. ', text)
     sentences = RE_SENTENCE_SPLIT.split(text)
     if filter_short:
         return [s.strip() for s in sentences if len(s.split()) >= 3]
     return [s.strip() for s in sentences if s.strip()]
 
-def build_sentence_word_spans(doc_text, max_words=DEFAULT_CHUNK_MAX_WORDS):
-    doc_words = doc_text.split()
+def build_sentence_word_spans(doc_text: str, max_words: int = DEFAULT_CHUNK_MAX_WORDS) -> list[tuple[str, int, int]]:
     spans = []
-    
-    sentences_raw = RE_RAW_SENTENCE_SPLIT.split(doc_text)
     current_word_idx = 0
-    
-    for raw_sent in sentences_raw:
-        raw_sent = raw_sent.strip()
-        if not raw_sent: continue
-        
-        words_in_sent = raw_sent.split()
-        for i in range(0, len(words_in_sent), max_words):
-            chunk_words = words_in_sent[i:i+max_words]
-            chunk_len = len(chunk_words)
-            chunk_text = ' '.join(chunk_words)
-            
-            start_idx = current_word_idx
-            end_idx = current_word_idx + chunk_len
-            
-            spans.append((chunk_text, start_idx, end_idx))
+    for raw_sent in RE_RAW_SENTENCE_SPLIT.split(doc_text):
+        if not (raw_sent := raw_sent.strip()): continue
+        words = raw_sent.split()
+        for i in range(0, len(words), max_words):
+            chunk = words[i:i+max_words]
+            chunk_len = len(chunk)
+            spans.append((' '.join(chunk), current_word_idx, current_word_idx + chunk_len))
             current_word_idx += chunk_len
-            
     return spans
 
 @lru_cache(maxsize=20000)
-def get_ngrams_cached(text, n=NGRAM_SIZE):
-    text = RE_HYPHENATION.sub('', text)
-    text = RE_NON_ALPHANUMERIC.sub('', text)
-    words = text.lower().split()
-    ngrams = []
-    for i in range(len(words)-n+1):
-        gram = " ".join(words[i:i+n])
-        if not is_common_phrase(gram):
-            ngrams.append(gram)
-    return ngrams
+def get_ngrams_cached(text: str, n: int = NGRAM_SIZE) -> list[str]:
+    words = RE_NON_ALPHANUMERIC.sub('', RE_HYPHENATION.sub('', text)).lower().split()
+    return [g for i in range(len(words)-n+1) if not is_common_phrase(g := " ".join(words[i:i+n]))]
 
-def get_ngrams(text, n=NGRAM_SIZE):
+def get_ngrams(text: str, n: int = NGRAM_SIZE) -> list[str]:
     return get_ngrams_cached(text, n)
 
-def get_shingles(text, n=NGRAM_SIZE):
-    return set(get_ngrams(text, n))
+def get_shingles(text: str, n: int = NGRAM_SIZE) -> set[str]:
+    return set(get_ngrams_cached(text, n))
 
 
 class SimilarityCalculator:
@@ -154,15 +135,14 @@ class SimilarityCalculator:
             return True
         return False
 
-    def _fill_gaps(self, match_array):
+    def _fill_gaps(self, match_array: list[bool]):
         """Gap Filling konservatif: butuh >= 2 kata match di KEDUA sisi gap"""
-        for i in range(len(match_array) - 4):
+        n = len(match_array)
+        for i in range(n - 4):
             if match_array[i] and i > 0 and match_array[i-1] and not match_array[i+1]:
-                for gap in range(2, 4):
-                    if i + gap < len(match_array) and match_array[i+gap]:
-                        if i + gap + 1 < len(match_array) and match_array[i+gap+1]:
-                            for fill in range(1, gap):
-                                match_array[i+fill] = True
+                for gap in (2, 3):
+                    if i + gap + 1 < n and match_array[i+gap] and match_array[i+gap+1]:
+                        match_array[i+1:i+gap] = [True] * (gap - 1)
                         break
 
     def calculate(self):

@@ -10,6 +10,7 @@ import gc
 import os
 
 import threading
+from typing import Dict, List, Any, Optional
 
 # Global model instance (loaded once for efficiency)
 _model = None
@@ -38,7 +39,7 @@ def get_model(force_cpu=False):
                 return loaded_model
     return _model
 
-def calculate_semantic_similarity(sentence1, sentence2):
+def calculate_semantic_similarity(sentence1: str, sentence2: str) -> float:
     """
     Calculate semantic similarity between two sentences.
     """
@@ -58,7 +59,7 @@ def calculate_semantic_similarity(sentence1, sentence2):
     similarity = util.pytorch_cos_sim(embedding1, embedding2).item()
     return similarity
 
-def find_semantic_matches(query_sentences, corpus_sentences, threshold=0.88):
+def find_semantic_matches(query_sentences: List[str], corpus_sentences: Dict[str, List[str]], threshold: float = 0.88) -> Dict[int, List[Dict[str, Any]]]:
     model = get_model()
     print(f"[!] Generating embeddings for {len(query_sentences)} query sentences...")
     try:
@@ -106,7 +107,7 @@ def find_semantic_matches(query_sentences, corpus_sentences, threshold=0.88):
         semantic_matches[query_idx].sort(key=lambda x: x['similarity_score'], reverse=True)
     return semantic_matches
 
-def batch_semantic_check(unmatched_sentences, corpus_sentences, threshold=0.88, batch_size=64):
+def batch_semantic_check(unmatched_sentences: List[str], corpus_sentences: Dict[str, List[str]], threshold: float = 0.88, batch_size: int = 64) -> Dict[int, List[Dict[str, Any]]]:
     if not unmatched_sentences:
         return {}
     
