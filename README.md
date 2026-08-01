@@ -15,8 +15,6 @@ Banyak perangkat deteksi plagiarisme bersifat tertutup dan mahal. Proyek ini men
 ## Status Proyek
 Proyek ini dikembangkan secara aktif sebagai perangkat riset. Repositori ini disusun secara modular untuk memfasilitasi eksperimen algoritma, pengujian, dan kontribusi komunitas.
 
-## Bagaimana Claude Akan Membantu
-Claude akan digunakan untuk memfaktorkan ulang (*refactor*) kode, merapikan dokumentasi, meninjau *pull request*, membantu meninjau dan meningkatkan arsitektur perangkat lunak, serta mempercepat implementasi uji otomatis (*automated tests*).
 
 ---
 
