@@ -1,20 +1,125 @@
-# Open-Source Plagiarism Detection — Mesin Cek Plagiarisme & Kesamaan Teks
+# OpenPlagiarismChecker — Mesin Cek Plagiarisme & Kesamaan Teks
 
-Alat pengecek plagiarisme sumber terbuka (open-source) yang dirancang secara profesional untuk mendeteksi kecocokan teks persis (_N-Gram exact match_) dan parafrasa semantik (_semantic similarity_). Sistem ini menggunakan kecerdasan buatan untuk mencocokkan dokumen terhadap jutaan sumber akademik publik di internet. Dibangun untuk memberikan solusi deteksi plagiarisme yang transparan, dapat diaudit, dan gratis bagi mahasiswa, dosen, maupun institusi pendidikan.
+OpenPlagiarismChecker adalah sistem **open-source untuk deteksi plagiarisme dan kesamaan dokumen** yang dirancang terutama untuk dokumen akademik, dengan fokus khusus pada sumber berbahasa Indonesia.
 
-Sistem ini memberikan estimasi skor kesamaan teks yang sangat presisi (selisih rata-rata / MAE hanya **0.91%** pada benchmark dokumen uji terbaru). Gunakan alat ini untuk mengecek, mengaudit, dan memperbaiki draf dokumen secara mandiri menggunakan teknologi pemrosesan bahasa alami (NLP).
+Sistem menggabungkan **N-Gram Exact Matching** dan **Multilingual Semantic Similarity** untuk mendeteksi kemiripan teks secara langsung serta bagian yang berpotensi merupakan hasil parafrasa.
 
+Berbeda dari platform deteksi plagiarisme tertutup, OpenPlagiarismChecker berfokus pada **transparansi, reproduktibilitas, dan keterbukaan algoritma**. Pipeline penilaian, proses pencarian sumber, perhitungan kemiripan, dan metodologi evaluasinya tersedia untuk diperiksa, diuji, dikembangkan, dan diperbaiki oleh komunitas.
 
+> OpenPlagiarismChecker adalah proyek open-source independen. Proyek ini tidak berafiliasi, didukung, atau dimaksudkan untuk menggantikan layanan deteksi plagiarisme komersial mana pun.
 
-## Hasil Validasi (11 Dokumen vs Standar Referensi v4.7)
+---
 
-Diuji terhadap 11 dokumen nyata yang sudah memiliki skor deteksi dari perangkat lunak referensi sebagai _ground truth_ (rentang 4–24%). Seluruh pengujian menggunakan **Continuous Square-Root Auto-Thresholding (v4.6)** murni berbasis fungsi kurva kontinu tanpa manipulasi `if-else`.
+## Mengapa Proyek Ini Dibuat?
 
-> **Catatan Pengujian Basis Data:**
-> Dokumen uji dikelompokkan menjadi dua kategori:
->
-> 1. **Core Benchmark 2026 (8 Dokumen Terbaru):** Evaluasi utama dengan target tingkat presisi selisih (_gap_) $\le 4\%$.
-> 2. **Opsional Baseline 2025 (3 Dokumen Lulusan 2025: Ihsan, Tsaura, Tesyar):** Berfungsi sebagai sampel pembanding sekunder.
+Akses terhadap sistem pemeriksaan plagiarisme dan kesamaan dokumen sering kali terbatas oleh langganan institusi, database tertutup, serta algoritma penilaian yang tidak dapat diperiksa secara publik.
+
+OpenPlagiarismChecker mengeksplorasi pendekatan alternatif menggunakan sumber akademik yang dapat diakses secara publik serta teknologi NLP open-source.
+
+Tujuan proyek ini adalah menyediakan:
+- Pipeline pemeriksaan kesamaan dokumen yang transparan.
+- Deteksi kecocokan teks secara langsung dan kemiripan semantik.
+- Dukungan kuat terhadap repositori akademik Indonesia.
+- Metodologi evaluasi yang dapat direproduksi.
+- Aplikasi web lokal yang praktis.
+- Codebase penelitian yang dapat dikembangkan oleh mahasiswa, peneliti, dan developer.
+
+Proyek ini ditujukan untuk **penelitian, eksperimen, pendidikan, dan pemeriksaan mandiri sebelum evaluasi resmi**. Hasil yang diberikan tidak boleh dianggap sebagai keputusan mutlak mengenai plagiarisme atau pelanggaran akademik.
+
+---
+
+## Fitur Utama
+
+### N-Gram Exact Matching
+Dokumen dianalisis menggunakan metode **5-word N-Gram shingling**. Engine mendeteksi bagian teks yang memiliki kecocokan langsung dengan sumber publik yang berhasil ditemukan. Setiap kata yang terdeteksi hanya berkontribusi satu kali terhadap skor akhir, meskipun bagian yang sama ditemukan pada beberapa sumber.
+
+### Semantic Similarity
+Bagian dokumen yang tidak cukup terdeteksi melalui N-Gram dianalisis kembali menggunakan model `paraphrase-multilingual-MiniLM-L12-v2`. Model sentence-transformer multilingual ini memungkinkan sistem mendeteksi kemiripan semantik, termasuk bagian teks yang telah diparafrase. Sistem mendeteksi CUDA secara otomatis apabila GPU yang kompatibel tersedia dan menggunakan CPU sebagai fallback.
+
+### Sumber Akademik yang Dijangkau (15 API & Direct Scraper)
+OpenPlagiarismChecker mencari kandidat sumber melalui berbagai indeks akademik publik, API, repositori, dan penyedia pencarian. Integrasi saat ini mencakup:
+- **Indonesia OneSearch (IOS Perpusnas RI)** (Open REST API resmi yang mengindeks **1.200+ repositori & jurnal kampus se-Indonesia**)
+- **Neliti Indonesia** (Repositori riset terbesar Indonesia — **500.000+ jurnal, tesis, & skripsi**)
+- **MORAREF Kemenag** (Portal jurnal keagamaan Kementerian Agama RI)
+- **Garuda Kemdiktisaintek (Direct Scrape)** (Indeks publikasi ilmiah resmi Indonesia)
+- **BASE (Bielefeld Academic Search Engine)** (Mesin pencari akademik open-access terbesar — **300M+ dokumen**)
+- **E-Thesis Repositori 70+ Kampus Indonesia** (Direct scraping repositori skripsi & tesis **UGM, UI, ITB, Unair, Undip, IPB, Telkom University, Binus, Gunadarma, UIN/IAIN/STAIN se-Nusantara**)
+- **Europe PMC** (40M+ publikasi ilmiah open access internasional)
+- **PubMed / NCBI E-Utilities** (Database literatur biomedis & sains kesehatan global)
+- **Google Search Native & Google Scholar** (Pencarian web umum & akademik dengan query bias Indonesia)
+- **Unpaywall API** (Database tautan PDF open access dari DOI jurnal)
+- **Semantic Scholar** (200M+ paper, dengan Polite Pool Header resmi)
+- **OpenAlex** (250M+ paper, fulltext.search + filter bahasa Indonesia)
+- **Crossref** (metadata + DOI resolver)
+- **DOAJ** (9M+ open-access articles)
+- **arXiv & CORE** (Preprints & aggregator sains global)
+
+### Web Interface Lokal
+Aplikasi menyediakan antarmuka web lokal untuk mengunggah dokumen, menjalankan analisis, memeriksa sumber yang ditemukan, membatalkan proses analisis yang sedang berjalan, dan menghasilkan laporan hasil pemeriksaan (termasuk Laporan PDF berwarna).
+
+### Pemrosesan Lokal dan Privasi
+Aplikasi dijalankan secara lokal. Dokumen yang diunggah diproses melalui sesi yang terisolasi dan data sementara dibersihkan secara berkala.
+
+---
+
+## Cara Kerja
+
+```text
+PDF / DOCX / TXT
+        ↓
+Ekstraksi Teks
+        ↓
+Sampling Dokumen
+        ↓
+Pencarian Sumber Akademik
+        ↓
+Pengambilan Teks Sumber
+        ↓
+5-Gram Exact Matching
+        ↓
+Semantic Similarity
+        ↓
+Agregasi Skor
+        ↓
+Laporan Kesamaan (PDF/HTML)
+```
+
+Kandidat sumber akademik dikumpulkan secara khusus berdasarkan isi dokumen yang sedang dianalisis. Database SQLite lokal (`bank.db`) terutama berfungsi sebagai cache untuk sumber publik yang sebelumnya telah diambil sehingga mengurangi pengunduhan berulang dan mempercepat analisis berikutnya.
+
+---
+
+## Metode Deteksi Kesamaan
+
+### Layer 1: N-Gram Exact Matching
+Dokumen dibagi menjadi urutan lima kata yang berdekatan. Urutan tersebut kemudian dibandingkan dengan teks dari sumber yang berhasil ditemukan.
+```text
+N-Gram Similarity = (Jumlah Kata Dokumen yang Cocok / Total Kata Dokumen) × 100%
+```
+Kata yang cocok digabungkan menggunakan mekanisme union sehingga bagian yang sama tidak dihitung berulang kali apabila ditemukan pada beberapa sumber.
+
+### Layer 2: Semantic Similarity
+Kalimat dengan tingkat exact-match yang rendah diperiksa oleh semantic similarity layer menggunakan `paraphrase-multilingual-MiniLM-L12-v2`.
+Threshold semantic disesuaikan secara dinamis menggunakan fungsi Continuous Square-Root Auto-Thresholding:
+```text
+Threshold = 0.7900 + 0.0250 × √(NGram Similarity)
+```
+Fungsi ini dikembangkan untuk menyesuaikan sensitivitas semantic similarity berdasarkan tingkat kecocokan tekstual yang ditemukan pada dokumen. Semantic match hanya menambahkan kata yang belum terhitung pada layer N-Gram sehingga tidak terjadi double counting.
+
+---
+
+## Perhitungan Skor Akhir
+
+```text
+Similarity = (Kata N-Gram Match + Kata Semantic Match) / Total Kata Dokumen × 100%
+```
+
+Setiap kata dalam dokumen hanya dapat berkontribusi satu kali terhadap skor akhir.
+
+---
+
+## Hasil Evaluasi (11 Dokumen vs Standar Referensi)
+
+Dataset evaluasi saat ini terdiri dari **11 dokumen akademik nyata** yang telah memiliki skor kesamaan dari sistem referensi eksternal.
 
 ### 1. Benchmark Utama (8 Dokumen Lulusan 2026 Terbaru)
 
@@ -29,9 +134,11 @@ Diuji terhadap 11 dokumen nyata yang sudah memiliki skor deteksi dari perangkat 
 | **Skripsi Melani 15220760** | **18.74%** | 19% | -0.26pt | Sangat Akurat | Lulusan 2026 |
 | **Laila before parafrase** | **22.09%** | 24% | -1.91pt | Sempurna | Lulusan 2026 |
 
-**Rata-rata Error Absolut (MAE Core 2026): 0.91 poin persentase (Sangat Akurat).**
+**Mean Absolute Error (MAE) pada Core Benchmark 2026 saat ini: 0.91 poin persentase.**
 
 ### 2. Dokumen Opsional Baseline (3 Dokumen Lulusan 2025)
+
+Tiga dokumen tahun 2025 dipertahankan sebagai dataset pembanding sekunder.
 
 | Dokumen | Skor Lokal | Target Baseline | Delta | Status Akurasi | Kategori Dokumen |
 | :--- | :---: | :---: | :---: | :---: | :---: |
@@ -39,146 +146,75 @@ Diuji terhadap 11 dokumen nyata yang sudah memiliki skor deteksi dari perangkat 
 | **Tsaura Halwa** | **16.76%** | 13% | +3.76pt | Wajar (Inflasi) | Lulusan 2025 |
 | **Tesyar** | **9.79%** | 8% | +1.79pt | Sempurna | Lulusan 2025 |
 
-> **Catatan:** Dokumen lulusan 2025 dipisahkan ke tabel opsional baseline karena adanya dinamika ekspansi & pembaruan indeks repositori web dalam 1-2 tahun terakhir yang menyebabkan _inflasi digital_. Mesin ini berhasil membaca penambahan jejak online publik tersebut secara akurat dengan **Continuous Square-Root Auto-Thresholding (v4.6)** ($0.7900 + 0.0250 \times \sqrt{\text{NGram}}$) yang mutlak kebal dari *overfitting*. Selain itu, sistem sukses membongkar manipulasi dokumen (Trik Teks Putih / _Hidden Text_) seperti yang terlihat pada dokumen _Laila after_ (terdeteksi 20.65% meski sistem asli terkecoh di 3%).
+> **Catatan:** Dokumen lulusan 2025 dipisahkan ke tabel opsional baseline karena adanya dinamika ekspansi & pembaruan indeks repositori web dalam 1-2 tahun terakhir yang menyebabkan _inflasi digital_. Sistem juga sukses mendeteksi manipulasi teks tersembunyi (Hidden Text) yang digunakan untuk mengelabui skor aslinya.
+
+Hasil tersebut harus dipahami sebagai performa pada **benchmark proyek saat ini**, bukan sebagai bukti bahwa sistem memiliki tingkat akurasi yang sama pada seluruh jenis dokumen.
 
 ---
 
-## Keterbatasan & Klaim Validitas Ilmiah (Penting Dibaca)
+## Metodologi Validasi
 
-Alat ini dirancang dengan pengujian statistik ketat untuk meminimalisir *overfitting*, namun pengguna publik wajib memahami batasannya agar tidak terjadi *overclaiming*:
+Pendekatan threshold juga dievaluasi menggunakan **Leave-One-Out Cross-Validation (LOOCV)** pada Core Benchmark 2026 yang tersedia. Tujuannya adalah mengurangi risiko parameter threshold hanya menyesuaikan diri terhadap dokumen tertentu pada benchmark. Hasil saat ini menunjukkan error yang relatif stabil pada sampel validasi yang tersedia.
 
-### 1. Indeks Database Tertutup
-**Indeks Mesin Referensi tidak bisa ditiru sepenuhnya.** Platform berbayar seringkali memiliki hak akses eksklusif ke 100+ miliar halaman web, 1.8 miliar makalah mahasiswa privat, serta konsorsium jurnal berbayar tertutup (IEEE, Springer, Elsevier). Alat ini **hanya** menjangkau sumber publik dan repositori *Open Access*. Dokumen yang tidak pernah dipublikasikan ke internet tidak akan terdeteksi.
-
-### 2. Validitas Formula (Bebas Overfitting)
-Rumus *Continuous Square-Root Auto-Thresholding* v4.6 dioptimasi dan divalidasi menggunakan metode **Leave-One-Out Cross-Validation (LOOCV)** pada Dataset Lulusan 2026. 
-- Hasil pengujian membuktikan **Rata-rata MAE Uji (Test Error) LOOCV tetap stabil** tanpa lonjakan drastis.
-- Karena nilai *Test Error* ini terbukti stabil dan sejalan dengan *Training Error* (0.91%), maka formula matematika v4.6 **terbukti empiris bebas dari overfitting**. Formula ini tidak sekadar "menghafal" dokumen uji, melainkan secara natural memodelkan pola degradasi N-Gram bahasa Indonesia.
-
-### 3. Pencegahan Overclaim Generalisasi
-Meskipun LOOCV membuktikan algoritma ini kebal dari *overfitting*, sampel yang digunakan untuk kalibrasi tahap ini berbasis *Core Benchmark 2026*. 
-**Peringatan:** Diperlukan pengujian berskala masif (n > 1000) lintas institusi jika ingin mengklaim tingkat akurasi absolut margin eror < 1% di tingkat global untuk dokumen lintas disiplin di luar karakteristik dataset uji.
-
-### 4. Batas Penggunaan Institusional
-Alat ini sangat andal sebagai sistem **pra-evaluasi mandiri** (*pre-check*). Jika skor di sini berada jauh di bawah ambang batas aman (misal: 10%), maka probabilitas aman di sistem asli sangatlah tinggi. Namun, alat ini **TIDAK BOLEH** digunakan sebagai standar mutlak kelulusan institusional atau pengganti lisensi resmi anti-plagiarisme institusi.
+Namun, ukuran benchmark masih terbatas. Dataset yang jauh lebih besar dan mencakup berbagai institusi, bidang ilmu, tipe dokumen, bahasa, serta tahun publikasi diperlukan sebelum membuat klaim generalisasi yang lebih luas. Keterbatasan tersebut secara eksplisit diakui oleh proyek ini.
 
 ---
 
-## Cara Kerja
+## Keterbatasan
 
-Alur pemrosesan algoritma (Standar Industri):
+### 1. Hanya Mengakses Sumber Publik
+OpenPlagiarismChecker tidak dapat mereplikasi indeks privat yang dimiliki platform deteksi plagiarisme komersial. Sistem komersial dapat memiliki akses terhadap dokumen mahasiswa privat, jurnal berlisensi, repositori institusi tertutup, dan dokumen historis yang tidak tersedia secara publik. OpenPlagiarismChecker berfokus pada **sumber publik dan sumber akademik open-access**. Dokumen yang tidak pernah tersedia pada internet publik mungkin tidak dapat ditemukan.
 
-```
-PDF/DOCX → Ekstraksi Teks → Sampling 180-200 Kalimat Probe → Cari Sumber Online (OneSearch/Neliti/OpenAlex/EuropePMC/Unpaywall/DDG)
-→ Download Teks Sumber (SQLite3 bank.db lokal sbg CACHE) → N-Gram 5-Gram Exact Matching
-→ Semantic Paraphrase Check → Skor Agregasi Global → PDF Report Berwarna
-```
+### 2. Similarity Tidak Otomatis Berarti Plagiarisme
+Skor kesamaan tidak dengan sendirinya membuktikan adanya pelanggaran akademik. Kutipan, daftar pustaka, istilah standar, bagian metodologi, serta penggunaan teks yang sah dapat meningkatkan similarity score. Hasil tetap perlu diinterpretasikan oleh pengguna atau pihak akademik yang berwenang.
 
-Web localhost memakai **metodologi identik** dengan runner validasi (`run_test_groundtruth.py`): korpus pembanding dikumpulkan dengan scrape internet khusus dokumen itu, bukan dari bank mentah. Bank korpus lokal (SQLite3 `bank.db`) hanya berperan sebagai **cache** (mempercepat download URL yang sudah pernah diambil) dan tumbuh otomatis (_auto-freeze_) tiap pengecekan.
+### 3. Ruang Lingkup Benchmark
+MAE 0.91 poin persentase yang dilaporkan berlaku pada Core Benchmark 2026 yang digunakan saat ini. Angka tersebut bukan jaminan margin error untuk semua dokumen. Perluasan dan diversifikasi benchmark merupakan salah satu fokus pengembangan proyek.
 
-### Layer 1: N-Gram Exact Matching (5-gram)
-
-- Dokumen dipecah jadi n-gram (5 kata berurutan).
-- Dicari kecocokan persis dengan teks sumber dari internet.
-- Setiap kata yang cocok dihitung sekali (union lintas semua sumber).
-- Skor = $(\text{total kata ter-match} / \text{total kata dokumen}) \times 100\%$.
-
-### Layer 2: Semantic Similarity (deteksi parafrasa)
-
-- Kalimat yang TIDAK terdeteksi N-Gram (<30% match) dicek ulang.
-- Menggunakan model `paraphrase-multilingual-MiniLM-L12-v2` (dukung bahasa Indonesia).
-- Threshold otomatis menggunakan sistem Continuous Square-Root Auto-Thresholding (v4.6) yang dikalibrasi presisi terhadap 11 dokumen ground truth:
-  $$\text{Threshold} = 0.7900 + 0.0250 \times \sqrt{\text{NGram Similarity}}$$
-- Pure continuous mathematical function tanpa branching/if-else (murni anti-overfitting).
-- GPU auto-detect (CUDA); fallback CPU.
-- Tidak ada double counting — hanya menambah kata yang belum terdeteksi N-Gram.
-- **Selalu aktif** (tidak ada opsi mematikan di UI).
-
-### Sumber Akademik yang Dijangkau (15 API & Direct Scraper)
-
-- **Indonesia OneSearch (IOS Perpusnas RI)** (Open REST API resmi yang mengindeks **1.200+ repositori & jurnal kampus se-Indonesia**)
-- **Neliti Indonesia** (Repositori riset terbesar Indonesia — **500.000+ jurnal, tesis, & skripsi**)
-- **MORAREF Kemenag** (Portal jurnal keagamaan Kementerian Agama RI — **200.000+ artikel jurnal UIN/IAIN/STAIN** via REST API + OAI-PMH XML fallback)
-- **Garuda Kemdiktisaintek (Direct Scrape)** (Indeks publikasi ilmiah resmi Indonesia)
-- **BASE (Bielefeld Academic Search Engine)** (Mesin pencari akademik open-access terbesar — **300M+ dokumen** via OAI-PMH API)
-- **E-Thesis Repositori 70+ Kampus Indonesia** (Direct scraping repositori skripsi & tesis **UGM, UI, ITB, Unair, Undip, IPB, Telkom University, Binus, Gunadarma, UIN/IAIN/STAIN se-Nusantara**)
-- **Europe PMC** (40M+ publikasi ilmiah open access internasional, full-text gratis)
-- **PubMed / NCBI E-Utilities** (Database literatur biomedis & sains kesehatan global)
-- **Google Search Native & Google Scholar** (Pencarian web umum & akademik dengan query bias Indonesia)
-- **Unpaywall API** (Database tautan PDF open access dari DOI jurnal)
-- **Semantic Scholar** (200M+ paper, dengan Polite Pool Header resmi)
-- **OpenAlex** (250M+ paper, fulltext.search + filter bahasa Indonesia)
-- **Crossref** (metadata + DOI resolver via Polite Pool Header)
-- **DOAJ** (9M+ open-access articles)
-- **arXiv & CORE** (Preprints & aggregator sains global)
+### 4. Penggunaan Institusional
+OpenPlagiarismChecker paling sesuai digunakan untuk pemeriksaan mandiri, penelitian, eksperimen algoritma, pembelajaran NLP, dan analisis kesamaan dokumen. Proyek ini **tidak dimaksudkan untuk menggantikan sistem pemeriksaan resmi milik institusi**.
 
 ---
 
-## Cara Penggunaan (1-Click Run)
+## Instalasi (1-Click Run)
 
 ### Cara Paling Mudah (1-Click Run) — Tanpa Setup Manual
 
-Cukup unduh / clone repositori ini, lalu jalankan script 1-click sesuai sistem operasi Anda:
-
+Clone atau download repository ini, lalu jalankan script 1-click sesuai sistem operasi Anda:
 - **Windows:** Klik ganda file **`run.bat`**
 - **Linux / macOS:** Buka terminal dan jalankan **`./run.sh`**
 
-**Apa yang terjadi secara otomatis saat `run.bat` diklik:**
+Script setup akan menangani environment, dependensi, konfigurasi, startup aplikasi, dan otomatis membuka web browser ke `http://localhost:5001`.
 
-1. **Auto-Detect / Install Python:** Script mengecek instalasi Python di komputer Anda. Jika belum ada, script akan mengunduh dan menginstall **Python 3.11 secara otomatis (Silent Mode)** via Windows Package Manager (`winget`) atau PowerShell.
-2. **Auto-Create Venv:** Membuat Virtual Environment (`.venv`) lokal.
-3. **Auto-Install Dependensi:** Mengunduh seluruh pustaka Python (`requirements.txt`) menggunakan versi binary _pre-compiled wheels_ resmi.
-4. **Auto-Copy Config:** Menyalin `.env.example` ke `.env` secara otomatis.
-5. **Auto-Launch App & Browser:** Menjalankan server aplikasi dan **otomatis membuka web browser ke `http://localhost:5001`** dalam 3 detik.
+### Instalasi Manual (Untuk Developer)
 
----
-
-### Cara Manual (Untuk Developer)
-
-1. **Clone Repositori:**
-
+1. Clone repository:
    ```bash
-   git clone https://github.com/Raflyf/open-source-plagiarism-detection.git
-   cd open-source-plagiarism-detection
+   git clone https://github.com/Raflyf/OpenPlagiarismChecker.git
+   cd OpenPlagiarismChecker
    ```
-
-2. **Buat Venv & Install Dependensi:**
-
+2. Buat virtual environment & install dependensi:
    ```bash
    python -m venv .venv
-
    # Windows:
    .venv\Scripts\activate
    # Linux/macOS:
    source .venv/bin/activate
-
    pip install -r requirements.txt
    ```
-
-3. **Konfigurasi API Key (Opsional):**
-   Salin `.env.example` ke `.env` jika memiliki API key tambahan:
-
-   ```env
-   # Semantic Scholar (gratis, daftar di semanticscholar.org/product/api)
-   S2_API_KEYS=key1,key2
-
-   # Cohere (gratis, daftar di dashboard.cohere.com)
-   COHERE_KEYS=key1,key2
-   ```
-
-4. **Jalankan Web Server:**
+3. Konfigurasikan API key opsional (salin `.env.example` ke `.env`).
+4. Jalankan Web Server:
    ```bash
    cd app
    python server.py
    ```
-   Buka browser di: `http://localhost:5001`
 
 ---
 
-## Arsitektur File
+## Arsitektur Proyek
 
-```
-plagiarism_checker/
+```text
+OpenPlagiarismChecker/
 ├── app/
 │   ├── server.py                 # Flask server (port 5001 / 5000)
 │   ├── run_batch.py              # Batch Uploader & Runner evaluasi
@@ -205,24 +241,56 @@ plagiarism_checker/
 └── README.md
 ```
 
----
-
-## Perhitungan Skor
-
-```
-Skor Total = (Kata Ter-match N-Gram + Kata Ter-match Semantic) / Total Kata Dokumen x 100%
-```
-
-- Setiap kata dihitung **sekali** meskipun cocok dengan banyak sumber (union, bukan sum).
-- `exclude_small` hanya memfilter **daftar tampilan** sumber per-dokumen, TIDAK memengaruhi skor total — sesuai standar algoritma industri.
-- Threshold semantic otomatis menggunakan sistem Continuous Square-Root Auto-Thresholding (v4.6) yang dikalibrasi secara dinamis terhadap dokumen ground truth:
-  $$\text{Threshold} = 0.7900 + 0.0250 \times \sqrt{\text{NGram Similarity}}$$
+Engine dipisahkan menjadi komponen ekstraksi, pencarian sumber, exact matching, semantic analysis, dan report generation agar setiap bagian lebih mudah diperiksa dan dikembangkan secara independen.
 
 ---
 
-## Limitasi Desain (Trade-off)
+## Teknologi
 
-- **Semantic Layer (Penandaan Kalimat Utuh)**: Ketika _semantic match_ ditemukan pada sebuah _chunk_ (maksimal 40 kata), seluruh kata di dalam _chunk_ tersebut ditandai sebagai plagiat. Hal ini dapat menyebabkan sedikit _over-estimation_ pada kalimat panjang yang sebagian diparafrasa. Namun, hal ini dikompensasi oleh _Continuous Square-Root Auto-Thresholding_ (v4.6) yang terkalibrasi presisi, sehingga secara keseluruhan (MAE 0.91%) tetap terjaga akurasinya.
+Teknologi utama yang digunakan:
+- Python & Flask
+- SQLite (Disk Caching & Streaming)
+- PyTorch & Sentence Transformers (`paraphrase-multilingual-MiniLM-L12-v2`)
+- N-Gram Shingling & Semantic Similarity
+- Concurrent Web Retrieval
+- PDF/DOCX Text Extraction
+
+---
+
+## Keamanan dan Privasi
+
+Aplikasi memiliki beberapa mekanisme perlindungan yang dikembangkan selama evolusi proyek:
+- Session-isolated reports (Mencegah kebocoran data antar-pengguna).
+- Validasi tipe file dan MIME.
+- CSRF protection & HSTS/CSP Headers.
+- Rate limiting.
+- SSRF protection.
+- Pembatasan concurrent processing (`CONCURRENCY_SEMAPHORE = 4`).
+- Atomic database operations.
+- Pembersihan dokumen sementara secara otomatis.
+- Memory guard untuk semantic processing (`SEMANTIC_MAX_BATCH`).
+
+Mekanisme tersebut ditujukan untuk meningkatkan keamanan penggunaan lokal dan eksperimental sembari proyek terus dikembangkan.
+
+---
+
+## Tujuan Pengembangan & Kontribusi
+
+OpenPlagiarismChecker merupakan proyek open-source berorientasi penelitian yang masih aktif dikembangkan. Prioritas pengembangan saat ini meliputi:
+1. Memperluas benchmark independen.
+2. Meningkatkan source discovery dan retrieval.
+3. Mengurangi false-positive pada semantic similarity.
+4. Meningkatkan dukungan dokumen multilingual.
+5. Menambah automated testing & memperbaiki dokumentasi developer.
+6. Mempermudah kontribusi terhadap setiap komponen detection engine.
+
+Kontribusi dari komunitas sangat terbuka (termasuk integrasi repositori akademik baru, perbaikan mekanisme retrieval, dan dataset benchmark tambahan). Jika menemukan bug atau memiliki ide pengembangan, silakan membuka **Issue** atau **Pull Request**.
+
+---
+
+## Transparansi Penelitian
+
+Salah satu tujuan utama OpenPlagiarismChecker adalah membuat pipeline pemeriksaan kesamaan dokumen dapat diperiksa secara terbuka. Proyek secara sengaja membuka metodologi retrieval, algoritma similarity, fungsi threshold, metodologi evaluasi, dan keterbatasan sistem. Dengan pendekatan ini, developer dan peneliti dapat mereproduksi hasil, mengkritisi keputusan desain, serta mengusulkan pendekatan yang lebih baik.
 
 ---
 
@@ -234,117 +302,26 @@ Skor Total = (Kata Ter-match N-Gram + Kata Ter-match Semantic) / Total Kata Doku
 - **Akurasi Ekstrem (MAE 0.91%)**: Berkat kalibrasi baru ini, Rata-rata Error Absolut pada dokumen Core Benchmark 2026 menembus ambang 1.00, mendarat di akurasi mutlak 0.91%.
 
 ### v4.6 — Empirically Optimal Thresholding & Robust Security Audit
-
-- **Update Parameter Auto-Thresholding v4.6**: Penyesuaian empiris terbaik *Continuous Square-Root Auto-Thresholding* menjadi $0.7900 + 0.0250 \times \sqrt{\text{NGram Sim}}$. Divalidasi bebas *overfitting* via Leave-One-Out Cross Validation (LOOCV) di *advanced_validation.py* (Test MAE konsisten stabil).
-- **Security Hardening (100% Audit Passed)**: Perbaikan total semua isu keamanan tinggi-kritis dari *code review* eksternal. Di antaranya CSRF Protection, HSTS/CSP Headers, sanitasi input subprocess, validasi *magic bytes* MIME, serta pembatasan *thread explosion* (`CONCURRENCY_SEMAPHORE = 4`).
-- **Disk Caching for PyTorch Optimization**: Memperkenalkan metode *memoization cache* berbasis disk O(1) yang memangkas waktu kalkulasi Grid Search PyTorch (LOOCV) dari 40+ Jam menjadi kurang dari 1 detik pada tahapan iterasi tes selanjutnya.
-- **SQLite Corpus Streaming**: Optimasi *memory footprint* dengan mengubah `load_corpus_bank()` dari pemuatan array masif 150MB ke RAM menjadi kueri asinkron/generator langsung ke `bank.db`.
+- **Update Parameter Auto-Thresholding v4.6**: Penyesuaian empiris terbaik *Continuous Square-Root Auto-Thresholding* menjadi $0.7900 + 0.0250 \times \sqrt{\text{NGram Sim}}$.
+- **Security Hardening (100% Audit Passed)**: Perbaikan total semua isu keamanan tinggi-kritis dari *code review* eksternal. Di antaranya CSRF Protection, HSTS/CSP Headers, sanitasi input subprocess, dll.
+- **Disk Caching for PyTorch Optimization**: Memperkenalkan metode *memoization cache* berbasis disk O(1).
+- **SQLite Corpus Streaming**: Optimasi *memory footprint* pemuatan korpus bank.
 
 ### v4.5 — Continuous Square-Root Auto-Thresholding & 15 API Paralel
+- **Continuous Square-Root Auto-Thresholding (v4.5)**: 100% anti-overfitting.
+- **Ekspansi Masif Repositori 70+ Kampus Indonesia**: Memperluas *scraper* E-Thesis.
+- **Integrasi 15 API & Direct Scraper Akademik**: 12 worker dan timeout ketat (10 detik).
+- **Super-Fast Live Scraping (<90 Detik)**: Waktu *live scraping* dari internet dipangkas drastis.
 
-- **Continuous Square-Root Auto-Thresholding (v4.5)**: Mengimplementasikan fungsi matematika kontinu $Threshold = 0.8000 + 0.0200 \times \sqrt{\text{NGram Sim}}$ murni tanpa percabangan `if-else` buatan (100% anti-overfitting).
-- **Pembersihan Corpus Beku & Storage Optimization**: Menghapus file JSON corpus beku lawas dan file cadangan `bank.json.bak` (155 MB), menyisakan tepat 11 korpus beku presisi yang 100% konsisten.
-- **Pemisahan Klasifikasi Dokumen Ground Truth**: Mengategorikan 11 dokumen validasi menjadi _Core Benchmark 2026_ (8 dokumen terbaru dengan akurasi selisih gap maksimal $\le 4\%$) dan _Opsional Baseline 2025_ (3 dokumen lulusan 2025: Ihsan, Tsaura, Tesyar).
-- **Sistem Anti-Cheat Sempurna & Spacing Guard**: Berhasil mengidentifikasi dan membongkar trik manipulasi dokumen seperti "Teks Putih" (_Hidden Text_ / font 1pt) dengan penanganan alokasi spasi yang presisi agar N-Gram tidak terdistorsi.
-- **Ekspansi Masif Repositori 70+ Kampus Indonesia**: Memperluas _scraper_ khusus (E-Thesis) dari hanya 6 PTN menjadi 70+ Universitas di Indonesia, meliputi UI, UGM, ITB, UNAIR, UNDIP, IPB, Universitas Telkom, Binus, Gunadarma, UIN/IAIN/STAIN se-Nusantara, dan banyak lagi.
-- **Integrasi 15 API & Direct Scraper Akademik**: Menggabungkan seluruh sumber pencarian dalam 1 gelombang paralel dengan 12 worker dan timeout ketat (10 detik). Menambahkan 3 sumber baru secara _direct_: **Garuda Kemdiktisaintek (Direct Scrape)**, **PubMed/NCBI E-Utilities**, dan **Google Search Native** (`googlesearch-python`).
-- **Integrasi Sumber Akademik Global & Indonesia (MORAREF, BASE, Indonesia OneSearch, Neliti)**: Mengintegrasikan Indonesia OneSearch (1.200+ repo Perpusnas), Neliti (500k+ riset), MORAREF Kemenag (jurnal keagamaan), dan BASE API (300M+ publikasi global).
-- **PyTorch CUDA / VRAM Optimization & Memory Guard**: Mengunci eksekusi _Sentence Transformers_ menggunakan modul lokal PyTorch `2.6.0+cu124` dengan proteksi VRAM dan batasan embedding `SEMANTIC_MAX_BATCH` (default 30000) untuk mencegah OOM GPU/RAM.
-- **Super-Fast Live Scraping (<90 Detik) & Instant Cancel UI**: Waktu _live scraping_ dari internet dipangkas drastis dari 16+ menit menjadi **< 90 detik** berkat _strict timeouts_ dan paralelisme worker. Pengguna dapat menghentikan analisis kapan saja dari antarmuka Web UI melalui tombol _Instant Abort_.
-- **SQLite3 Corpus Storage (`bank.db`) & Atomic File Writes**: Menggunakan database SQLite3 terindeks dengan kunci _thread-safety_ (`_bank_lock`) dan penulisan atomik (`os.replace`) untuk mencegah manipulasi data atau _race conditions_.
-- **Isolasi Sesi & Keamanan Privasi Ketat (Zero Data Leak)**: Menerapkan mekanisme kepemilikan laporan berbasis `session_id` kriptografis di Web UI. Laporan hanya dapat diakses oleh browser/pengguna yang mengunggahnya (mencegah kebocoran data antar-pengguna). Didukung dengan _disk caching_ JSON agar hasil tidak hilang saat _refresh_ dan pembersihan otomatis (Self-Destruct) dokumen di server secara berkala tiap 2 jam.
-- **Dark Mode Halaman Report & 1-Click Auto Setup**: Menambahkan toggle dan tema Dark Mode interaktif di `report.html` serta penyediaan skrip otomatis `run.bat` / `run.sh` untuk pemasangan dependen 1-klik.
-
-### v4.4 — Ekspansi Sumber Indonesia (MORAREF, BASE, E-Thesis PTN) & Dark Mode
-
-- **Grup 5 Ekspansi Sumber (MORAREF, BASE, IndoEThesis)**: Mengintegrasikan 3 mesin pencari akademik baru dalam `fetch_probe_multi` secara paralel:
-  - **MORAREF Kemenag**: Portal jurnal keagamaan UIN/IAIN/STAIN dengan _dual-approach_ (REST API + OAI-PMH XML fallback).
-  - **BASE API**: Bielefeld Academic Search Engine (300M+ artikel open access).
-  - **E-Thesis PTN Besar**: Direct scraper untuk repositori skripsi/tesis UGM, UI, ITB, Unair, Undip.
-- **Google Scholar & DDG Bias Bahasa Indonesia**: Mengaktifkan parameter `lr=lang_id` pada Google Scholar dan query bias `"skripsi" OR "tesis" OR "jurnal"` untuk mendongkrak recall sumber lokal Indonesia.
-- **Dark Mode Halaman Report**: Menambahkan toggle dan tema Dark Mode interaktif di `report.html` yang tersinkronisasi otomatis dengan `index.html`.
-- **Fix Regresi `fetch_probe_multi` & Restoration `get_candidate_urls`**: Memperbaiki penanganan URL web publik dari Google/Garuda serta mengembalikan fungsi `get_candidate_urls` secara utuh.
-
-### v4.3 — Security Hardening & Stabilitas
-
-- **Thread-safety**: `check_cancelled()` di `server.py` & `shingling.py` kini dilindungi `RESULTS_DB_LOCK`, menghilangkan race condition pada akses `results_db`.
-- **Atomic Frozen Write**: Penulisan `frozen_corpus` pakai `os.replace(temp, final)` di `server.py` & `run_test_groundtruth.py` — cegah race & file korup saat 2 proses parallel.
-- **SSRF Hardening**: `is_safe_url()` di `web_scraper.py` diperkuat: blokir metadata endpoints (AWS/GCP/Azure), URL shortener, wildcard localhost (`127.x`), IP hex/octal, trailing dot hostname.
-- **Rate Limiting**: Endpoint `/upload` dilindungi 10 req/IP/menit (sliding window), kembalikan HTTP 429.
-- **Semantic Memory Guard**: `SEMANTIC_MAX_BATCH` env var (default 2000) batasi embedding per batch, cegah OOM GPU/RAM.
-- **Atomic Bank Save**: `save_to_corpus_bank` sudah pakai `_bank_lock` + SQLite `INSERT OR IGNORE` — aman multi-thread.
-
-### v4.2 — Semantic Syarat Ganda, Anti-Cheat & 3-Tier Auto-Thresholding
-
-- **Semantic Syarat Ganda (Anti-False Positives)**: Mengimplementasikan logika baru dimana AI _Semantic Similarity_ **HANYA** akan memproses dokumen sumber (jurnal/web) yang telah terbukti memiliki irisan _N-Gram Exact Match_ (> 0%). Mencegah mesin mengevaluasi ribuan artikel _random_ yang menyebabkan _over-detection_.
-- **Sistem Anti-Cheat Sempurna**: Berhasil mengidentifikasi dan membongkar trik manipulasi dokumen seperti "Teks Putih" (_Hidden Text_) yang kerap digunakan untuk mengelabui skor plagiarisme, memberikan lapisan keamanan yang bahkan melampaui standar orisinal.
-- **Signal-to-Noise 3-Tier Auto-Thresholding**: Mengimplementasikan penyesuaian threshold semantik dinamis 3-tier berbasis profil kerapatan N-Gram dokumen.
-- **Validasi 11 Dokumen Groundtruth**: Memperluas suite uji validasi dari 8 dokumen menjadi 11 dokumen lengkap yang sudah teruji oleh aplikasi referensi resmi (skor 4% - 24%).
-- **Presisi Berbasis Atribut Objektif (MAE 1.00%)**: Rata-rata error absolut (MAE) sukses ditekan drastis menjadi **1.00 poin persentase** lintas dokumen inti tanpa adanya _overfitting_.
-
-### v4.1 — Super-Fast Live Scraping, Indonesia OneSearch & Instant Cancel UI
-
-- **Super-Fast Live Scraping (<90 Detik)**: Waktu _live scraping_ dari internet dipangkas drastis dari 16+ menit menjadi **< 90 detik**.
-- **Integrasi Indonesia OneSearch (Perpusnas RI) & Neliti API**: Memperluas jangkauan pencarian jurnal ke **1.200+ repositori kampus se-Indonesia** dan 500.000+ riset ilmiah.
-- **Integrasi Europe PMC & Unpaywall API**: Menambahkan jangkauan 40 Juta+ publikasi ilmiah _open access_ internasional secara gratis.
-- **SQLite3 Corpus Storage (`bank.db`)**: Migrasi korpus bank dari JSON besar ke database SQLite3 terindeks.
-
-### v4.0 — Auto-Detect Frozen Corpus & Validasi 100% Reproducible
-
-- **Auto-Detect Frozen Corpus UI**: Halaman localhost kini mendeteksi secara _real-time_ jika file yang di-_drop_ sudah memiliki korpus beku di server.
-- **Tabel Validasi Konsisten (100% Frozen)**: Tabel skor di README kini mutlak dikunci menggunakan hasil korpus beku yang 100% _reproducible_.
-
-### v3.9 — Silent-Skip Google CSE + Terminal Progress Log
-
-- **Google CSE di-skip diam-diam** saat `GOOGLE_API_KEYS` / `GOOGLE_CX_ID` kosong.
-
-### v3.8 — Fix Garuda RTO + Rapikan Log Terminal
-
-- **Fix ScraperAPI selalu RTO + 0 URL**: `fetch_garuda` men-scrape `garuda.kemdiktisaintek.go.id`.
-
-### v3.7 — Audit Menyeluruh + Perbaikan Ketahanan
-
-- Kode aplikasi memakai path relatif (`__file__`) sepenuhnya. Helper `run.bat`/`run.sh` ditambahkan.
-
-### v3.6 — Localhost Setara Metodologi Groundtruth
-
-- **Alur localhost = metodologi validasi.**
-
-### v3.5 — Audit Engine + Perbaikan Ketahanan
-
-- **Fix hyphenation**, **Gap-fill per-sumber**, **Fix `sent_word_count`**, **Bank korpus tahan-korupsi**.
-
-### v3.4 — Validasi 5 Dokumen + Kalibrasi Threshold
-
-- **Validasi 5 dokumen**, **Threshold semantic dikalibrasi**, **Dukungan DOCX**.
-
-### v3.3 — Recall Boost + Determinisme
-
-- **Domain-seeding**, **Determinisme search**, **DDG backend fix**.
-
-### v3.2 — Critical Scoring Fix (0% → mendekati target)
-
-- **Fix bug agregasi `exclude_small`**, **Deep-PDF crawl**.
-
-### v3.1 — Audit API + GPU
-
-- Buang API mati, rotasi multi-key, GPU CUDA auto-detect.
-
-### v2.0 — Semantic Similarity Layer
-
-- Deteksi parafrasa via sentence-transformers.
-
-### v1.0 — Initial Release
-
-- N-Gram shingling, web UI, multi-source scraping, PDF report.
+### v4.0 hingga v4.4
+- **Ekspansi Sumber Indonesia**: MORAREF, BASE, IndoEThesis.
+- **Auto-Detect Frozen Corpus UI**: Halaman localhost kini mendeteksi secara *real-time*.
+- **Semantic Syarat Ganda**: Mencegah false positives.
 
 ---
 
-## Kontribusi & Lisensi
+## Lisensi & Author
 
-Proyek sumber terbuka (Open-Source) untuk mendemokratisasi akses terhadap alat pengecekan kesamaan dokumen ilmiah (Document Similarity Checking). Dilengkapi dengan lisensi MIT.
+OpenPlagiarismChecker dirilis menggunakan **MIT License**. Proyek ditujukan untuk penelitian open-source, pendidikan, eksperimen, dan analisis kesamaan dokumen.
 
-**Dibuat oleh:** Rafly Firmansyah  
-**Algoritma:** N-Gram Shingling (5-gram) + Semantic Similarity (sentence-transformers)  
-**Model AI:** `paraphrase-multilingual-MiniLM-L12-v2`  
-**Formula Threshold:** Continuous Square-Root Auto-Thresholding v4.6 ($0.7900 + 0.0250 \times \sqrt{\text{NGram}}$)
+**Dibuat oleh:** Rafly Firmansyah
