@@ -193,7 +193,7 @@ plagiarism_checker/
 │   ├── run_batch.py              # Batch Uploader & Runner evaluasi
 │   ├── run_test_groundtruth.py   # Runner validasi + freeze corpus
 │   ├── calibrate_threshold.py    # Sweep threshold semantic
-│   ├── before_Commercial Standard/          # Dokumen uji + target Commercial Standard
+│   ├── test_documents/           # Dokumen uji + target benchmark
 │   ├── frozen_corpus/            # Korpus beku (skor deterministik)
 │   ├── corpus_bank/
 │   │   └── bank.db               # SQLite3 database cache bank korpus

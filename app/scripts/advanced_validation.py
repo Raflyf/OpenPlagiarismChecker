@@ -34,7 +34,7 @@ def cached_get_model(*args, **kwargs):
     
 sem_sim.get_model = cached_get_model
 
-BASE = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "before_commercial_standard")
+BASE = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "test_documents")
 FROZEN = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "frozen_corpus")
 os.makedirs(FROZEN, exist_ok=True)
 

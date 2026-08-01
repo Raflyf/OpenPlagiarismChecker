@@ -5,7 +5,7 @@ from engine.extractor import extract_text_auto, get_sentences
 from engine.web_scraper import get_candidate_urls, scrape_all_candidates
 from engine.shingling import calculate_similarity
 
-BASE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "before_commercial_standard")
+BASE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "test_documents")
 FROZEN = os.path.join(os.path.dirname(os.path.abspath(__file__)), "frozen_corpus")
 os.makedirs(FROZEN, exist_ok=True)
 
@@ -15,8 +15,8 @@ REFRESH = os.environ.get("REFRESH", "0") == "1"
 
 
 def discover_docs():
-    """Auto-discover dokumen validasi di before_commercial_standard/.
-    Target Commercial Standard diambil dari angka 'NN%' di nama file. Slug = nama file
+    """Auto-discover dokumen validasi di test_documents/.
+    Target baseline diambil dari angka 'NN%' di nama file. Slug = nama file
     tanpa angka% & ekstensi, dipakai sbagai key korpus beku."""
     docs = []
     for path in sorted(glob.glob(os.path.join(BASE, "*"))):
@@ -47,7 +47,7 @@ summary = []
 for name, fname, target in discover_docs():
     path = os.path.join(BASE, fname)
     tgt_str = f"{target}%" if target is not None else "?"
-    print(f"\n{'='*60}\n[{name}] target Commercial Standard = {tgt_str}\n{'='*60}", flush=True)
+    print(f"\n{'='*60}\n[{name}] target baseline = {tgt_str}\n{'='*60}", flush=True)
     t0 = time.time()
     doc_text, warns = extract_text_auto(path, exclude_quotes=True, exclude_biblio=True)
     doc_hash = hashlib.md5(doc_text.encode("utf-8")).hexdigest()[:16]

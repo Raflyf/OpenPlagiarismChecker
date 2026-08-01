@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
-    <title>Commercial Standard - Originality Report</title>
+    <title>Open Source Plagiarism - Originality Report</title>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap');
         
@@ -111,7 +111,7 @@
             margin-left: 10px;
         }
         
-        /* Commercial Standard Colors */
+        /* Originality Report Colors */
         .color-0 { background-color: #e51c23; color: #e51c23; }
         .color-1 { background-color: #e91e63; color: #e91e63; }
         .color-2 { background-color: #9c27b0; color: #9c27b0; }
@@ -272,7 +272,7 @@
             <span style="font-size: 11px; color: #999; text-transform: uppercase; letter-spacing: 0.5px;">Skor Jika Hidden Text Lolos</span>
         </div>
         <div class="fooled-desc" style="font-size: 11px; color: #aaa; margin-top: 6px;">
-            Skor ini menunjukkan hasil jika sistem <b>tidak</b> mendeteksi teks tersembunyi (seperti Commercial Standard asli).
+            Skor ini menunjukkan hasil jika sistem <b>tidak</b> mendeteksi teks tersembunyi (seperti mesin referensi asli).
             Teks tersembunyi menggelembungkan jumlah kata sehingga persentase similaritas turun secara palsu.
         </div>
     </div>
@@ -290,7 +290,7 @@
         <div class="source-item">
             <div class="source-number color-{{ loop.index0 % 10 }}" style="color: white;">{{ loop.index }}</div>
             <div class="source-content">
-                <!-- Gunakan format URL sederhana untuk title agar mirip Commercial Standard -->
+                <!-- Gunakan format URL sederhana untuk title agar mirip format standar -->
                 <div class="source-title color-{{ loop.index0 % 10 }}" style="background-color: transparent;">
                     {{ source.url.split('//')[1].split('/')[0] if '//' in source.url else source.url }}
                 </div>
