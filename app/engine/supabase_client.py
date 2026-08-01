@@ -38,6 +38,10 @@ SUPABASE_URL = os.environ.get("SUPABASE_URL", _env.get("SUPABASE_URL", ""))
 SUPABASE_KEY = os.environ.get("SUPABASE_KEY", _env.get("SUPABASE_KEY", ""))
 
 _session = requests.Session()
+adapter = requests.adapters.HTTPAdapter(pool_connections=32, pool_maxsize=32)
+_session.mount("https://", adapter)
+_session.mount("http://", adapter)
+
 if SUPABASE_KEY:
     _session.headers.update({
         "apikey": SUPABASE_KEY,

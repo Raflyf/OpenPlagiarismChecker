@@ -55,15 +55,16 @@ def metrics():
 # frontend) agar terminal tidak dibanjiri. Hanya tampilkan WARNING ke atas; error asli
 # tetap terlihat. Log progres proses (print [!]/[API]) tidak terpengaruh.
 import logging
-logging.basicConfig(level=logging.INFO, format='%(asctime)s [%(levelname)s] %(message)s')
+# Set root logger ke WARNING agar semua library pihak ketiga (termasuk ddgs, primp, transformers, dll) diam/bungkam.
+logging.basicConfig(level=logging.WARNING, format='%(asctime)s [%(levelname)s] %(message)s')
 logger = logging.getLogger(__name__)
+
+# Nyalakan level INFO KHUSUS untuk kode internal aplikasi kita sendiri
+logger.setLevel(logging.INFO)
+logging.getLogger('engine').setLevel(logging.INFO)
+logging.getLogger('app').setLevel(logging.INFO)
+
 logging.getLogger('werkzeug').setLevel(logging.WARNING)
-logging.getLogger('urllib3').setLevel(logging.WARNING)
-logging.getLogger('httpx').setLevel(logging.WARNING)
-logging.getLogger('httpcore').setLevel(logging.WARNING)
-logging.getLogger('huggingface_hub').setLevel(logging.WARNING)
-logging.getLogger('sentence_transformers').setLevel(logging.WARNING)
-logging.getLogger('transformers').setLevel(logging.WARNING)
 # Security: Generate secure secret key for sessions
 app.config['SECRET_KEY'] = os.environ.get('FLASK_SECRET_KEY') or secrets.token_hex(32)
 app.config['SESSION_COOKIE_HTTPONLY'] = True
