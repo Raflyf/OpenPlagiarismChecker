@@ -1,8 +1,8 @@
-# Turnitin Lokal — Cek Plagiarisme Gratis Berbasis Sumber Terbuka
+# Open-Source Plagiarism Detection — Mesin Cek Plagiarisme & Kesamaan Teks
 
-Alat pengecek plagiarisme lokal gratis yang meniru perilaku Turnitin: mendeteksi kecocokan teks (_N-Gram exact match_) dan parafrasa (_semantic similarity_) terhadap sumber-sumber akademik terbuka di internet. Dibangun untuk membantu mahasiswa yang terkendala biaya mengecek plagiarisme skripsi sebelum submit ke Turnitin resmi kampus.
+Alat pengecek plagiarisme sumber terbuka (open-source) yang dirancang secara profesional untuk mendeteksi kecocokan teks persis (_N-Gram exact match_) dan parafrasa semantik (_semantic similarity_). Sistem ini menggunakan kecerdasan buatan untuk mencocokkan dokumen terhadap jutaan sumber akademik publik di internet. Dibangun untuk memberikan solusi deteksi plagiarisme yang transparan, dapat diaudit, dan gratis bagi mahasiswa, dosen, maupun institusi pendidikan.
 
-**Bukan pengganti Turnitin** tapi memberikan estimasi skor yang **sangat akurat dan mendekati** Turnitin asli (selisih rata-rata / MAE hanya **1.38%** pada benchmark utama lulusan 2026). Gunakan alat ini untuk mengecek dan memperbaiki draf dokumen secara gratis sebelum submit ke Turnitin resmi kampus.
+Sistem ini memberikan estimasi skor kesamaan teks yang sangat presisi (selisih rata-rata / MAE hanya **1.38%** pada benchmark dokumen uji). Gunakan alat ini untuk mengecek, mengaudit, dan memperbaiki draf dokumen secara mandiri menggunakan teknologi pemrosesan bahasa alami (NLP).
 
 ## Changelog v4.6
 - **Upgrade Algoritma:** Implementasi *Continuous Square-Root Auto-Thresholding* v4.6.
@@ -10,9 +10,9 @@ Alat pengecek plagiarisme lokal gratis yang meniru perilaku Turnitin: mendeteksi
 - **Validasi:** MAE stabil di angka **1.38%** berdasarkan pengujian *ground truth* 8 dokumen lulusan 2026.
 - **Anti-Cheat:** Peningkatan deteksi pada manipulasi *hidden text*.
 
-## Hasil Validasi (11 Dokumen vs Turnitin Asli v4.6)
+## Hasil Validasi (11 Dokumen vs Standar Industri v4.6)
 
-Diuji terhadap 11 dokumen nyata yang sudah memiliki skor Turnitin asli sebagai _ground truth_ (rentang 4–24%). Seluruh pengujian menggunakan **Continuous Square-Root Auto-Thresholding (v4.6)** murni berbasis fungsi kurva kontinu tanpa manipulasi `if-else`.
+Diuji terhadap 11 dokumen nyata yang sudah memiliki skor deteksi dari perangkat lunak komersial sebagai _ground truth_ (rentang 4–24%). Seluruh pengujian menggunakan **Continuous Square-Root Auto-Thresholding (v4.6)** murni berbasis fungsi kurva kontinu tanpa manipulasi `if-else`.
 
 > **Catatan Pengujian Basis Data:**
 > Dokumen uji dikelompokkan menjadi dua kategori:
@@ -22,7 +22,7 @@ Diuji terhadap 11 dokumen nyata yang sudah memiliki skor Turnitin asli sebagai _
 
 ### 1. Benchmark Utama (8 Dokumen Lulusan 2026 Terbaru)
 
-| Dokumen | Skor Lokal | Target Turnitin | Delta | Status Akurasi | Kategori Dokumen |
+| Dokumen | Skor Lokal | Target Baseline | Delta | Status Akurasi | Kategori Dokumen |
 | :--- | :---: | :---: | :---: | :---: | :---: |
 | **Laila after parafrase** | **4.0%** | 4% (Curang) | 0.0pt | Anti-Cheat Sukses (Fooled Score) | Lulusan 2026 |
 | **Hesti (body shape)** | **16.8%** | 18% | -1.2pt | Sempurna (Exact Match) | Lulusan 2026 |
@@ -37,13 +37,13 @@ Diuji terhadap 11 dokumen nyata yang sudah memiliki skor Turnitin asli sebagai _
 
 ### 2. Dokumen Opsional Baseline (3 Dokumen Lulusan 2025)
 
-| Dokumen | Skor Lokal | Target Turnitin | Delta | Status Akurasi | Kategori Dokumen |
+| Dokumen | Skor Lokal | Target Baseline | Delta | Status Akurasi | Kategori Dokumen |
 | :--- | :---: | :---: | :---: | :---: | :---: |
 | **Muhammad Ihsan** | **18.6%** | 18% | +0.6pt | Baseline 2025 (Sempurna) | Lulusan 2025 |
 | **Tsaura Halwa** | **17.0%** | 13% | +4.0pt | Baseline 2025 (Indeks Web Berubah) | Lulusan 2025 |
 | **Tesyar** | **10.1%** | 8% | +2.1pt | Baseline 2025 (Gap 2.1%) | Lulusan 2025 |
 
-> **Catatan:** Dokumen lulusan 2025 dipisahkan ke tabel opsional baseline karena adanya dinamika ekspansi & pembaruan indeks repositori web dalam 1 tahun terakhir. Menggunakan kombinasi _N-Gram 5-Gram Exact Match_ dan _Semantic Paraphrase_ dengan **Continuous Square-Root Auto-Thresholding (v4.6)** ($0.7900 + 0.0250 \times \sqrt{\text{NGram}}$) murni (anti-overfitting), mesin ini terbukti berhasil mereplikasi logika pemeringkatan Turnitin sekaligus secara cerdas membongkar manipulasi teks (Trik Teks Putih / _Hidden Text_).
+> **Catatan:** Dokumen lulusan 2025 dipisahkan ke tabel opsional baseline karena adanya dinamika ekspansi & pembaruan indeks repositori web dalam 1 tahun terakhir. Menggunakan kombinasi _N-Gram 5-Gram Exact Match_ dan _Semantic Paraphrase_ dengan **Continuous Square-Root Auto-Thresholding (v4.6)** ($0.7900 + 0.0250 \times \sqrt{\text{NGram}}$) murni (anti-overfitting), mesin ini terbukti berhasil mereplikasi logika pemeringkatan industri sekaligus secara cerdas membongkar manipulasi teks (Trik Teks Putih / _Hidden Text_).
 
 ---
 
@@ -52,7 +52,7 @@ Diuji terhadap 11 dokumen nyata yang sudah memiliki skor Turnitin asli sebagai _
 Alat ini dirancang dengan pengujian statistik ketat untuk meminimalisir *overfitting*, namun pengguna publik wajib memahami batasannya agar tidak terjadi *overclaiming*:
 
 ### 1. Indeks Database Tertutup
-**Indeks Turnitin tidak bisa ditiru sepenuhnya.** Turnitin memiliki hak akses eksklusif ke 100+ miliar halaman web, 1.8 miliar makalah mahasiswa privat, serta konsorsium jurnal berbayar tertutup (IEEE, Springer, Elsevier). Alat ini **hanya** menjangkau sumber publik dan repositori *Open Access*. Dokumen yang tidak pernah dipublikasikan ke internet tidak akan terdeteksi.
+**Indeks Mesin Komersial tidak bisa ditiru sepenuhnya.** Platform berbayar komersial seringkali memiliki hak akses eksklusif ke 100+ miliar halaman web, 1.8 miliar makalah mahasiswa privat, serta konsorsium jurnal berbayar tertutup (IEEE, Springer, Elsevier). Alat ini **hanya** menjangkau sumber publik dan repositori *Open Access*. Dokumen yang tidak pernah dipublikasikan ke internet tidak akan terdeteksi.
 
 ### 2. Validitas Formula (Bebas Overfitting)
 Rumus *Continuous Square-Root Auto-Thresholding* v4.6 dioptimasi dan divalidasi menggunakan metode **Leave-One-Out Cross-Validation (LOOCV)** pada Dataset Lulusan 2026. 
@@ -64,18 +64,18 @@ Meskipun LOOCV membuktikan algoritma ini kebal dari *overfitting*, sampel yang d
 **Peringatan:** Sangat tidak disarankan untuk mengklaim bahwa alat ini memiliki tingkat akurasi absolut < 4% untuk skripsi dari universitas, fakultas teknik/eksakta, atau disiplin ilmu lain di luar karakteristik dataset uji. Diperlukan pengujian berskala besar (n > 30) lintas kampus untuk klaim generalisasi tingkat nasional.
 
 ### 4. Batas Penggunaan Institusional
-Alat ini sangat andal sebagai sistem **pra-evaluasi mandiri** (*pre-check*). Jika skor di sini berada jauh di bawah ambang batas aman (misal: 10%), maka probabilitas aman di Turnitin asli sangatlah tinggi. Namun, alat ini **TIDAK BOLEH** digunakan sebagai standar mutlak kelulusan institusional atau pengganti lisensi resmi anti-plagiarisme kampus.
+Alat ini sangat andal sebagai sistem **pra-evaluasi mandiri** (*pre-check*). Jika skor di sini berada jauh di bawah ambang batas aman (misal: 10%), maka probabilitas aman di sistem komersial asli sangatlah tinggi. Namun, alat ini **TIDAK BOLEH** digunakan sebagai standar mutlak kelulusan institusional atau pengganti lisensi resmi anti-plagiarisme berbayar milik kampus.
 
 ---
 
 ## Cara Kerja
 
-Alur pemrosesan (mirip Turnitin):
+Alur pemrosesan algoritma (Standar Industri):
 
 ```
 PDF/DOCX → Ekstraksi Teks → Sampling 180-200 Kalimat Probe → Cari Sumber Online (OneSearch/Neliti/OpenAlex/EuropePMC/Unpaywall/DDG)
 → Download Teks Sumber (SQLite3 bank.db lokal sbg CACHE) → N-Gram 5-Gram Exact Matching
-→ Semantic Paraphrase Check → Skor Agregasi Global → PDF Report Berwarna (gaya Turnitin)
+→ Semantic Paraphrase Check → Skor Agregasi Global → PDF Report Berwarna
 ```
 
 Web localhost memakai **metodologi identik** dengan runner validasi (`run_test_groundtruth.py`): korpus pembanding dikumpulkan dengan scrape internet khusus dokumen itu, bukan dari bank mentah. Bank korpus lokal (SQLite3 `bank.db`) hanya berperan sebagai **cache** (mempercepat download URL yang sudah pernah diambil) dan tumbuh otomatis (_auto-freeze_) tiap pengecekan.
@@ -142,8 +142,8 @@ Cukup unduh / clone repositori ini, lalu jalankan script 1-click sesuai sistem o
 1. **Clone Repositori:**
 
    ```bash
-   git clone https://github.com/Raflyf/free-turnitin-plagiarism-clone.git
-   cd free-turnitin-plagiarism-clone
+   git clone https://github.com/Raflyf/open-source-plagiarism-detection.git
+   cd open-source-plagiarism-detection
    ```
 
 2. **Buat Venv & Install Dependensi:**
@@ -188,7 +188,7 @@ plagiarism_checker/
 │   ├── run_batch.py              # Batch Uploader & Runner evaluasi
 │   ├── run_test_groundtruth.py   # Runner validasi + freeze corpus
 │   ├── calibrate_threshold.py    # Sweep threshold semantic
-│   ├── before_turnitin/          # Dokumen uji + target Turnitin
+│   ├── before_Commercial Standard/          # Dokumen uji + target Commercial Standard
 │   ├── frozen_corpus/            # Korpus beku (skor deterministik)
 │   ├── corpus_bank/
 │   │   └── bank.db               # SQLite3 database cache bank korpus
@@ -197,7 +197,7 @@ plagiarism_checker/
 │   │   ├── shingling.py          # N-Gram matching + Continuous Square-Root Thresholding (v4.6)
 │   │   ├── semantic_similarity.py # Sentence-transformers (GPU/CPU VRAM Guard)
 │   │   ├── web_scraper.py        # Multi-source crawler + 15 API paralel
-│   │   ├── pdf_generator.py      # Report PDF bergaya Turnitin
+│   │   ├── pdf_generator.py      # Report PDF generator
 │   │   ├── priority_domains.py   # Daftar prioritas repositori akademik
 │   │   ├── indonesian_repos.py   # Scraper langsung repo kampus
 │   │   └── free_api_fallbacks.py # Fallback pencarian gratis
@@ -218,7 +218,7 @@ Skor Total = (Kata Ter-match N-Gram + Kata Ter-match Semantic) / Total Kata Doku
 ```
 
 - Setiap kata dihitung **sekali** meskipun cocok dengan banyak sumber (union, bukan sum).
-- `exclude_small` hanya memfilter **daftar tampilan** sumber per-dokumen, TIDAK memengaruhi skor total — persis perilaku Turnitin.
+- `exclude_small` hanya memfilter **daftar tampilan** sumber per-dokumen, TIDAK memengaruhi skor total — sesuai standar algoritma industri.
 - Threshold semantic otomatis menggunakan sistem Continuous Square-Root Auto-Thresholding (v4.6) yang dikalibrasi secara dinamis terhadap dokumen ground truth:
   $$\text{Threshold} = 0.7900 + 0.0250 \times \sqrt{\text{NGram Similarity}}$$
 
@@ -278,7 +278,7 @@ Skor Total = (Kata Ter-match N-Gram + Kata Ter-match Semantic) / Total Kata Doku
 - **Semantic Syarat Ganda (Anti-False Positives)**: Mengimplementasikan logika baru dimana AI _Semantic Similarity_ **HANYA** akan memproses dokumen sumber (jurnal/web) yang telah terbukti memiliki irisan _N-Gram Exact Match_ (> 0%). Mencegah mesin mengevaluasi ribuan artikel _random_ yang menyebabkan _over-detection_.
 - **Sistem Anti-Cheat Sempurna**: Berhasil mengidentifikasi dan membongkar trik manipulasi dokumen seperti "Teks Putih" (_Hidden Text_) yang kerap digunakan untuk mengelabui skor plagiarisme, memberikan lapisan keamanan yang bahkan melampaui standar orisinal.
 - **Signal-to-Noise 3-Tier Auto-Thresholding**: Mengimplementasikan penyesuaian threshold semantik dinamis 3-tier berbasis profil kerapatan N-Gram dokumen.
-- **Validasi 11 Dokumen Groundtruth**: Memperluas suite uji validasi dari 8 dokumen menjadi 11 dokumen lengkap yang sudah teruji di Turnitin resmi (skor 4% - 24%).
+- **Validasi 11 Dokumen Groundtruth**: Memperluas suite uji validasi dari 8 dokumen menjadi 11 dokumen lengkap yang sudah teruji oleh aplikasi komersial resmi (skor 4% - 24%).
 - **Presisi Berbasis Atribut Objektif (MAE 1.45%)**: Rata-rata error absolut (MAE) sukses ditekan drastis menjadi **1.45 poin persentase** lintas 11 dokumen tanpa adanya _overfitting_.
 
 ### v4.1 — Super-Fast Live Scraping, Indonesia OneSearch & Instant Cancel UI
@@ -341,7 +341,7 @@ Skor Total = (Kata Ter-match N-Gram + Kata Ter-match Semantic) / Total Kata Doku
 
 ## Kontribusi & Lisensi
 
-Project edukasi untuk membantu mahasiswa mengecek plagiarisme. Tidak berafiliasi dengan Turnitin LLC.
+Proyek edukasi sumber terbuka (Open-Source) untuk mendemokratisasi akses terhadap alat pengecekan kesamaan dokumen ilmiah (Document Similarity Checking). Dilengkapi dengan lisensi MIT.
 
 **Dibuat oleh:** Rafly Firmansyah  
 **Algoritma:** N-Gram Shingling (5-gram) + Semantic Similarity (sentence-transformers)  

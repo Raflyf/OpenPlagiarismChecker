@@ -165,12 +165,11 @@ def load_corpus_bank(target_urls=None):
     conn.close()
     return data
 
-def save_to_corpus_bank(new_corpus):
-    """Simpan sumber baru ke bank.db SQLite (instan <1ms) & Supabase Cloud (async background thread, zero delay)."""
+def save_to_corpus_bank_local(new_corpus):
+    """Simpan sumber baru HANYA ke bank.db SQLite (Lokal)."""
     if not new_corpus:
         return
         
-    # 1. Simpan ke SQLite lokal instan (<1ms)
     init_bank_db()
     with _bank_lock:
         try:
@@ -182,9 +181,13 @@ def save_to_corpus_bank(new_corpus):
             cur.execute("SELECT COUNT(*) FROM corpus")
             total = cur.fetchone()[0]
             conn.close()
-            logger.info("[Bank] Tersimpan ke bank.db (total: {total} sumber)")
+            logger.info(f"[Bank] Tersimpan ke bank.db (total: {total} sumber)")
         except Exception as e:
-            logger.info("[Bank] PERINGATAN: gagal menyimpan ke bank.db: {e}")
+            logger.info(f"[Bank] PERINGATAN: gagal menyimpan ke bank.db: {e}")
+
+def save_to_corpus_bank(new_corpus):
+    """Simpan sumber baru ke bank.db SQLite (instan <1ms) & Supabase Cloud (async background thread, zero delay)."""
+    save_to_corpus_bank_local(new_corpus)
 
     # 2. Simpan ke Supabase Cloud di BACKGROUND THREAD (Zero delay, tidak menahan kalkulasi N-Gram!)
     import threading
@@ -1425,6 +1428,8 @@ def scrape_url(url):
             if content_length and int(content_length) > 20 * 1024 * 1024:
                 return url, "", total_bytes
 
+            import time
+            start_download = time.time()
             content = b""
             for chunk in res.iter_content(chunk_size=8192):
                 if chunk:
@@ -1433,8 +1438,10 @@ def scrape_url(url):
                     _add_download_bytes(len(chunk))
                 if len(content) > 20 * 1024 * 1024:
                     break
+                if time.time() - start_download > 10:
+                    # Timeout 10 detik maksimal per unduhan untuk mencegah hang
+                    break
             
-            res_text = content.decode(res.apparent_encoding or 'utf-8', errors='ignore')
             import re
             
             # Deteksi jika file adalah PDF langsung
@@ -1452,6 +1459,9 @@ def scrape_url(url):
                 return url, text, total_bytes
             else:
                 # Parsing HTML biasa (Fast Scraping tanpa Deep PDF Crawl yang lambat)
+                # Hindari res.apparent_encoding karena chardet sangat lambat (O(N)) pada file besar.
+                enc = res.encoding if res.encoding else 'utf-8'
+                res_text = content.decode(enc, errors='ignore')
                 soup = BeautifulSoup(res_text, 'html.parser')
                 for tag in soup(["script", "style", "nav", "footer", "header", "aside", "menu"]):
                     tag.decompose()
@@ -1507,6 +1517,11 @@ def scrape_all_candidates(urls, preloaded_corpus, progress_cb=None):
             except Exception as e:
                 failed_urls.append(futures[future])
                 logger.warning(f"[!] Warning: API/Scraper error -> {e}")
+            
+            # Incremental save ke bank lokal setiap 50 URL sukses agar tidak hangus bila proses dibatalkan (Ctrl+C)
+            # KITA HANYA SIMPAN KE LOKAL (SQLite) DISINI agar Supabase tidak kebanjiran request dan Time Out.
+            if len(corpus) - len(preloaded_corpus) >= 50 and (i + 1) % 50 == 0:
+                save_to_corpus_bank_local(corpus)
             
             if progress_cb:
                 elapsed = time.time() - start_time
