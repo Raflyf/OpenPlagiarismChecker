@@ -14,8 +14,6 @@ REM 1. Cek atau deteksi Python & Venv
 set "PYTHON_CMD="
 if exist ".venv\Scripts\python.exe" (
     set "PYTHON_CMD=.venv\Scripts\python.exe"
-) else if exist "d:\code\skripsi_spam\Code_Spam_Email\.venv\Scripts\python.exe" (
-    set "PYTHON_CMD=d:\code\skripsi_spam\Code_Spam_Email\.venv\Scripts\python.exe"
 )
 
 if "%PYTHON_CMD%"=="" (
