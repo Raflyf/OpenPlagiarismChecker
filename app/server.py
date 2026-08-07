@@ -420,9 +420,11 @@ def check_frozen():
 
 def get_client_ip():
     """Phase 4 #2: Rate limiting dengan proper IP extraction"""
-    forwarded = request.headers.get("X-Forwarded-For")
-    if forwarded:
-        return forwarded.split(',')[0].strip()
+    trusted_proxies = {'127.0.0.1', '::1', 'localhost'}
+    if request.remote_addr in trusted_proxies:
+        forwarded = request.headers.get("X-Forwarded-For")
+        if forwarded:
+            return forwarded.split(',')[0].strip()
     return request.remote_addr or 'unknown'
 
 def _check_rate_limit(ip):
