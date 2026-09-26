@@ -69,38 +69,84 @@ Setiap kata hanya berkontribusi maksimal satu kali. **Tidak ada pengurangan, pem
 
 Validasi ini dijalankan **end-to-end dengan scraping internet sungguhan** (bukan korpus beku), untuk membuktikan pipeline produksi akurat:
 
-### Dokumen Uji & Hasil
+### Validasi Lengkap 11 Dokumen — 2 Grup (26 Sep 2026)
+
+**Konfigurasi:** 120 probes/dokumen, PURE LIVE SCRAPING (tanpa korpus beku), CUDA GPU (RTX 3050), tanpa manipulasi skor.
+
+#### Grup 2026 — Core Benchmark (8 dokumen)
+
+| Dokumen | Kata | Skor Sistem | Target Turnitin | Delta |
+| :--- | :---: | :---: | :---: | :---: |
+| Laila after parafrase | 9.123 | 16.50% | 4% | +12.50 |
+| Hesti | 8.604 | 15.68% | 18% | -2.32 |
+| Fikri | 8.493 | 12.59% | 14% | -1.41 |
+| Rafly | 13.100 | 6.69% | 8% | -1.31 |
+| Andyan | 12.573 | 17.29% | 23% | -5.71 |
+| Dias Maulana | 6.416 | 19.53% | 23% | -3.47 |
+| Melani | 10.565 | 18.65% | 19% | -0.35 |
+| Laila before parafrase | 9.306 | 19.06% | 24% | -4.94 |
+
+**MAE Grup 2026: 4.00 poin persentase.**
+
+#### Grup 2025 — Baseline (3 dokumen)
+
+| Dokumen | Kata | Skor Sistem | Target Turnitin | Delta |
+| :--- | :---: | :---: | :---: | :---: |
+| Muhammad Ihsan | 10.183 | 14.37% | 18% | -3.63 |
+| Tsaura Halwa | 10.786 | 17.27% | 13% | +4.27 |
+| Tesyar | 5.852 | 11.91% | 8% | +3.91 |
+
+**MAE Grup 2025: 3.94 poin persentase.**
+
+#### Ringkasan Keseluruhan
+
+| Metrik | Nilai |
+| :--- | :---: |
+| **MAE total (11 dokumen)** | **3.98 poin persentase** |
+| Mean delta (bias) | -0.22 (hampir netral — tidak sistematis tinggi/rendah) |
+| Delta < 5 poin | **9/11 dokumen** |
+| Delta < 3 poin | 4/11 dokumen |
+| Waktu proses | 263–449 detik/dokumen (CUDA GPU) |
+| Sumber per dokumen | 50–283 sumber relevan dari internet live |
+
+**Detail layer (contoh Andyan):** N-Gram 14.28% + Semantic 3.01% = 17.29% (283 sumber dari korpus 1.078).
+
+#### Catatan Analitis: Outlier Laila after parafrase (+12.50)
+
+Dokumen ini adalah **satu-satunya outlier signifikan**. Perbandingan dengan korpus beku:
+
+| Metode | Skor | Selisih ke target |
+| :--- | :---: | :---: |
+| Live scraping (120 probes) | 16.50% | +12.50 |
+| Korpus beku (benchmark historis) | 3.45% | -0.55 |
+
+**Penyebab:** live scraping menemukan sumber-sumber yang secara semantik/struktural mirip dengan dokumen after-parafrase (jurnal Indonesia dengan topik serupa), sementara korpus beku hanya memuat sumber yang sudah terverifikasi relevan. Ini adalah **karakteristik pencarian live yang lebih luas**, bukan kesalahan perhitungan — skor tetap dihitung murni dari overlap nyata. Untuk dokumen yang diparafrase, hasil live cenderung **lebih konservatif** (menemukan lebih banyak kemiripan).
+
+**MAE tanpa outlier ini: 3.13 poin** (10 dokumen).
+
+#### Catatan: Selisih vs Benchmark Korpus Beku
+
+MAE live (3.98) lebih tinggi dari MAE korpus beku (1.21). Ini **wajar dan bukan regresi**:
+
+| Aspek | Korpus Beku | Live Scraping |
+| :--- | :--- | :--- |
+| Sumber | Terkurasi & terverifikasi | Ditemukan ulang setiap run |
+| Reproducibility | 100% deterministik | Bervariasi (jaringan, indeks berubah) |
+| Cakupan | Terbatas pada sumber yang pernah disimpan | Lebih luas (menemukan sumber baru) |
+| Kegunaan | Verifikasi ulang & audit | Cermin kondisi produksi nyata |
+
+Korpus beku mengukur **akurasi pipeline pada korpus terkontrol**; live scraping mengukur **performa di kondisi produksi**. Keduanya dilaporkan untuk transparansi penuh.
+
+---
+
+### Validasi Awal (2 dokumen, 26 Sep 2026 — arsip)
 
 | Dokumen | Kata | Skor Sistem | Target Turnitin | Delta |
 | :--- | :---: | :---: | :---: | :---: |
 | **skripsi.pdf** (Tesyar) | 5.852 | **9.39%** | 8% | **+1.39** |
 | **Skripsi_Rafly.pdf** (skripsi lengkap) | 13.100 | **6.39%** | 8% | **-1.61** |
 
-**MAE validasi live: 1.50 poin persentase** (2 dokumen).
-
-**Konfigurasi uji:**
-- Scraping: 40–50 probes, tanpa korpus beku (`force_scrape` mode live)
-- Sumber ditemukan: 42–60 sumber relevan per dokumen (dari korpus 633–1.166)
-- Layer aktif: N-Gram + Semantic + Character Fuzzy + Cross-Language + Self-Exclusion
-- Waktu proses: 183–236 detik/dokumen (GPU CUDA)
-
-### Detail Skor per Layer (skripsi.pdf)
-
-| Layer | Kontribusi |
-| :--- | :---: |
-| N-Gram (kata persis) | 4.30% |
-| Semantic (parafrasa) | 5.10% |
-| **Total** | **9.39%** |
-
-### Contoh Sumber Terdeteksi (skripsi.pdf)
-
-| Persentase | Fuzzy | Sumber |
-| :---: | :---: | :--- |
-| 1.45% | 0.367 | ejournal.itn.ac.id |
-| 1.32% | 0.406 | github.com/mendhiri (repositori skripsi) |
-| 0.82% | — | elibrary.bsi.ac.id |
-| 0.80% | — | jsi.politala.ac.id |
-| 0.51% | 0.444 | sistemasi.ftik.unisi.ac.id |
+**MAE validasi awal: 1.50 poin persentase** (2 dokumen, 40–50 probes).
 
 ---
 

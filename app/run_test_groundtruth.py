@@ -16,19 +16,35 @@ REFRESH = os.environ.get("REFRESH", "0") == "1"
 
 
 def discover_docs():
-    """Auto-discover dokumen validasi di test_documents/.
+    """Auto-discover dokumen validasi di test_documents/ (termasuk subfolder grup).
+
+    Struktur yang didukung:
+      test_documents/*.pdf                -> tanpa grup
+      test_documents/2026/*.pdf           -> grup "2026"
+      test_documents/2025/*.pdf           -> grup "2025"
+
     Target baseline diambil dari angka 'NN%' di nama file. Slug = nama file
-    tanpa angka% & ekstensi, dipakai sbagai key korpus beku."""
+    tanpa angka% & ekstensi, dipakai sebagai key korpus beku.
+    """
     docs = []
-    for path in sorted(glob.glob(os.path.join(BASE, "*"))):
-        if not path.lower().endswith((".pdf", ".docx", ".txt")):
-            continue
-        fname = os.path.basename(path)
-        m = re.search(r'(\d+)\s*%', fname)
-        target = int(m.group(1)) if m else None
-        slug = re.sub(r'\s*\d+\s*%', '', os.path.splitext(fname)[0]).strip()
-        slug = re.sub(r'[^\w]+', '_', slug).strip('_')[:40]
-        docs.append((slug, fname, target))
+    # Root + subfolder (satu level) agar grup benchmark terbaca.
+    patterns = [os.path.join(BASE, "*"), os.path.join(BASE, "*", "*")]
+    for pattern in patterns:
+        for path in sorted(glob.glob(pattern)):
+            if os.path.isdir(path):
+                continue
+            if not path.lower().endswith((".pdf", ".docx", ".txt")):
+                continue
+            fname = os.path.basename(path)
+            m = re.search(r'(\d+)\s*%', fname)
+            target = int(m.group(1)) if m else None
+            slug = re.sub(r'\s*\d+\s*%', '', os.path.splitext(fname)[0]).strip()
+            slug = re.sub(r'[^\w]+', '_', slug).strip('_')[:40]
+            # Sertakan grup (nama subfolder) di slug agar tidak bentrok antar-grup
+            parent = os.path.basename(os.path.dirname(path))
+            if parent and parent != os.path.basename(BASE):
+                slug = f"{parent}_{slug}"
+            docs.append((slug, fname, target, path))
     return docs
 
 
@@ -45,8 +61,8 @@ def get_frozen_path(original_filename, doc_hash):
     return os.path.join(FROZEN, f"web_{safe_name}_{doc_hash}.json")
 
 summary = []
-for name, fname, target in discover_docs():
-    path = os.path.join(BASE, fname)
+for name, fname, target, doc_path in discover_docs():
+    path = doc_path
     tgt_str = f"{target}%" if target is not None else "?"
     print(f"\n{'='*60}\n[{name}] target baseline = {tgt_str}\n{'='*60}", flush=True)
     t0 = time.time()

@@ -36,10 +36,49 @@ _SCAN_WORDS_PER_PAGE = int(os.environ.get("OCR_SCAN_THRESHOLD_WORDS", "40"))
 _MAX_OCR_PAGES = int(os.environ.get("OCR_MAX_PAGES", "40"))
 
 
+def _configure_tesseract():
+    """Auto-konfigurasi path Tesseract & TESSDATA_PREFIX.
+
+    [FIX 26 Sep] Windows tidak menambahkan Tesseract ke PATH secara default, dan
+    bahasa Indonesia (ind.traineddata) sering tidak bisa ditulis ke
+    C:\Program Files (butuh admin). Fungsi ini:
+    1. Mencari binary tesseract di lokasi instalasi umum.
+    2. Menunjuk TESSDATA_PREFIX ke folder user (%LOCALAPPDATA%\tessdata) bila
+       ada — folder ini bisa ditulis tanpa admin sehingga bahasa tambahan
+       (ind) bisa dipasang pengguna.
+    """
+    import shutil as _shutil
+    try:
+        import pytesseract
+    except Exception:
+        return
+
+    # 1. Binary tesseract
+    if not _shutil.which("tesseract"):
+        for cand in (
+            r"C:\Program Files\Tesseract-OCR\tesseract.exe",
+            r"C:\Program Files (x86)\Tesseract-OCR\tesseract.exe",
+            os.path.expandvars(r"%LOCALAPPDATA%\Programs\Tesseract-OCR\tesseract.exe"),
+            os.path.expandvars(r"%LOCALAPPDATA%\Tesseract-OCR\tesseract.exe"),
+        ):
+            if os.path.exists(cand):
+                pytesseract.pytesseract.tesseract_cmd = cand
+                break
+
+    # 2. TESSDATA_PREFIX ke folder user bila ada traineddata di sana
+    if not os.environ.get("TESSDATA_PREFIX"):
+        user_tessdata = os.path.expandvars(r"%LOCALAPPDATA%\tessdata")
+        if os.path.isdir(user_tessdata) and any(
+            f.endswith(".traineddata") for f in os.listdir(user_tessdata)
+        ):
+            os.environ["TESSDATA_PREFIX"] = user_tessdata
+
+
 def is_tesseract_available() -> bool:
     """Cek apakah pytesseract + binary tesseract tersedia."""
     try:
-        import pytesseract  # noqa: F401
+        import pytesseract
+        _configure_tesseract()
         from pytesseract import get_tesseract_version
         get_tesseract_version()
         return True
@@ -51,6 +90,7 @@ def _available_languages() -> list:
     """Daftar bahasa Tesseract yang terinstall (mis. ['eng', 'ind'])."""
     try:
         import pytesseract
+        _configure_tesseract()
         return list(pytesseract.get_languages(config=""))
     except Exception:
         return []
@@ -112,6 +152,7 @@ def ocr_pdf(filepath: str, max_pages: int = None) -> str:
         from PIL import Image
         import io
 
+        _configure_tesseract()
         langs = _available_languages()
         if "ind" in langs and "eng" in langs:
             lang = "ind+eng"
