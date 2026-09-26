@@ -85,6 +85,9 @@ def extract_text_from_pdf(filepath: str, exclude_quotes: bool = True, exclude_bi
     text = ""
     hidden_word_count = 0
     doc = None
+    # [FITUR OCR 26 Sep] warnings diinisialisasi di awal agar blok OCR di dalam
+    # try bisa menambahkan peringatan tanpa NameError.
+    manipulation_warnings = []
     try:
         doc = fitz.open(filepath)
         # Deteksi teks font-mungil (anti-cheat). HANYA bila ada yang dibuang kita
@@ -108,8 +111,38 @@ def extract_text_from_pdf(filepath: str, exclude_quotes: bool = True, exclude_bi
         else:
             text = raw_text
 
+        # [FITUR OCR 26 Sep] PDF scan: teks digital hampir nol. Jalankan OCR bila
+        # engine tersedia; bila tidak, beri peringatan EKSPLISIT agar pengguna tidak
+        # menerima skor 0% yang menyesatkan (false negative paling berbahaya).
+        ocr_used = False
+        if len(text.strip()) < 100 and doc is not None:
+            try:
+                from .ocr_support import looks_like_scanned_pdf, ocr_pdf, ocr_status_message
+            except ImportError:
+                try:
+                    from ocr_support import looks_like_scanned_pdf, ocr_pdf, ocr_status_message
+                except ImportError:
+                    looks_like_scanned_pdf = None
+
+            if looks_like_scanned_pdf is not None and looks_like_scanned_pdf(doc):
+                logger.info("PDF terdeteksi scan — mencoba OCR...")
+                ocr_text = ocr_pdf(filepath)
+                if ocr_text and len(ocr_text.strip()) > 100:
+                    text = ocr_text
+                    raw_text = ocr_text
+                    ocr_used = True
+                    logger.info("OCR berhasil: %d karakter.", len(text))
+                else:
+                    # OCR tidak tersedia / gagal -> jangan diam. Simpan pesan agar
+                    # caller bisa menampilkan peringatan ke pengguna.
+                    manipulation_warnings.append(ocr_status_message())
+
         if not text.strip():
-            raise Exception("PDF appears to be empty or contains only images")
+            raise Exception(
+                "PDF tidak mengandung teks yang bisa dibaca. "
+                "Dokumen kemungkinan hasil scan dan OCR tidak tersedia/gagal. "
+                "Pasang Tesseract OCR untuk mendukung PDF scan."
+            )
 
     except Exception as e:
         raise Exception(f"Failed to extract PDF: {str(e)}")
@@ -117,10 +150,12 @@ def extract_text_from_pdf(filepath: str, exclude_quotes: bool = True, exclude_bi
         if doc is not None:
             doc.close()
 
-    manipulation_warnings = detect_manipulation(text, hidden_word_count)
-    
+    # [FITUR OCR 26 Sep] extend (bukan assign) agar peringatan OCR yang sudah
+    # ditambahkan di blok try tidak tertimpa.
+    manipulation_warnings.extend(detect_manipulation(text, hidden_word_count))
+
     cleaned_text = clean_text(text, exclude_quotes, exclude_biblio, exclude_abstract)
-    
+
     # Bersihkan Zero-width chars dari teks agar tetap bisa di-cek similarity-nya
     cleaned_text = RE_ZERO_WIDTH.sub('', cleaned_text)
     # Normalkan huruf Cyrillic kembali ke Latin agar usahanya sia-sia
@@ -320,12 +355,32 @@ def clean_text(text, exclude_quotes=True, exclude_biblio=True, exclude_abstract=
         if last_idx > len(text) * 0.5:
             text = text[:last_idx]
 
-    # [3] Exclude Quotes
+    # [3] Exclude Quotes — QUOTE INTELLIGENCE (diperbarui 26 Sep)
+    # Versi lama menghapus SEMUA kutipan tanpa pandang bulu -> kutipan TANPA
+    # atribusi (disalin mentah) ikut hilang = false negative. Sekarang:
+    #   - Kutipan yang DISITASI (ada "(Smith, 2024)"/"menurut Smith (2024)") -> dihapus
+    #     (praktik akademik sah, sama seperti kebijakan Turnitin "exclude quotes").
+    #   - Kutipan TANPA sitasi -> TETAP dihitung (indikasi penyalinan).
     if exclude_quotes:
-        # Hapus kutipan dengan straight quotes (maks 500 karakter agar tidak menghapus 1 bab jika ada quote yg tidak tertutup)
-        text = RE_STRAIGHT_QUOTES.sub('', text)
-        # Hapus kutipan dengan smart quotes
-        text = RE_SMART_QUOTES.sub('', text)
+        try:
+            from .quote_intelligence import split_quotes_by_citation
+        except ImportError:
+            try:
+                from quote_intelligence import split_quotes_by_citation
+            except ImportError:
+                split_quotes_by_citation = None
+
+        if split_quotes_by_citation is not None:
+            qs = split_quotes_by_citation(text)
+            for cited in qs.get("cited", []):
+                # Hapus hanya kutipan yang disitasi (cari kemunculan persis)
+                for pat in (f'"{cited}"', f'“{cited}”'):
+                    if pat in text:
+                        text = text.replace(pat, ' ')
+        else:
+            # Fallback perilaku lama bila modul tidak tersedia
+            text = RE_STRAIGHT_QUOTES.sub('', text)
+            text = RE_SMART_QUOTES.sub('', text)
 
     return text
 

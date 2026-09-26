@@ -1268,9 +1268,32 @@ def get_candidate_urls(sentences, max_probes=100, progress_cb=None, cutoff_year=
 
         probes = (tier1 + tier2 + tier3)[:max_probes]
         
+    # [FITUR CROSS-LANGUAGE 26 Sep] Deteksi plagiat terjemahan: terjemahkan beberapa
+    # probe terpanjang ke Inggris, lalu cari di mesin akademik internasional. Sumber
+    # Inggris yang ditemukan masuk korpus, dan model semantic multilingual yang sudah
+    # ada akan mencocokkan kalimat Indonesia vs sumber Inggris berdasarkan MAKNA.
+    # Ini menutup celah plagiat-terjemahan yang tidak terdeteksi sistem monolingual.
+    if os.environ.get("CROSS_LANGUAGE_ENABLED", "1") != "0":
+        try:
+            from .cross_language import build_english_probes
+        except ImportError:
+            try:
+                from cross_language import build_english_probes
+            except ImportError:
+                build_english_probes = None
+        if build_english_probes is not None:
+            try:
+                max_en = int(os.environ.get("CROSS_LANGUAGE_PROBES", "6"))
+                english_probes = build_english_probes(probes, max_probes=max_en)
+                if english_probes:
+                    logger.info(f"[CrossLang] {len(english_probes)} probe Inggris ditambahkan untuk pencarian internasional.")
+                    probes = list(probes) + english_probes
+            except Exception as cl_e:
+                logger.debug("Cross-language probe gagal: %s", cl_e)
+
     urls = set()
     preloaded_corpus = {}
-    
+
     logger.info(f"[API] Meluncurkan Bot AI & Browser Crawler untuk {len(probes)} Fingerprints...")
     
     # USE_COHERE_EXPANDER (default "0"=MATI): blok Cohere->DDG ini bottleneck utama

@@ -330,7 +330,9 @@ def process_document(file_id, filepath, original_filename, exclude_quotes=True, 
         # run_test_groundtruth.py, sehingga skor dokumen tervalidasi konsisten saat
         # dites di localhost (korpus sama-sama terkurasi, bukan bank mentah).
         
-        calc = SimilarityCalculator(doc_text, corpus)
+        # [FITUR 26 Sep] Teruskan identitas dokumen untuk self-exclusion
+        # (kecualikan submission lama dokumen yang sama dari perhitungan).
+        calc = SimilarityCalculator(doc_text, corpus, current_filename=original_filename, current_hash=doc_hash)
         calc.set_exclude_small(exclude_small)
         calc.set_semantic(use_semantic, threshold="auto")
         calc.set_cancel_callback(check_cancelled)
@@ -350,6 +352,25 @@ def process_document(file_id, filepath, original_filename, exclude_quotes=True, 
             fooled_similarity = round(fooled_sim)
             logger.info(f"Skor tertipu (hidden text lolos): {fooled_similarity}%")
 
+        # [FITUR 26 Sep] Matched text snippets: pasangan teks dokumen vs sumber
+        # agar pengguna bisa verifikasi sendiri (seperti tampilan side-by-side Turnitin).
+        matched_snippets = []
+        try:
+            # Pasangan dokumen-vs-sumber diekstrak dari plagiarized_sentences yang
+            # sudah dihitung (data tersedia) — tidak dihitung ulang, menghindari
+            # duplikasi logika matching.
+            for ps in (plagiarized_sentences or [])[:10]:
+                if ps.get('matched_text'):
+                    matched_snippets.append({
+                        'document_text': ps.get('text', '')[:400],
+                        'source_text': ps.get('matched_text', '')[:400],
+                        'similarity': round(ps.get('similarity_score', 0) * 100, 1) if ps.get('similarity_score') else None,
+                        'source_url': ps.get('matched_source', ''),
+                        'method': ps.get('detection_method', 'ngram'),
+                    })
+        except Exception as ms_e:
+            logger.debug("Matched snippets gagal: %s", ms_e)
+
         data = {
             'filename': original_filename.replace('.pdf', ''),
             'total_similarity': round(total_similarity),
@@ -360,7 +381,11 @@ def process_document(file_id, filepath, original_filename, exclude_quotes=True, 
             'plagiarized_sentences': plagiarized_sentences,
             'manipulation_warnings': manipulation_warnings,
             'fooled_similarity': fooled_similarity,
-            'hidden_spans': hidden_spans if hidden_spans else []
+            'hidden_spans': hidden_spans if hidden_spans else [],
+            # [FITUR 26 Sep] Data baru untuk laporan:
+            'section_scores': getattr(calc, 'section_scores', []),       # skor per bab
+            'matched_snippets': matched_snippets,                        # teks side-by-side
+            'self_excluded_sources': getattr(calc, 'excluded_self_sources', []),  # self-exclusion
         }
         
         set_progress(95, "Membangun Laporan PDF...")

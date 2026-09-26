@@ -280,6 +280,73 @@
     
     <div class="divider-thick"></div>
     <div class="divider-thin" style="margin-top:2px;"></div>
+
+    <!-- [FITUR 26 Sep] PER-SECTION BREAKDOWN — skor per bab/section (seperti Turnitin) -->
+    {% if data.section_scores and data.section_scores|length > 0 %}
+    <div class="section-title">SECTION BREAKDOWN (Per Bab)</div>
+    <div style="margin: 16px 0 28px 0;">
+        {% for sec in data.section_scores %}
+        <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 10px;">
+            <div style="flex: 0 0 200px; font-size: 12px; color: #374151; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;"
+                 title="{{ sec.label }}">{{ sec.label }}</div>
+            <div style="flex: 1; background: #e5e7eb; border-radius: 4px; height: 16px; overflow: hidden;">
+                {% set pct = sec.percentage %}
+                {% set bar_color = '#22c55e' if pct < 10 else ('#eab308' if pct < 25 else ('#f97316' if pct < 50 else '#ef4444')) %}
+                <div style="width: {{ pct if pct <= 100 else 100 }}%; background: {{ bar_color }}; height: 100%;"></div>
+            </div>
+            <div style="flex: 0 0 70px; text-align: right; font-size: 13px; font-weight: 600; color: #111827;">
+                {{ "%.1f"|format(sec.percentage) }}%
+            </div>
+            <div style="flex: 0 0 110px; text-align: right; font-size: 11px; color: #6b7280;">
+                {{ sec.matched_words }}/{{ sec.total_words }} kata
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    <div class="divider-thin" style="margin-top:2px;"></div>
+    {% endif %}
+
+    <!-- [FITUR 26 Sep] MATCHED TEXT — pasangan teks dokumen vs sumber untuk verifikasi -->
+    {% if data.matched_snippets and data.matched_snippets|length > 0 %}
+    <div class="section-title">MATCHED TEXT (Verifikasi Manual)</div>
+    <p style="font-size: 12px; color: #6b7280; margin: 8px 0 16px 0;">
+        Teks di bawah ini cocok dengan sumber yang ditemukan. Periksa sendiri apakah termasuk kutipan sah atau penyalinan.
+    </p>
+    {% for snip in data.matched_snippets[:6] %}
+    <div style="border: 1px solid #e5e7eb; border-radius: 6px; padding: 14px; margin-bottom: 14px; background: #fafafa;">
+        <div style="font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px; color: #6b7280; margin-bottom: 6px;">
+            Dokumen Anda
+            {% if snip.method == 'semantic' %}<span style="background:#dbeafe; color:#1e40af; padding:2px 6px; border-radius:3px; margin-left:6px;">Parafrasa</span>{% else %}<span style="background:#fee2e2; color:#991b1b; padding:2px 6px; border-radius:3px; margin-left:6px;">Kata Persis</span>{% endif %}
+            {% if snip.similarity %}<span style="margin-left:6px;">· {{ snip.similarity }}% mirip</span>{% endif %}
+        </div>
+        <div style="font-size: 13px; color: #111827; line-height: 1.5; margin-bottom: 10px; padding-left: 10px; border-left: 3px solid #3b82f6;">
+            {{ snip.document_text }}
+        </div>
+        {% if snip.source_text %}
+        <div style="font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px; color: #6b7280; margin-bottom: 6px;">
+            Sumber{% if snip.source_url %} · {{ snip.source_url.split('//')[-1].split('/')[0] }}{% endif %}
+        </div>
+        <div style="font-size: 13px; color: #374151; line-height: 1.5; padding-left: 10px; border-left: 3px solid #f59e0b;">
+            {{ snip.source_text }}
+        </div>
+        {% endif %}
+    </div>
+    {% endfor %}
+    <div class="divider-thin" style="margin-top:2px;"></div>
+    {% endif %}
+
+    <!-- [FITUR 26 Sep] SELF-EXCLUSION INFO — transparansi sumber yang dikecualikan -->
+    {% if data.self_excluded_sources and data.self_excluded_sources|length > 0 %}
+    <div style="background: #eff6ff; border-left: 4px solid #3b82f6; padding: 14px; margin: 20px 0; border-radius: 4px;">
+        <div style="font-size: 12px; color: #1e40af;">
+            <b>{{ data.self_excluded_sources|length }} sumber dikecualikan</b> — terdeteksi sebagai submission
+            sebelumnya dari dokumen yang sama (versi revisi/bab terpisah), sehingga tidak dihitung dalam skor.
+        </div>
+    </div>
+    {% endif %}
+
+    <div class="divider-thick"></div>
+    <div class="divider-thin" style="margin-top:2px;"></div>
     
     <div class="section-title">PRIMARY SOURCES</div>
     

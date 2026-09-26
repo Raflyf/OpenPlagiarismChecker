@@ -87,9 +87,15 @@ def get_shingles(text: str, n: int = NGRAM_SIZE) -> set[str]:
 
 class SimilarityCalculator:
     """Builder pattern class for calculating plagiarism similarity. (Phase 4 #3)"""
-    def __init__(self, doc_text, corpus):
+    def __init__(self, doc_text, corpus, current_filename: str = "", current_hash: str = ""):
         self.doc_text = RE_HYPHENATION.sub('', doc_text)
         self.corpus = corpus
+        # [FITUR SELF-EXCLUSION 26 Sep] Identitas dokumen saat ini — dipakai untuk
+        # mengecualikan kecocokan dengan submission lama milik dokumen yang sama
+        # (mis. mahasiswa submit bab per bab atau versi revisi).
+        self.current_filename = current_filename
+        self.current_hash = current_hash
+        self.excluded_self_sources = []
         self.exclude_small = False
         self.use_semantic = False
         self.semantic_threshold = "auto"
@@ -108,6 +114,8 @@ class SimilarityCalculator:
         self.total_doc_words = 0
         self.clean_doc_words = []
         self.total_doc_ngrams = set()
+        # [FITUR 26 Sep] Hasil per-section diisi saat calculate() selesai.
+        self.section_scores = []
 
     def set_exclude_small(self, exclude_small):
         self.exclude_small = exclude_small
@@ -156,6 +164,29 @@ class SimilarityCalculator:
         self._initialize_document()
         if not self.doc_spans or self.total_doc_words == 0 or not self.corpus:
             return [], 0.0, []
+
+        # [FITUR SELF-EXCLUSION 26 Sep] Buang sumber yang merupakan submission lama
+        # dari dokumen yang SAMA (versi revisi / bab terpisah). Tanpa ini, dokumen
+        # yang di-submit ulang akan "memiripkan dirinya sendiri" -> skor palsu tinggi.
+        if self.current_filename or self.current_hash:
+            try:
+                from .quote_intelligence import is_self_match
+            except ImportError:
+                try:
+                    from quote_intelligence import is_self_match
+                except ImportError:
+                    is_self_match = None
+            if is_self_match is not None:
+                filtered = {}
+                for url, text in self.corpus.items():
+                    if is_self_match(url, self.current_filename, self.current_hash):
+                        self.excluded_self_sources.append(url)
+                    else:
+                        filtered[url] = text
+                if self.excluded_self_sources:
+                    logger.info("Self-exclusion: %d sumber (submission lama dokumen yang sama) dikecualikan.",
+                                len(self.excluded_self_sources))
+                    self.corpus = filtered
 
         sources_report = {}
         
@@ -385,6 +416,29 @@ class SimilarityCalculator:
             if not display_sources and total_similarity >= 1.0:
                 display_sources = sorted_sources[:10]
 
+        # [FITUR 26 Sep] Per-Section Breakdown: skor per bab/section.
+        # Dihitung dari array match global yang sudah final (termasuk semantic).
+        section_scores = []
+        try:
+            section_scores = compute_section_scores(self.doc_text, is_matched_global, self.doc_words)
+        except Exception as sec_e:
+            logger.debug("Per-section scoring gagal: %s", sec_e)
+
+        # [FITUR 26 Sep] Character n-gram fuzzy: tandai sumber yang punya banyak
+        # fragmen karakter identik (indikasi penyalinan dengan modifikasi huruf).
+        # TIDAK menambah skor — hanya anotasi transparansi per sumber.
+        try:
+            for source in sorted_sources:
+                src_url = source.get('url', '')
+                src_text = self.corpus.get(src_url, '')
+                if src_text:
+                    fuzzy = compute_char_fuzzy_overlap(self.doc_text, src_text)
+                    if fuzzy >= CHAR_FUZZY_MIN_OVERLAP:
+                        source['char_fuzzy_overlap'] = round(fuzzy, 3)
+        except Exception as fz_e:
+            logger.debug("Char fuzzy overlap gagal: %s", fz_e)
+
+        self.section_scores = section_scores
         self.ngram_similarity = ngram_similarity
         self.semantic_similarity = semantic_additional_pct
         self.raw_similarity = raw_combined_similarity
@@ -398,6 +452,147 @@ class SimilarityCalculator:
         logger.info("Sumber ditampilkan (>=1%%)          : %d dari %d sumber ber-overlap", len(display_sources), len(sorted_sources))
 
         return display_sources, total_similarity, plagiarized_sentences_data
+
+# ============================================================================
+# [FITUR 26 Sep] Per-Section Breakdown — skor per bab/section seperti Turnitin
+# ============================================================================
+
+# Pola heading bab/section akademik Indonesia & Inggris
+# Pola heading bab/section akademik.
+# [FIX 26 Sep] Versi pertama hanya menemukan 1 section dari 3 karena alternasi
+# romawi "I{1,3}V?|IV|V|VI{0,3}|IX|X" TIDAK mencakup "II" dan "III" (regex engine
+# mencoba "I" dulu lalu gagal pada "I I", dan `\b` setelah "I" tidak cocok karena
+# diikuti huruf I lagi). Sekarang romawi ditulis lengkap dan diurutkan terpanjang
+# dulu (III sebelum II sebelum I) agar tidak terpotong.
+_RE_SECTION_HEADINGS = re.compile(
+    r"(?:^|\n)[ \t]*("
+    r"BAB\s+(?:XX|XV|XIV|XIII|XII|XI|X|IX|VIII|VII|VI|V|IV|III|II|I|\d{1,2})\b[^\n]{0,80}"
+    r"|(?:CHAPTER|SECTION)\s+\d+\b[^\n]{0,80}"
+    r"|\d+\.\s*[A-Z][^\n]{3,60}"
+    r"|(?:PENDAHULUAN|TINJAUAN PUSTAKA|LANDASAN TEORI|METODOLOGI PENELITIAN|METODE PENELITIAN|HASIL DAN PEMBAHASAN|PEMBAHASAN|KESIMPULAN(?: DAN SARAN)?|ABSTRACT|ABSTRAK)\s*(?:\n|$)"
+    r")",
+    re.M | re.I,
+)
+
+
+def detect_sections(doc_text: str) -> list:
+    """Deteksi section/bab dalam dokumen.
+
+    Mengembalikan list of (label, start_char, end_char). Bila tidak ada heading
+    yang terdeteksi, kembalikan satu section "Seluruh Dokumen".
+    """
+    if not doc_text:
+        return []
+
+    matches = list(_RE_SECTION_HEADINGS.finditer(doc_text))
+    if not matches:
+        return [("Seluruh Dokumen", 0, len(doc_text))]
+
+    sections = []
+    for i, m in enumerate(matches):
+        label = re.sub(r"\s+", " ", m.group(1)).strip()[:70]
+        start = m.start()
+        end = matches[i + 1].start() if i + 1 < len(matches) else len(doc_text)
+        if end - start < 100:  # section terlalu pendek = kemungkinan false heading
+            continue
+        sections.append((label, start, end))
+
+    if not sections:
+        return [("Seluruh Dokumen", 0, len(doc_text))]
+    return sections
+
+
+def compute_section_scores(doc_text: str, is_matched_global: list, doc_words: list) -> list:
+    """Hitung skor kemiripan per section berdasarkan word-level match array.
+
+    Menghubungkan posisi karakter section ke indeks kata: setiap section dihitung
+    persentase kata yang match di dalam rentang katanya sendiri.
+    """
+    if not doc_text or not doc_words or not is_matched_global:
+        return []
+
+    sections = detect_sections(doc_text)
+    if not sections:
+        return []
+
+    # Bangun peta karakter -> indeks kata (berbasis prefix count spasi).
+    # Sederhana & O(n): hitung jumlah kata sebelum posisi karakter tertentu.
+    word_starts = []
+    pos = 0
+    for w in doc_words:
+        idx = doc_text.find(w, pos)
+        if idx < 0:
+            idx = pos
+        word_starts.append(idx)
+        pos = idx + len(w)
+
+    results = []
+    for label, c_start, c_end in sections:
+        # Cari indeks kata pertama & terakhir dalam rentang karakter section
+        first = 0
+        for i, ws in enumerate(word_starts):
+            if ws >= c_start:
+                first = i
+                break
+        last = len(word_starts) - 1
+        for i in range(len(word_starts) - 1, -1, -1):
+            if word_starts[i] < c_end:
+                last = i
+                break
+
+        if last < first:
+            continue
+        total = last - first + 1
+        if total < 20:  # section sangat pendek tidak bermakna
+            continue
+        matched = sum(1 for i in range(first, min(last + 1, len(is_matched_global))) if is_matched_global[i])
+        pct = (matched / total) * 100.0 if total else 0.0
+        results.append({
+            "label": label,
+            "percentage": round(pct, 2),
+            "matched_words": int(matched),
+            "total_words": int(total),
+        })
+
+    return results
+
+
+# ============================================================================
+# [FITUR 26 Sep] Character N-Gram (Fuzzy) — deteksi plagiat dengan modifikasi
+# huruf. Word-level 5-gram bisa lolos bila 1-2 huruf diganti per kata
+# (mis. "penelitian" -> "penelitlan"). Character 4-gram menangkap ini.
+# ============================================================================
+
+CHAR_NGRAM_SIZE = 4
+# Ambang: overlap char-ngram minimal agar dianggap kecocokan fuzzy (bukan kebetulan)
+CHAR_FUZZY_MIN_OVERLAP = float(os.environ.get("CHAR_FUZZY_MIN_OVERLAP", "0.35"))
+
+
+def get_char_ngrams(text: str, n: int = CHAR_NGRAM_SIZE) -> set:
+    """Character n-gram dari teks yang dinormalisasi (tanpa spasi/tanda baca)."""
+    clean = re.sub(r"[^a-z0-9]", "", text.lower())
+    if len(clean) < n:
+        return set()
+    return {clean[i:i + n] for i in range(len(clean) - n + 1)}
+
+
+def compute_char_fuzzy_overlap(doc_text: str, source_text: str) -> float:
+    """Rasio overlap character n-gram antara dokumen & satu sumber.
+
+    Mengembalikan 0.0-1.0. Nilai tinggi = ada banyak fragmen karakter identik
+    yang menandakan penyalinan dengan modifikasi kecil.
+    """
+    if not doc_text or not source_text:
+        return 0.0
+    doc_grams = get_char_ngrams(doc_text)
+    if not doc_grams:
+        return 0.0
+    src_grams = get_char_ngrams(source_text)
+    if not src_grams:
+        return 0.0
+    overlap = len(doc_grams & src_grams)
+    return overlap / len(doc_grams)
+
 
 def calculate_similarity(doc_text, corpus, exclude_small=False, use_semantic=False, semantic_threshold="auto", semantic_max_sources=None, min_source_overlap=1, is_cancelled_cb=None):
     """
