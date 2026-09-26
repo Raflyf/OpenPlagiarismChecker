@@ -101,10 +101,32 @@ def extract_text_from_pdf(filepath: str, exclude_quotes: bool = True, exclude_bi
         except Exception as vis_e:
             logger.warning("Failed to extract visible text, falling back to raw text: %s", vis_e)
             vis_text, hidden_word_count, any_dropped, hidden_spans = "", 0, False, []
-        # Teks mentah (semua span, termasuk hidden) untuk skor "fooled"
+        # Teks mentah (SEMUA span, termasuk hidden) untuk skor "fooled".
+        # [PERBAIKAN 26 Sep — temuan validasi Laila] Versi lama memakai
+        # `page.get_text()` polos yang TIDAK menangkap seluruh teks tersembunyi:
+        # pada dokumen uji, get_text() hanya mengembalikan 9.316 kata sementara
+        # span-based mengembalikan 19.981 kata (5.679 di antaranya hidden 2.5pt).
+        # Akibatnya skor "fooled" salah — denominatornya tidak menggelembung penuh
+        # sehingga tidak mencerminkan skor mesin yang tertipu (target Turnitin).
+        # Sekarang raw_text dibangun dari SEMUA span agar akurat.
         raw_text = ""
         for page in doc:
-            raw_text += page.get_text() + " "
+            page_dict = page.get_text("dict")
+            page_parts = []
+            for block in page_dict.get("blocks", []):
+                for line in block.get("lines", []):
+                    for span in line.get("spans", []):
+                        st = span.get("text", "")
+                        if st:
+                            # PENTING: pisahkan setiap span dengan SPASI, bukan newline.
+                            # Kata-kata hidden (font 2.5pt) sering menempel tanpa spasi;
+                            # newline membuat split() menggabungkan puluhan kata menjadi
+                            # satu token -> hitungan kata hidden kolaps (temuan validasi:
+                            # 19.981 kata terdeteksi per-span vs 9.316 saat pakai newline).
+                            page_parts.append(st)
+                            page_parts.append(" ")
+                page_parts.append(" ")
+            raw_text += "".join(page_parts) + " "
 
         if any_dropped and vis_text.strip():
             text = vis_text

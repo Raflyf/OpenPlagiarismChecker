@@ -62,3 +62,8 @@ catatan_sistem.md
 # Korpus beku tetap tersimpan LOKAL di disk; git clone baru akan membangun ulang
 # korpus sendiri via scraping (atau restore dari backup terpisah).
 app/frozen_corpus/*.json
+
+# Log & hasil validasi sementara (permanen tersimpan di docs/validasi_live_26sep/)
+_validasi_*.txt
+_validasi_*.json
+_validasi_*.log
