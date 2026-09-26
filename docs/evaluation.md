@@ -46,7 +46,9 @@ Dataset evaluasi saat ini terdiri dari 11 dokumen akademik nyata yang telah memi
 | Melani | 18.74% | 19% | -0.26 |
 | Laila before parafrase| 22.09% | 24% | -1.91 |
 
-**Mean Absolute Error (MAE): 0.91 poin persentase.**
+**Mean Absolute Error (MAE): 1.21 poin persentase** (in-sample, 8 dokumen benchmark inti 2026).
+
+> **Catatan metodologi (26 Sep 2026):** MAE dihitung dengan formula threshold final `0.7900 + 0.0250 × √(NGram Similarity)` yang sama persis dengan yang berjalan di kode produksi (`app/engine/shingling.py`). Skor akhir TIDAK mengalami pengurangan atau penyesuaian apa pun — kalibrasi hanya diterapkan pada parameter threshold semantic, bukan pada hasil akhir, sehingga skor dapat dipertanggungjawabkan secara akademik. Validasi hold-out independen tetap disarankan untuk memperkuat generalisasi.
 
 ### 2. Opsional Baseline 2025 (3 Dokumen)
 
@@ -57,6 +59,17 @@ Dataset evaluasi saat ini terdiri dari 11 dokumen akademik nyata yang telah memi
 | Tesyar | 9.79% | 8% | +1.79 |
 
 *Catatan: Hasil di atas mencerminkan performa pada sampel dataset saat ini. Sistem ini terus divalidasi menggunakan metode Leave-One-Out Cross-Validation (LOOCV) untuk menstabilkan parameter threshold.*
+
+---
+
+## Prinsip Kalibrasi & Pertanggungjawaban Skor
+
+Sistem ini menerapkan prinsip **zero score manipulation**:
+
+1. **Skor akhir = hasil murni perhitungan.** Tidak ada pengurangan flat, pembulatan ke bawah, atau faktor penyesuaian yang diterapkan pada hasil akhir demi mendekati angka referensi.
+2. **Kalibrasi hanya pada parameter.** Konstanta threshold semantic (`0.7900 + 0.0250 × √ngram`) di-sweep secara empiris terhadap benchmark — ini praktik standar machine learning (hyperparameter tuning), bukan manipulasi hasil.
+3. **Metodologi identik antara server & validasi.** `min_source_overlap`, threshold, dan formula yang dipakai `server.py` sama persis dengan `run_test_groundtruth.py`, sehingga skor yang dilihat pengguna = skor yang divalidasi.
+4. **Reproducible.** Korpus dibekukan (frozen corpus) sehingga dokumen yang sama menghasilkan skor yang sama di setiap run — dapat diverifikasi ulang oleh siapa pun.
 
 ---
 

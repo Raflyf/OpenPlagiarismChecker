@@ -1,5 +1,6 @@
 import re
 import math
+import os
 import logging
 from functools import lru_cache
 from .semantic_similarity import batch_semantic_check
@@ -93,7 +94,13 @@ class SimilarityCalculator:
         self.use_semantic = False
         self.semantic_threshold = "auto"
         self.semantic_max_sources = None
-        self.min_source_overlap = 3  # Dinaikkan dari 1 agar abaikan sumber dengan overlap ngram kecil
+        # [AUDIT FIX 26 Sep] KONSISTENSI METODOLOGI: nilai ini WAJIB sama dengan
+        # default calculate_similarity() yang dipakai run_test_groundtruth.py (=1).
+        # Versi lama = 3 sementara groundtruth = 1 -> skor server TIDAK identik dengan
+        # skor validasi yang diklaim di README/docs (klaim "metodologi identik" tidak benar).
+        # Nilai 1 = abaikan hanya sumber tanpa overlap sama sekali; filter sumber kecil
+        # tetap dilakukan lewat exclude_small (tampilan >=1%) tanpa mengubah skor total.
+        self.min_source_overlap = 1
         self.is_cancelled_cb = None
 
         self.doc_spans = []
@@ -347,15 +354,27 @@ class SimilarityCalculator:
         raw_combined_similarity = float((sum(is_matched_global) / self.total_doc_words) * 100.0)
         total_similarity = raw_combined_similarity
 
-        # --- Open Source Calibration ---
-        # Menggunakan reduksi flat -1.2% agar tidak over-penalize dokumen berskor tinggi
-        # namun cukup untuk menekan skor agar tetap di bawah/sama dengan sistem referensi asli.
+        # --- Kalibrasi Terdokumentasi (Anti-Manipulasi) ---
+        # [AUDIT FIX 26 Sep] Versi lama mengurangi skor secara FLAT -1.2% ke semua
+        # dokumen hanya agar angka "cocok" dengan sistem referensi. Itu adalah
+        # manipulasi skor, bukan kalibrasi — dan membuat skor tidak dapat
+        # dipertanggungjawabkan secara akademik.
+        #
+        # Kalibrasi yang SAH adalah yang diterapkan pada PARAMETER (threshold semantic),
+        # bukan pada hasil akhir. Kalibrasi threshold sudah dihitung secara empiris:
+        #   threshold = SEMANTIC_THRESH_BASE + SEMANTIC_THRESH_MULTIPLIER * sqrt(ngram)
+        # dengan konstanta yang di-sweep terhadap benchmark (lihat calibration_result.json).
+        # Skor akhir = murni hasil perhitungan overlap N-Gram + Semantic, tanpa potongan.
+        #
+        # Backward-compat: bila ada yang butuh mode kalibrasi lama (mis. untuk analisis),
+        # bisa diaktifkan via env SCORE_CALIBRATION_OFFSET (default 0 = TANPA potongan).
+        calibration_offset = float(os.environ.get("SCORE_CALIBRATION_OFFSET", "0"))
         calibration_ratio = 1.0
-        if total_similarity > 0:
-            calibrated_total = max(0.0, total_similarity - 1.2)
+        if calibration_offset != 0 and total_similarity > 0:
+            calibrated_total = max(0.0, total_similarity - calibration_offset)
             calibration_ratio = calibrated_total / total_similarity
             total_similarity = calibrated_total
-            
+
             for source in sorted_sources:
                 source['percentage'] *= calibration_ratio
                 source['sort_score'] = source['percentage']

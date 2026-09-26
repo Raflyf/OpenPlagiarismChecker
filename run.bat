@@ -11,12 +11,12 @@ echo.
 cd /d "%~dp0"
 
 REM 1. Cek atau deteksi Python & Venv
+REM [AUDIT FIX 26 Sep] Hardcode path pribadi developer (D:\skripsi\..., D:\code\skripsi_spam\...)
+REM DIHAPUS — orang lain yang clone repo tidak punya folder itu, dan path pribadi tidak
+REM boleh bocor ke repo publik. Sekarang hanya memakai .venv lokal proyek (dibuat
+REM otomatis di langkah berikutnya bila belum ada).
 set "PYTHON_CMD="
-if exist "D:\skripsi\skripsi_spam\Code_Spam_Email\.venv\Scripts\python.exe" (
-    set "PYTHON_CMD=D:\skripsi\skripsi_spam\Code_Spam_Email\.venv\Scripts\python.exe"
-) else if exist "D:\code\skripsi_spam\Code_Spam_Email\.venv\Scripts\python.exe" (
-    set "PYTHON_CMD=D:\code\skripsi_spam\Code_Spam_Email\.venv\Scripts\python.exe"
-) else if exist "%~dp0.venv\Scripts\python.exe" (
+if exist "%~dp0.venv\Scripts\python.exe" (
     set "PYTHON_CMD=%~dp0.venv\Scripts\python.exe"
 )
 

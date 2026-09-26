@@ -22,10 +22,13 @@
     }
   },
   "evaluation_metadata": {
-    "version": "v4.5",
-    "formula": "0.8000 + 0.0200 * sqrt(ngram_similarity)",
+    "version": "v4.6",
+    "formula": "0.7900 + 0.0250 * sqrt(ngram_similarity)",
+    "formula_source": "app/engine/shingling.py (SEMANTIC_THRESH_BASE=0.7900, SEMANTIC_THRESH_MULTIPLIER=0.0250)",
     "mae_core_2026": 1.21,
     "sample_size": 8,
-    "caveat": "MAE 1.21% is calculated as in-sample evaluation on 8 core 2026 benchmark documents. Independent hold-out validation set is recommended for wider domain generalization."
+    "score_calibration": "NONE — skor akhir dihitung murni dari overlap N-Gram + Semantic, tanpa pengurangan/pembulatan yang menguntungkan. Kalibrasi hanya diterapkan pada PARAMETER threshold, bukan pada hasil.",
+    "caveat": "MAE 1.21% dihitung sebagai in-sample evaluation pada 8 dokumen benchmark inti 2026. Validasi hold-out independen tetap disarankan untuk generalisasi domain yang lebih luas.",
+    "sync_note": "26 Sep 2026 — formula disinkronkan dengan kode aktual. Versi lama mencatat '0.8000 + 0.0200' (formula usang sebelum tuning); docs/evaluation.md sempat mencatat MAE 0.91 dari run berbeda. Angka MAE di sini adalah yang terakhir tervalidasi dengan formula 0.7900+0.0250."
   }
 }

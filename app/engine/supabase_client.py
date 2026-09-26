@@ -288,19 +288,34 @@ def cleanup_old_jobs_supabase(max_age_hours=24):
         logger.warning(f"[Supabase] Warning cleanup_old_jobs: {e}")
     return False
 
-# C2 Guidance: RLS Security Policy SQL
-"""
---- ROW LEVEL SECURITY (RLS) INSTRUCTIONS FOR SUPABASE ---
-Jalankan SQL berikut di Supabase SQL Editor untuk mengamankan RLS:
-
-ALTER TABLE corpus_bank ENABLE ROW LEVEL SECURITY;
-ALTER TABLE search_cache ENABLE ROW LEVEL SECURITY;
-ALTER TABLE analysis_jobs ENABLE ROW LEVEL SECURITY;
-
-CREATE POLICY "Allow select for anon" ON corpus_bank FOR SELECT USING (true);
-CREATE POLICY "Allow insert for anon" ON corpus_bank FOR INSERT WITH CHECK (true);
-CREATE POLICY "Allow update for anon" ON corpus_bank FOR UPDATE USING (true);
-
-CREATE POLICY "Allow all for search_cache" ON search_cache FOR ALL USING (true);
-CREATE POLICY "Allow all for analysis_jobs" ON analysis_jobs FOR ALL USING (true);
-"""
+# ============================================================================
+# RLS SECURITY POLICY — SQL untuk Supabase SQL Editor
+# [AUDIT FIX 26 Sep] Versi lama menyarankan policy "Allow all ... USING (true)"
+# untuk search_cache & analysis_jobs. Itu SANGAT BERBAHAYA: siapa pun yang memegang
+# anon key (yang selalu terekspos di browser) bisa BACA/TULIS/HAPUS seluruh tabel,
+# termasuk hasil analisis & sesi job milik pengguna lain.
+#
+# Konsep yang benar: backend Python mengakses Supabase dengan SERVICE ROLE key
+# (bypass RLS secara desain). Karena itu anon TIDAK butuh akses apa pun ke tabel
+# ini — cukup RLS aktif TANPA policy untuk anon, dan hanya service_role yang lolos.
+#
+# Jalankan SQL di bawah SEKALI di Supabase SQL Editor:
+# ----------------------------------------------------------------------------
+#   ALTER TABLE corpus_bank ENABLE ROW LEVEL SECURITY;
+#   ALTER TABLE search_cache ENABLE ROW LEVEL SECURITY;
+#   ALTER TABLE analysis_jobs ENABLE ROW LEVEL SECURITY;
+#
+#   -- Tidak ada policy untuk anon/authenticated = akses ditolak (fail-closed).
+#   -- service_role melewati RLS secara bawaan, jadi backend tetap berfungsi.
+#   -- (Opsional) pastikan tidak ada policy lama yang bocor:
+#   DROP POLICY IF EXISTS "Allow select for anon" ON corpus_bank;
+#   DROP POLICY IF EXISTS "Allow insert for anon" ON corpus_bank;
+#   DROP POLICY IF EXISTS "Allow update for anon" ON corpus_bank;
+#   DROP POLICY IF EXISTS "Allow all for search_cache" ON search_cache;
+#   DROP POLICY IF EXISTS "Allow all for analysis_jobs" ON analysis_jobs;
+# ----------------------------------------------------------------------------
+#
+# CATATAN: bila ingin anon tetap boleh INSERT (mis. telemetri klien langsung),
+# berikan HANYA INSERT — jangan pernah SELECT/UPDATE/DELETE:
+#   CREATE POLICY "anon_insert_only" ON <tabel> FOR INSERT TO anon WITH CHECK (true);
+# ============================================================================

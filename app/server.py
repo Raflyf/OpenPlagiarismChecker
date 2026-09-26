@@ -35,6 +35,12 @@ from engine.web_scraper import get_candidate_urls, scrape_all_candidates, load_c
 from engine.shingling import calculate_similarity, SimilarityCalculator
 from engine.pdf_generator import generate_report_pdf
 from engine.supabase_client import save_job_status_supabase, get_job_status_supabase
+from engine.student_repo import (
+    save_document as student_repo_save,
+    check_against_repository as student_repo_check,
+    repository_stats as student_repo_stats,
+    is_enabled as student_repo_enabled,
+)
 
 app = Flask(__name__)
 
@@ -47,6 +53,12 @@ _metric_processing_time = 0.0
 @app.route('/metrics')
 def metrics():
     # Phase 4 #4: Tambahkan monitoring dan observability stack
+    # [FITUR TURNITIN 26 Sep] Statistik repositori paper internal ikut diekspos
+    # agar operator bisa memantau pertumbuhan indeks (seperti dashboard Turnitin).
+    try:
+        repo_stats = student_repo_stats()
+    except Exception:
+        repo_stats = {"documents": 0, "total_words": 0}
     lines = [
         "# HELP plagiarism_total_documents Total dokumen diproses",
         "# TYPE plagiarism_total_documents counter",
@@ -56,7 +68,13 @@ def metrics():
         f"plagiarism_total_errors {_metric_total_errors}",
         "# HELP plagiarism_processing_time_seconds Total durasi waktu proses (detik)",
         "# TYPE plagiarism_processing_time_seconds counter",
-        f"plagiarism_processing_time_seconds {_metric_processing_time}"
+        f"plagiarism_processing_time_seconds {_metric_processing_time}",
+        "# HELP plagiarism_internal_repo_documents Dokumen di repositori paper internal",
+        "# TYPE plagiarism_internal_repo_documents gauge",
+        f"plagiarism_internal_repo_documents {repo_stats.get('documents', 0)}",
+        "# HELP plagiarism_internal_repo_words Total kata di repositori paper internal",
+        "# TYPE plagiarism_internal_repo_words gauge",
+        f"plagiarism_internal_repo_words {repo_stats.get('total_words', 0)}",
     ]
     from flask import Response
     return Response("\n".join(lines), mimetype="text/plain")
@@ -79,6 +97,10 @@ logging.getLogger('werkzeug').setLevel(logging.WARNING)
 app.config['SECRET_KEY'] = os.environ.get('FLASK_SECRET_KEY') or secrets.token_hex(32)
 app.config['SESSION_COOKIE_HTTPONLY'] = True
 app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
+# [AUDIT FIX 26 Sep] Cookie Secure: hanya dikirim via HTTPS saat tidak di localhost.
+# Di localhost (HTTP polos) flag ini dimatikan agar sesi tetap bekerja untuk pengembangan.
+_is_local = os.environ.get('FLASK_ENV', '').lower() == 'development' or os.environ.get('ALLOW_INSECURE_COOKIE', '0') == '1'
+app.config['SESSION_COOKIE_SECURE'] = not _is_local
 # Gunakan absolute path agar direktori selalu berada di dalam folder app/ 
 base_dir = os.path.dirname(os.path.abspath(__file__))
 app.config['UPLOAD_FOLDER'] = os.path.join(base_dir, 'uploads')
@@ -170,6 +192,15 @@ cleanup_thread.start()
 INTERNET_MAX_PROBES = int(os.environ.get("INTERNET_MAX_PROBES", "100"))
 
 
+# Global semaphore: batasi maks 2 dokumen diproses BERSAMAAN.
+# PERBAIKAN AUDIT 26 Sep: versi lama mendeklarasikan semaphore tapi TIDAK PERNAH
+# di-acquire (dead code) — 10 upload/menit = 10 thread paralel, masing-masing memuat
+# model semantic ~500MB -> risiko OOM. Sekarang benar-benar dipakai di process_document.
+# Nilai 2: aman untuk GPU 4GB / RAM 8GB; antrean tambahan hanya menunggu, bukan gagal.
+_MAX_CONCURRENT_JOBS = int(os.environ.get("MAX_CONCURRENT_JOBS", "2"))
+_CONCURRENCY_SEMAPHORE = threading.Semaphore(_MAX_CONCURRENT_JOBS)
+
+
 def process_document(file_id, filepath, original_filename, exclude_quotes=True, exclude_biblio=True, exclude_small=False, use_semantic=False, use_internet=True, force_scrape=False, exclude_abstract=True):
     def set_progress(pct, msg):
         with RESULTS_DB_LOCK:
@@ -192,6 +223,12 @@ def process_document(file_id, filepath, original_filename, exclude_quotes=True, 
                 return True
             return False
 
+    # [AUDIT FIX 26 Sep] Antrean konkurensi: tunggu slot kosong (maks 2 job paralel).
+    # Non-blocking check dulu agar pesan antrean muncul tanpa menahan worker lain.
+    if not _CONCURRENCY_SEMAPHORE.acquire(blocking=False):
+        set_progress(2, "Menunggu antrean (server sedang memproses dokumen lain)...")
+        logger.info(f"Job {file_id} menunggu slot konkurensi...")
+        _CONCURRENCY_SEMAPHORE.acquire()
     try:
         set_progress(5, "Mengekstrak teks dari dokumen...")
         logger.info(f"Mulai ekstraksi teks dari: {filepath}")
@@ -229,10 +266,28 @@ def process_document(file_id, filepath, original_filename, exclude_quotes=True, 
                 logger.info(f"Gagal baca frozen ({e}).")
                 existing_corpus = {}
 
+        # [FITUR TURNITIN 26 Sep] Cek repositori paper internal SEBELUM scrape internet.
+        # Ini setara "Student Paper Repository" Turnitin: dokumen yang pernah di-submit
+        # ke sistem ini dibandingkan silang secara instan tanpa jaringan.
+        internal_matches = {}
+        if student_repo_enabled():
+            try:
+                internal_matches = student_repo_check(doc_hash, doc_text)
+                if internal_matches:
+                    logger.info(f"[StudentRepo] {len(internal_matches)} kecocokan internal ditemukan.")
+            except Exception as sr_e:
+                logger.warning(f"[StudentRepo] Gagal cek repositori: {sr_e}")
+
         if not force_scrape and existing_corpus:
-            corpus = existing_corpus
+            corpus = existing_corpus.copy()
+            # [FITUR TURNITIN] Kecocokan internal tetap digabungkan walau korpus beku
+            # dipakai — repositori paper internal terus bertambah seiring submission,
+            # jadi korpus beku lama bisa belum memuat dokumen yang baru di-submit.
+            if internal_matches:
+                corpus.update(internal_matches)
             set_progress(85, "Memuat korpus beku (dokumen sudah pernah dicek)...")
-            logger.info(f"KORPUS BEKU dimuat: {len(corpus)} sumber (skor deterministik, skip scrape).")
+            logger.info(f"KORPUS BEKU dimuat: {len(corpus)} sumber "
+                        f"({len(internal_matches)} internal ditambahkan).")
 
         if corpus is None:
             if force_scrape:
@@ -250,10 +305,13 @@ def process_document(file_id, filepath, original_filename, exclude_quotes=True, 
             logger.info(f"Mengunduh teks dari {len(urls)} kandidat (bank dipakai sbg cache)...")
             new_scraped = scrape_all_candidates(urls, preloaded_corpus, progress_cb=scrape_progress)
             
-            # MERGE: Gabungkan korpus eksis dengan hasil scraping live baru agar data makin kaya dan tidak membuang data lama
+            # MERGE: Gabungkan korpus eksis + internal repo + hasil scraping live baru
             corpus = existing_corpus.copy()
+            if internal_matches:
+                corpus.update(internal_matches)
             corpus.update(new_scraped)
-            logger.info(f"Korpus terkurasi total utk dokumen ini: {len(corpus)} sumber ({len(new_scraped)} baru/live).")
+            logger.info(f"Korpus terkurasi total utk dokumen ini: {len(corpus)} sumber "
+                        f"({len(new_scraped)} baru/live, {len(internal_matches)} internal).")
             try:
                 # Atomic write: tulis ke file temp dulu, lalu rename
                 frozen_tmp = frozen_path + ".tmp." + secrets.token_hex(4)
@@ -310,6 +368,11 @@ def process_document(file_id, filepath, original_filename, exclude_quotes=True, 
         report_pdf_path = os.path.join(app.config['REPORT_FOLDER'], f"{file_id}_report.pdf")
         generate_report_pdf(filepath, report_pdf_path, data)
         
+        # [AUDIT FIX 26 Sep] Metrics benar-benar di-increment (sebelumnya selalu 0 —
+        # /metrics melaporkan data palsu). Waktu proses dihitung dari start_time_process.
+        _metric_total_docs += 1
+        _metric_processing_time += (time.time() - start_time_process)
+
         results_db[file_id].update({
             'status': 'completed',
             'progress': 100,
@@ -324,6 +387,14 @@ def process_document(file_id, filepath, original_filename, exclude_quotes=True, 
         except Exception as e:
             logger.info(f"Gagal simpan cache JSON laporan: {e}")
             
+        # [FITUR TURNITIN 26 Sep] Simpan dokumen ke repositori internal agar submission
+        # berikutnya bisa dibandingkan (setara student paper repository Turnitin).
+        if student_repo_enabled():
+            try:
+                student_repo_save(doc_hash, original_filename, doc_text)
+            except Exception as sr_e:
+                logger.warning(f"[StudentRepo] Gagal menyimpan: {sr_e}")
+
         # [MEMORY CLEANUP] Paksa Garbage Collector berjalan agar RAM dikembalikan ke Windows
         import gc
         del corpus
@@ -331,8 +402,10 @@ def process_document(file_id, filepath, original_filename, exclude_quotes=True, 
         
         logger.info(f"Selesai. Hasil: {total_similarity}%")
     except Exception as e:
-        import traceback
-        traceback.print_exc()
+        # [AUDIT FIX 26 Sep] traceback.print_exc() mencetak path internal absolut ke
+        # stdout/log. logger.exception mencatat stack trace yang sama lewat sistem log
+        # (bisa dimatikan/di-filter di produksi) tanpa bocor ke console publik.
+        logger.exception("Process document gagal: %s", e)
         global _metric_total_errors
         _metric_total_errors += 1
         if file_id in results_db:
@@ -345,9 +418,15 @@ def process_document(file_id, filepath, original_filename, exclude_quotes=True, 
                 'status': 'error',
                 'message': str(e)
             }
+    finally:
+        # [AUDIT FIX 26 Sep] WAJIB dilepas apapun hasilnya (sukses/gagal/cancel),
+        # jika tidak slot akan habis dan seluruh job berikutnya menggantung selamanya.
+        try:
+            _CONCURRENCY_SEMAPHORE.release()
+        except ValueError:
+            pass  # double-release guard (tidak seharusnya terjadi)
 
-# Global semaphore to limit max concurrent document analysis jobs (C6 Fix)
-_CONCURRENCY_SEMAPHORE = threading.Semaphore(4)
+# (semaphore dipindah ke atas process_document — lihat deklarasi di bawah)
 
 @app.before_request
 def csrf_protect():
@@ -382,7 +461,21 @@ def add_security_headers(response):
     response.headers['X-XSS-Protection'] = '1; mode=block'
     response.headers['Referrer-Policy'] = 'strict-origin-when-cross-origin'
     response.headers['Strict-Transport-Security'] = 'max-age=31536000; includeSubDomains'
-    response.headers['Content-Security-Policy'] = "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://fonts.googleapis.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data:;"
+    # [AUDIT FIX 26 Sep] 'unsafe-eval' DIHAPUS — aplikasi tidak memakai eval()/new Function().
+    # 'unsafe-inline' pada script-src masih diperlukan karena template memakai atribut
+    # onclick/onchange inline (10 handler di index.html). Menghapusnya butuh refactor
+    # event delegation; dicatat sebagai utang teknis. 'unsafe-eval' tetap dihapus karena
+    # murni menambah permukaan serangan XSS tanpa manfaat.
+    response.headers['Content-Security-Policy'] = (
+        "default-src 'self'; "
+        "script-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
+        "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
+        "font-src 'self' https://fonts.gstatic.com; "
+        "img-src 'self' data:; "
+        "object-src 'none'; "
+        "base-uri 'self'; "
+        "frame-ancestors 'self'"
+    )
     return response
 
 @app.route('/')
@@ -394,6 +487,15 @@ def check_frozen():
     """Cek apakah file yang di-drop sudah memiliki korpus beku (frozen corpus).
     Endpoint super instan: cek nama -> jika cocok langsung return (<1ms),
     jika tidak cocok baru ekstrak teks & hash (fallback)."""
+    # [AUDIT FIX 26 Sep] Rate limit endpoint ini: fallback-nya menulis file sementara
+    # ke disk untuk ekstraksi teks. Tanpa batas, penyerang bisa membanjiri disk.
+    # Batas lebih longgar dari /upload (30/menit) karena endpoint ini dipanggil
+    # otomatis setiap kali user memilih file (bukan submit).
+    client_ip = get_client_ip()
+    allowed, remaining = _check_rate_limit(client_ip, max_requests=30, window=60)
+    if not allowed:
+        return jsonify({'exists': False, 'error': f'Rate limit terlampaui. Coba lagi dalam {remaining} detik.'}), 429
+
     if 'file' not in request.files:
         return jsonify({'exists': False})
     file = request.files['file']
@@ -444,26 +546,39 @@ def check_frozen():
 
 
 def get_client_ip():
-    """Phase 4 #2: Rate limiting dengan proper IP extraction"""
-    trusted_proxies = {'127.0.0.1', '::1', 'localhost'}
-    if request.remote_addr in trusted_proxies:
+    """Rate limiting dengan proper IP extraction.
+
+    [AUDIT FIX 26 Sep] X-Forwarded-For hanya dipercaya bila TRUST_PROXY=1.
+    Versi lama mempercayai XFF setiap kali remote_addr adalah localhost — saat
+    server diakses langsung (bukan lewat reverse proxy), header XFF bisa DIPALSUKAN
+    oleh klien untuk bypass rate limit sepenuhnya.
+    Saat TRUST_PROXY=1, ambil elemen TERAKHIR yang ditambahkan proxy tepercaya
+    (bukan [0] yang bisa disuntik klien)."""
+    if os.environ.get('TRUST_PROXY', '0') == '1':
         forwarded = request.headers.get("X-Forwarded-For")
         if forwarded:
-            return forwarded.split(',')[0].strip()
+            # Proxy tepercaya menambahkan IP klien di paling KANAN.
+            return forwarded.split(',')[-1].strip()
     return request.remote_addr or 'unknown'
 
-def _check_rate_limit(ip):
-    """Check rate limit for IP. Returns (allowed, remaining_time)"""
+def _check_rate_limit(ip, max_requests=None, window=None):
+    """Check rate limit for IP. Returns (allowed, remaining_time).
+    [AUDIT FIX 26 Sep] Parameter opsional agar endpoint berbeda bisa punya batas
+    berbeda (mis. /check_frozen 30/menit, /upload 10/menit) tanpa DB terpisah."""
+    max_req = max_requests if max_requests is not None else RATE_LIMIT_MAX_REQUESTS
+    win = window if window is not None else RATE_LIMIT_WINDOW
     now = time.time()
     with _rate_limit_lock:
-        if ip not in _rate_limit_db:
-            _rate_limit_db[ip] = []
-        _rate_limit_db[ip] = [t for t in _rate_limit_db[ip] if now - t < RATE_LIMIT_WINDOW]
-        if len(_rate_limit_db[ip]) >= RATE_LIMIT_MAX_REQUESTS:
-            oldest = _rate_limit_db[ip][0]
-            remaining = int(RATE_LIMIT_WINDOW - (now - oldest)) + 1
+        # Key gabungan (ip, batas) agar kebijakan berbeda tidak saling mengganggu
+        key = f"{ip}|{max_req}|{win}"
+        if key not in _rate_limit_db:
+            _rate_limit_db[key] = []
+        _rate_limit_db[key] = [t for t in _rate_limit_db[key] if now - t < win]
+        if len(_rate_limit_db[key]) >= max_req:
+            oldest = _rate_limit_db[key][0]
+            remaining = int(win - (now - oldest)) + 1
             return False, remaining
-        _rate_limit_db[ip].append(now)
+        _rate_limit_db[key].append(now)
         return True, 0
 
 @app.route('/upload', methods=['POST'])
@@ -495,9 +610,27 @@ def upload_file():
         # SECURITY FIX: Use cryptographically secure UUID instead of predictable timestamp
         file_id = str(uuid.uuid4())
         ext = os.path.splitext(filename)[1]
+
+        # SECURITY FIX: Store session ID for ownership validation
+        if 'session_id' not in session:
+            session['session_id'] = secrets.token_urlsafe(32)
+
+        # [AUDIT FIX 26 Sep] Cek kapasitas SEBELUM menyimpan file ke disk.
+        # Versi lama: file.save() terjadi lebih dulu, sehingga saat server penuh (503)
+        # file sudah tertinggal di uploads/ tanpa proses yang mengonsumsinya (orphan)
+        # dan menumpuk sampai TTL cleanup 2 jam. Sekarang cek dulu -> tidak ada orphan.
+        with RESULTS_DB_LOCK:
+            # Cleanup inline for safety if background thread hasn't run
+            cutoff = time.time() - (RESULTS_DB_TTL_HOURS * 3600)
+            to_delete = [k for k, v in results_db.items() if v.get('timestamp', 0) < cutoff]
+            for k in to_delete: del results_db[k]
+
+            if len(results_db) >= MAX_RESULTS_DB_SIZE:
+                return jsonify({'error': 'Server sedang sibuk memproses banyak dokumen. Coba lagi nanti.'}), 503
+
         filepath = os.path.join(app.config['UPLOAD_FOLDER'], f"{file_id}{ext}")
         file.save(filepath)
-        
+
         # H-S4 Fix: Validate actual file magic bytes to prevent MIME type bypass
         try:
             with open(filepath, 'rb') as f_magic:
@@ -511,29 +644,16 @@ def upload_file():
         except Exception:
             if os.path.exists(filepath): os.remove(filepath)
             return jsonify({'error': 'Gagal membaca berkas yang diunggah.'}), 400
-        
-        # SECURITY FIX: Store session ID for ownership validation
-        if 'session_id' not in session:
-            session['session_id'] = secrets.token_urlsafe(32)
-            
+
         with RESULTS_DB_LOCK:
-            # Cleanup inline for safety if background thread hasn't run
-            cutoff = time.time() - (RESULTS_DB_TTL_HOURS * 3600)
-            to_delete = [k for k, v in results_db.items() if v.get('timestamp', 0) < cutoff]
-            for k in to_delete: del results_db[k]
-            
-            if len(results_db) >= MAX_RESULTS_DB_SIZE:
-                return jsonify({'error': 'Server sedang sibuk memproses banyak dokumen. Coba lagi nanti.'}), 503
-        
             results_db[file_id] = {
-                'status': 'processing', 
-                'progress': 0, 
+                'status': 'processing',
+                'progress': 0,
                 'message': 'Memulai proses...',
                 'session_id': session['session_id'],  # Track ownership
                 'timestamp': time.time(),
-
-            'filename': filename
-        }
+                'filename': filename
+            }
         thread = threading.Thread(target=process_document, args=(file_id, filepath, filename, exclude_quotes, exclude_biblio, exclude_small, use_semantic, True, force_scrape, exclude_abstract), daemon=True)
         thread.start()
         
@@ -606,9 +726,12 @@ def report(file_id):
         
     current_session = session.get('session_id')
 
-    # Ownership check yang ketat (Strict Authorization)
-    # Menolak akses jika sesi pengunjung berbeda dengan sesi pembuat laporan
-    if file_data.get('session_id') and file_data.get('session_id') != current_session:
+    # Ownership check yang ketat (Strict Authorization) — FAIL-CLOSED.
+    # PERBAIKAN AUDIT 26 Sep: versi lama hanya menolak bila session_id ADA dan berbeda.
+    # Bila session_id kosong/None (mis. data fallback dari Supabase/disk tanpa sesi),
+    # kondisi pertama False -> seluruh blok 403 DILEWATI -> laporan orang lain terbuka.
+    # Sekarang: session_id kosong ATAU tidak cocok -> TOLAK (fail-closed).
+    if not file_data.get('session_id') or file_data.get('session_id') != current_session:
         error_html = """
         <div style="font-family: sans-serif; max-width: 600px; margin: 100px auto; padding: 30px; border-radius: 10px; background: #fee2e2; border: 1px solid #ef4444; text-align: center;">
             <h2 style="color: #b91c1c; margin-top: 0;">AKSES DITOLAK</h2>
@@ -659,8 +782,9 @@ def download_report(file_id):
             except Exception:
                 pass
 
-    # Ownership check yang ketat (Strict Authorization)
-    if file_data and file_data.get('session_id') and file_data.get('session_id') != current_session:
+    # Ownership check yang ketat (Strict Authorization) — FAIL-CLOSED (perbaikan audit 26 Sep).
+    # Sama seperti /report: session_id kosong kini DITOLAK, bukan dibiarkan lolos.
+    if not file_data or not file_data.get('session_id') or file_data.get('session_id') != current_session:
         error_html = """
         <div style="font-family: sans-serif; max-width: 600px; margin: 100px auto; padding: 30px; border-radius: 10px; background: #fee2e2; border: 1px solid #ef4444; text-align: center;">
             <h2 style="color: #b91c1c; margin-top: 0;">AKSES DITOLAK</h2>
