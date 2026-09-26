@@ -3,6 +3,17 @@ Semantic Similarity Module for Paraphrase Detection
 Uses sentence-transformers to detect paraphrased content that N-Gram might miss
 """
 
+import os
+import logging
+
+# Silence HF/Transformers noise BEFORE importing sentence_transformers
+os.environ.setdefault("HF_HUB_DISABLE_TELEMETRY", "1")
+os.environ.setdefault("TRANSFORMERS_VERBOSITY", "error")
+os.environ.setdefault("HF_HUB_DISABLE_PROGRESS_BARS", "1")
+logging.getLogger("huggingface_hub").setLevel(logging.ERROR)
+logging.getLogger("transformers").setLevel(logging.ERROR)
+logging.getLogger("sentence_transformers").setLevel(logging.ERROR)
+
 from sentence_transformers import SentenceTransformer, util
 import torch
 import numpy as np

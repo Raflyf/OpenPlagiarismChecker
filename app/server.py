@@ -1,4 +1,5 @@
 import os
+import sys
 import time
 import math
 import uuid
@@ -11,17 +12,33 @@ import re
 import warnings
 from dotenv import load_dotenv
 
-# Nonaktifkan peringatan SSL (banyak web kampus SSL-nya kedaluwarsa) & pesan library
-urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
-warnings.filterwarnings("ignore", category=urllib3.exceptions.InsecureRequestWarning)
+# --- SILENCE NOISY LIBRARIES (stderr redirect) ---
+# Banyak library (requests, transformers, primp) mencetak warning ke stderr
+# yang tidak tertangkap oleh logging.basicConfig(). Redirect sementara saat import.
+_devnull = open(os.devnull, 'w')
+_old_stderr = sys.stderr
+
+def silence_stderr():
+    sys.stderr = _devnull
+
+def restore_stderr():
+    sys.stderr = _old_stderr
+
+# Nonaktifkan peringatan SSL & library noise
+silence_stderr()
 try:
-    import requests.packages.urllib3.exceptions
-    requests.packages.urllib3.disable_warnings(requests.packages.urllib3.exceptions.InsecureRequestWarning)
-    warnings.filterwarnings("ignore", category=requests.packages.urllib3.exceptions.InsecureRequestWarning)
-except Exception:
-    pass
-warnings.filterwarnings("ignore", category=RuntimeWarning, message=".*duckduckgo_search.*")
-warnings.filterwarnings("ignore", category=RuntimeWarning, message=".*renamed to.*")
+    urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+    warnings.filterwarnings("ignore", category=urllib3.exceptions.InsecureRequestWarning)
+    try:
+        import requests.packages.urllib3.exceptions
+        requests.packages.urllib3.disable_warnings(requests.packages.urllib3.exceptions.InsecureRequestWarning)
+        warnings.filterwarnings("ignore", category=requests.packages.urllib3.exceptions.InsecureRequestWarning)
+    except Exception:
+        pass
+    warnings.filterwarnings("ignore", category=RuntimeWarning, message=".*duckduckgo_search.*")
+    warnings.filterwarnings("ignore", category=RuntimeWarning, message=".*renamed to.*")
+finally:
+    restore_stderr()
 
 # Load API keys from .env file FIRST before anything else uses them
 load_dotenv()
@@ -30,17 +47,22 @@ from flask import Flask, render_template, request, jsonify, send_file, session
 from werkzeug.utils import secure_filename
 import threading
 import subprocess
-from engine.extractor import extract_text_auto, get_sentences
-from engine.web_scraper import get_candidate_urls, scrape_all_candidates, load_corpus_bank
-from engine.shingling import calculate_similarity, SimilarityCalculator
-from engine.pdf_generator import generate_report_pdf
-from engine.supabase_client import save_job_status_supabase, get_job_status_supabase
-from engine.student_repo import (
-    save_document as student_repo_save,
-    check_against_repository as student_repo_check,
-    repository_stats as student_repo_stats,
-    is_enabled as student_repo_enabled,
-)
+# Import engine dengan stderr dibungkam (SentenceTransformers & PyMuPDF sangat berisik saat import)
+silence_stderr()
+try:
+    from engine.extractor import extract_text_auto, get_sentences
+    from engine.web_scraper import get_candidate_urls, scrape_all_candidates, load_corpus_bank
+    from engine.shingling import calculate_similarity, SimilarityCalculator
+    from engine.pdf_generator import generate_report_pdf
+    from engine.supabase_client import save_job_status_supabase, get_job_status_supabase
+    from engine.student_repo import (
+        save_document as student_repo_save,
+        check_against_repository as student_repo_check,
+        repository_stats as student_repo_stats,
+        is_enabled as student_repo_enabled,
+    )
+finally:
+    restore_stderr()
 
 app = Flask(__name__)
 
@@ -305,8 +327,11 @@ def process_document(file_id, filepath, original_filename, exclude_quotes=True, 
             logger.info(f"Mengunduh teks dari {len(urls)} kandidat (bank dipakai sbg cache)...")
             new_scraped = scrape_all_candidates(urls, preloaded_corpus, progress_cb=scrape_progress)
             
-            # MERGE: Gabungkan korpus eksis + internal repo + hasil scraping live baru
-            corpus = existing_corpus.copy()
+            # [FIX ANTI-SKOR NAIK] Korpus tidak boleh diakumulasi dari run-run sebelumnya.
+            # Setiap run live scraping menghasilkan korpus representatif untuk sesi itu.
+            # Menggabungkan existing_corpus secara kumulatif menyebabkan korpus membesar tak
+            # terbatas (3000 -> 3500 -> 4000 -> 4500) sehingga skor overlap terus naik tiap dicek ulang.
+            corpus = {}
             if internal_matches:
                 corpus.update(internal_matches)
             corpus.update(new_scraped)
