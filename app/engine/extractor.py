@@ -1,4 +1,7 @@
 import fitz
+
+# Suppress MuPDF verbose errors (CID fonts, patterns, etc.)
+fitz.TOOLS.mupdf_display_errors(False)
 import re
 import logging
 import datetime

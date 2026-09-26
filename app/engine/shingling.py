@@ -2,6 +2,8 @@ import re
 import math
 import os
 import logging
+
+os.environ.setdefault("HF_HUB_DISABLE_TELEMETRY","1")
 from functools import lru_cache
 from .semantic_similarity import batch_semantic_check
 
@@ -448,7 +450,7 @@ class SimilarityCalculator:
         logger.info("Layer 1 (N-Gram Exact Match)       : %.2f%%", ngram_similarity)
         logger.info("Layer 2 (Semantic Paraphrase Extra): +%.2f%%", semantic_additional_pct)
         logger.info("Total Raw Similarity (Layer 1 + 2) : %.2f%%", raw_combined_similarity)
-        logger.info("Final Calibrated Similarity (-1.2%): %.2f%%", total_similarity)
+        logger.info("Final Calibrated Similarity (-1.2%%)")
         logger.info("Sumber ditampilkan (>=1%%)          : %d dari %d sumber ber-overlap", len(display_sources), len(sorted_sources))
 
         return display_sources, total_similarity, plagiarized_sentences_data

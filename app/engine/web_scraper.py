@@ -26,6 +26,8 @@ warnings.filterwarnings("ignore", category=XMLParsedAsHTMLWarning)
 warnings.filterwarnings("ignore", category=RuntimeWarning, message=".*duckduckgo_search.*")
 warnings.filterwarnings("ignore", category=RuntimeWarning, message=".*renamed to.*")
 logging.getLogger("duckduckgo_search").setLevel(logging.ERROR)
+logging.getLogger("urllib3.connectionpool").setLevel(logging.WARNING)
+logging.getLogger("urllib3.util.retry").setLevel(logging.WARNING)
 logging.getLogger("ddgs").setLevel(logging.ERROR)
 
 # --- Konstanta Timeout & Pool Global ---
